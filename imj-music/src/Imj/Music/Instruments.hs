@@ -8,21 +8,24 @@ module Imj.Music.Instruments
       , testInstrument
       , stringsInstrument
       , longInstrument
+      , longBellInstrument
       ) where
 
 import           Imj.Prelude
 import           Imj.Music.Types
 
--- it would be nice to have a "sustain that fades slowly"
--- or maybe what I'm looking for is exponential decay
-bell :: AHDSR
-bell = AHDSR 500 200 40000 30000 Linear ProportionaValueDerivative Linear 0.01
 
 -- | This instrument is used by default in 'notes' quasi quoter.
 simpleInstrument, bellInstrument, organicInstrument, shortInstrument, testInstrument, stringsInstrument :: Instrument
-longInstrument :: Instrument
+longInstrument, longBellInstrument :: Instrument
 simpleInstrument = SineSynth $ mkEnvelopeCharacteristicTime 401
-bellInstrument = SineSynthAHDSR AutoRelease bell
+bellInstrument = SineSynthAHDSR AutoRelease $
+  AHDSR
+    500 200 40000 30000
+    Linear
+    ProportionaValueDerivative
+    Linear
+    0.01
 organicInstrument = SineSynthAHDSR AutoRelease
   $ AHDSR
       400 5120 50 12800
@@ -57,4 +60,11 @@ longInstrument = SineSynthAHDSR KeyRelease
       Linear
       ProportionaValueDerivative
       (Eased EaseInOut Circ)
+      0.138
+longBellInstrument = SineSynthAHDSR AutoRelease
+  $ AHDSR
+      1600 160 102400 102400
+      Linear
+      ProportionaValueDerivative
+      (Eased EaseOut Sine)
       0.138

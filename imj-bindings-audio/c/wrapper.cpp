@@ -147,6 +147,8 @@ namespace imajuscule {
       AudioPlatform::PortAudio
       >;
 
+    using AudioFreeze = typename Ctxt::Locking;
+
     auto & getAudioContext() {
       static Ctxt c { GlobalAudioLock<AudioOutPolicy::Master>::get() };
       return c;
@@ -164,8 +166,20 @@ namespace imajuscule {
         n_max_orchestrator_per_channel);
       auto & res = *p;
       {
-        typename Ctxt::Locking l(getAudioContext().getChannelHandler().get_lock());
-        getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade().emplace_back(std::move(p));
+        bool ok = true;
+        {
+          auto & cs = getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade();
+          {
+            AudioFreeze l(getAudioContext().getChannelHandler().get_lock());
+            if(cs.capacity() == cs.size()) {
+              ok = false; // emplace_back will allocate memory while holding the audio lock.
+            }
+            cs.emplace_back(std::move(p));
+          }
+        }
+        if(!ok) {
+          LG(WARN, "addNoXfadeChannels : Memory allocation occured while holding the audio lock");
+        }
       }
       return res;
     }
@@ -389,11 +403,20 @@ extern "C" {
 
     // add a single Xfade channel (needed because soundengine and channel don't support envelopes entirely)
     static constexpr auto n_max_orchestrator_per_channel = 1;
-    getAudioContext().getChannelHandler().getChannels().getChannelsXFade().emplace_back(
-      std::make_unique<XFadeChans>(
+    {
+      auto p = std::make_unique<XFadeChans>(
         getAudioContext().getChannelHandler().get_lock_policy(),
         std::numeric_limits<uint8_t>::max(),
-        n_max_orchestrator_per_channel));
+        n_max_orchestrator_per_channel);
+      {
+        AudioFreeze l(getAudioContext().getChannelHandler().get_lock());
+
+        getAudioContext().getChannelHandler().getChannels().getChannelsXFade().emplace_back(std::move(p));
+        // we reserve enough channels pointers so as to not reallocate while holding the audio lock
+        // in the future.
+        getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade().reserve(100);
+      }
+    }
 
     windVoice().initializeSlow();
     if(!windVoice().initialize(getXfadeChannels())) {

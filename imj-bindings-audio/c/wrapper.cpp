@@ -147,7 +147,7 @@ namespace imajuscule {
       AudioPlatform::PortAudio
       >;
 
-    using AudioFreeze = typename Ctxt::Locking;
+    using AudioFreeze = typename Ctxt::LockFromNRT;
 
     auto & getAudioContext() {
       static Ctxt c { GlobalAudioLock<AudioOutPolicy::Master>::get() };
@@ -168,9 +168,10 @@ namespace imajuscule {
       {
         bool ok = true;
         {
-          auto & cs = getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade();
+          auto & ch = getAudioContext().getChannelHandler();
+          auto & cs = ch.getChannels().getChannelsNoXFade();
           {
-            AudioFreeze l(getAudioContext().getChannelHandler().get_lock());
+            AudioFreeze l(ch.get_lock());
             if(cs.capacity() == cs.size()) {
               ok = false; // emplace_back will allocate memory while holding the audio lock.
             }

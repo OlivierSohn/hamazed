@@ -76,7 +76,7 @@ mkCenterColor UseServerStartTime = do
       n = t `mod` nColors
   return $ rotateHue (fromIntegral n / fromIntegral nColors) ref
 
--- | This function assumes that 'ClientId's start at 0 and are ascending.
+-- | This function assumes that 'ClientId's start at 0 and are ascending.
 --
 -- It will cycle through the colors of same intensity than the color passed as argument.
 mkClientColorFromCenter :: ClientId

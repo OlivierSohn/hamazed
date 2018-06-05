@@ -113,9 +113,9 @@ withAnim' :: (GameLogicT e ~ g
           -> m a
           -> m a
 withAnim' infoType act = do
-  gets game >>= \(Game _ _ (GameState g1 _) _ _ names1 _ _ _ _) -> do
+  gets game >>= \(Game _ _ (GameState g1 _) _ _ names1 _ _ _ _) -> do
     res <- act
-    gets game >>= \(Game _ screen (GameState g2 _) _ _ names2 _ _ _ _) -> do
+    gets game >>= \(Game _ screen (GameState g2 _) _ _ names2 _ _ _ _) -> do
       t <- liftIO getSystemTime
       putAnimation $ mkAnim infoType t screen names1 names2 g1 g2
     return res

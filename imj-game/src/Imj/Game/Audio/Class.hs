@@ -25,7 +25,7 @@ class Audio e where
     :: (MonadIO m)
     => e -> Music -> m ()
 
--- | Muted audio
+-- | Muted audio
 instance Audio () where
   defaultAudio = ()
   withAudio _ = id

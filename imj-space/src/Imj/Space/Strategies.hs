@@ -101,7 +101,7 @@ lookupOptimalStrategy (SWCharacteristics sz nComps proba) maxDuration(OptimalStr
   let ok = Map.mapKeysMonotonic userWallProbability $
            Map.filterWithKey
             (\(SWCharacteristics sz' nComps' _) (OptimalStrategy _ dt) ->
-              dt < maxDuration && sz' == sz && nComps' == nComps)
+              dt < maxDuration && sz' == sz && nComps' == nComps)
             m
   in case Map.assocs ok of
       [] -> Left ()
@@ -179,7 +179,7 @@ prettyShowOptimalStrategies (OptimalStrategies m) =
 
 
 splitKeys :: (Ord k, Ord k1, Ord k2)
-          => (k -> (k1, k2))
+          => (k -> (k1, k2))
           -- ^ is expected to be injective
           -> Map k v
           -> Map k1 (Map k2 v)

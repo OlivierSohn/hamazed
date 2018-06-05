@@ -157,7 +157,7 @@ onNewFonts r fonts margin ppu fontVars = either
     -- restore the previous sizes
     applySizes fonts
     return $ Left e)
-  (\newFonts -> do
+  (\newFonts -> do
       swapMVar r (RenderingOptions fontVars AllFont ppu margin newFonts)
           >>= \(RenderingOptions _ _ _ _ oldFonts) -> do
             print (ppu,margin,newFonts)
@@ -176,7 +176,7 @@ withFont b s f =
     (return . Right)
 
 {-# INLINABLE quotCeil #-}
-quotCeil :: (Integral a) => a -> a -> a
+quotCeil :: (Integral a) => a -> a -> a
 quotCeil x y =
   let (q,r) = quotRem x y
   in if r == 0

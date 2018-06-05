@@ -99,7 +99,7 @@ particles producePs moveP canInteract g color seedP frame =
         in Particle canInteract newP g (color frame particleIndex))
     $ zip [0..] $ producePs seedP
 
--- | Integrates the motion according to
+-- | Integrates the motion according to
 -- <https://en.wikipedia.org/wiki/Newton%27s_laws_of_motion#Newton's_first_law Newton's first law>,
 -- assuming no force is applied.
 zeroForceMotion :: Frame
@@ -108,7 +108,7 @@ zeroForceMotion :: Frame
 zeroForceMotion frame (VecPosSpeed pos speed) =
   VecPosSpeed (sumVec2d pos $ integrateVelocity frame speed) speed
 
--- | Integrates the motion according to
+-- | Integrates the motion according to
 -- <https://en.wikipedia.org/wiki/Newton%27s_laws_of_motion#Newton's_first_law Newton's first law>,
 -- with the effect of gravity.
 gravityMotion :: Frame
@@ -232,7 +232,7 @@ animateRadius i nSides =
         | nSides <= 4 = 5
         | nSides <= 6 = 7
         | otherwise   = 10
-  in if i < limit
+  in if i < limit
        then
          i
        else

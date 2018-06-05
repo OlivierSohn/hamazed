@@ -41,10 +41,10 @@ data ClientEvent s =
   deriving(Generic)
 instance (Server s, ServerClientHandler s) => Show (ClientEvent s) where
   show = \case
-    ClientAppEvt x -> show ("ClientAppEvt",x)
-    Connect x y z -> show ("Connect",x,y,z)
-    ExitedState x -> show ("ExitedState",x)
-    OnCommand x -> show ("OnCommand",x)
+    ClientAppEvt x -> show ("ClientAppEvt",x)
+    Connect x y z -> show ("Connect",x,y,z)
+    ExitedState x -> show ("ExitedState",x)
+    OnCommand x -> show ("OnCommand",x)
 instance (Server s, ServerClientHandler s) => Binary (ClientEvent s)
 instance (Server s, ServerClientHandler s) => WebSocketsData (ClientEvent s) where
   fromDataMessage (Text t _) =

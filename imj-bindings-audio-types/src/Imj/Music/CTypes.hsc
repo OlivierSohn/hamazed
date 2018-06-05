@@ -88,7 +88,7 @@ allInterpolations = Set.fromList $
   [Eased e i | e <- allEases, i <- allEasedInterpolations]
 
 -- cf. enum interpolation in interpolation.h
-itpToInt :: Interpolation -> Int
+itpToInt :: Interpolation -> Int
 itpToInt = \case
   Linear -> 0
   ProportionaValueDerivative -> 1

@@ -421,7 +421,7 @@ approximateGrayComponentAsRGBComponent _ 0 = 0
 approximateGrayComponentAsRGBComponent _ 1 = 0
 approximateGrayComponentAsRGBComponent colorComponent grayComponent =
   let c = grayComponentToFollowingRGBComponent grayComponent
-  in if colorComponent < c
+  in if colorComponent < c
        then
          -- using the /following/ component, we went in the wrong direction
          -- so we take the previous one.

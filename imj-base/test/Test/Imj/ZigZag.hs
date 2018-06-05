@@ -6,7 +6,7 @@ import           Control.Monad(when)
 
 import           Imj.Util
 
--- | returns 1 on success, else errors
+-- | returns 1 on success, else errors
 testZigZag :: IO Bool
 testZigZag = do
   let res = map (zigzag 3 7) [0..15]

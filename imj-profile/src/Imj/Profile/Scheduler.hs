@@ -147,7 +147,7 @@ withTestScheduler' intent testF initialProgress report =
                   (go' world otherStrategies)
                   (\case
                     Timeout -> error "logic"
-                    NotStarted -> error "logic"
+                    NotStarted -> error "logic"
                     f@(Finished dt' _) -> bool
                       (onTimeoutMismatch dt dt' >> go' world otherStrategies)
                       (return $ Just (strategy,f))
@@ -162,7 +162,7 @@ onTimeoutMismatch specified actual
   | actual <= 2 .* specified = return ()
   | otherwise = putStrLn $ unwords ["Big timeout mismatch:", showTime specified, showTime actual]
 
-continue :: MVar UserIntent -> IO Bool
+continue :: MVar UserIntent -> IO Bool
 continue intent = readMVar intent >>= \case
   Cancel -> return False
   Pause _ -> do
@@ -177,9 +177,9 @@ continue intent = readMVar intent >>= \case
   _ -> return True
 
 -- note that even in case of timeout we could provide some stats.
-mkResultFromStats :: MkSpaceResult a -> Statistics -> TestStatus Statistics
+mkResultFromStats :: MkSpaceResult a -> Statistics -> TestStatus Statistics
 mkResultFromStats res stats = case res of
-  NeedMoreTime -> Timeout
+  NeedMoreTime -> Timeout
   Impossible err -> error $ "impossible :" ++ show err
   Success _ -> Finished (totalDuration $ durations stats) stats
 
@@ -222,7 +222,7 @@ refineWithHint world@(SWCharacteristics sz _ _) testF hintStrategy strategies = 
               fmap (uncurry mkResultFromStats) <$> withNumberedSeeds (testF (Just maxDt) props) seedGroup >>= maybe
                 (return $ Left ())
                 (\case
-                  Timeout -> error "logic"
+                  Timeout -> error "logic"
                   NotStarted -> error "logic"
                   f@(Finished dt _) ->
                     bool
@@ -258,8 +258,8 @@ mkBestSofar s l = do
     maxTime = foldl' (\t r -> max (getTime r) t) zeroDuration results
 
     getTime = \case
-      Timeout -> error "logic"
-      NotStarted -> error "logic"
+      Timeout -> error "logic"
+      NotStarted -> error "logic"
       Finished dt _ -> dt
 
 data DurationConstraints = DurationConstraints {
@@ -285,8 +285,8 @@ smallWorldCharacteristicsDistance (SWCharacteristics sz cc p) (SWCharacteristics
 
    doubleSize -- 1 when size doubles
     | a == a' = 0
-    | a' == 0 = 1000000
-    | ratio > 1 = ratio - 1
+    | a' == 0 = 1000000
+    | ratio > 1 = ratio - 1
     | otherwise = (1 / ratio) - 1
     where
       a = area sz

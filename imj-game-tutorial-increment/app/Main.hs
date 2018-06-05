@@ -178,7 +178,7 @@ instance Server IncServer where
   greetNewcomer =
     (:[]) . CounterValue <$> getsState theServerCounter
 
--- | The player can type commands in the chat window. By default, it is possible to
+-- | The player can type commands in the chat window. By default, it is possible to
 -- change the player name using @/name newPlayerName@, and to change the color using
 -- @/color 3 2 1@. Here, we add a command parser for the @/reset@ command name:
 -- with this command, the counter will reset to 0.

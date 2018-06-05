@@ -199,7 +199,7 @@ verifyMat s sm@(SmallMatInfo nAir m) = do
 mkSmallMatUnchecked :: GenIO
                     -> AlmostFloat
                     -- ^ Probability to generate a wall
-                    -> Size
+                    -> Size
                     -- ^ Size of the matrix
                     -> IO (ByteArray,SmallMatInfo)
 mkSmallMatUnchecked gen wallAirRatio s@(Size nRows nCols) = do

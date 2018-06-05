@@ -11,7 +11,7 @@ import qualified Data.Map.Strict as Map
 
 import           Imj.Music.Types
 
-addNote :: NoteSpec -> PianoState -> (Int, PianoState)
+addNote :: NoteSpec -> PianoState -> (Int, PianoState)
 addNote n (PianoState s) = (1, PianoState $ Map.insertWith (+) n 1 s)
 
 removeNote :: NoteSpec -> PianoState -> (Int,PianoState)

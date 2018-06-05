@@ -100,4 +100,4 @@ onReport f intent = readMVar intent >>= \case
   i@(Report prevIntent) -> do
     f i
     modifyMVar_ intent $ const $ return $ firstNonReport prevIntent
-  _ -> return ()
+  _ -> return ()

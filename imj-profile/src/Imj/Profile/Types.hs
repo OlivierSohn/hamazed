@@ -59,7 +59,7 @@ mkZeroProgress worlds strategies = do
 
 updateProgress :: Time Duration System
                -> Map (SmallWorldCharacteristics Program) (Maybe MatrixVariantsSpec)
-               -> [[SmallWorldCharacteristics Program]]
+               -> [[SmallWorldCharacteristics Program]]
                -> [[SmallWorldCharacteristics Program]]
                -> MaybeResults (NonEmpty SeedNumber)
                -> TestProgress

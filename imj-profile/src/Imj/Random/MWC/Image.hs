@@ -26,7 +26,7 @@ import           Imj.Random.MWC.Util
 import           Imj.Space
 import           Imj.Util
 
-mkMWC256Image :: SeedNumber -> Size -> AlmostFloat -> IO (Image Word8)
+mkMWC256Image :: SeedNumber -> Size -> AlmostFloat -> IO (Image Word8)
 mkMWC256Image seed sz@(Size (Length h) (Length w)) proba =
   withNumberedSeeds genImg (pure seed)
  where
@@ -46,7 +46,7 @@ mkMWC256Image seed sz@(Size (Length h) (Length w)) proba =
   genImg _ = fail "logic"
 
 
-mkMWC256ImageGray :: SeedNumber -> Size -> IO (Image Word8)
+mkMWC256ImageGray :: SeedNumber -> Size -> IO (Image Word8)
 mkMWC256ImageGray seed sz@(Size (Length h) (Length w)) =
   withNumberedSeeds genImg (pure seed)
  where
@@ -69,7 +69,7 @@ mkMWC256ImageGray seed sz@(Size (Length h) (Length w)) =
   genImg _ = fail "logic"
 
 
-mkMWC256ImageGray' :: SeedNumber -> Size -> IO (Image Word8)
+mkMWC256ImageGray' :: SeedNumber -> Size -> IO (Image Word8)
 mkMWC256ImageGray' seed sz@(Size (Length h) (Length w)) =
   withNumberedSeeds genImg (pure seed)
  where
@@ -87,7 +87,7 @@ mkMWC256ImageGray' seed sz@(Size (Length h) (Length w)) =
       w h
   genImg _ = fail "logic"
 
-mkMWC256ImageRGB :: SeedNumber -> Size -> IO (Image PixelRGB8)
+mkMWC256ImageRGB :: SeedNumber -> Size -> IO (Image PixelRGB8)
 mkMWC256ImageRGB seed sz@(Size (Length h) (Length w)) =
   withNumberedSeeds genImg (pure seed)
  where

@@ -51,4 +51,4 @@ randUUID :: IO UUID
 randUUID = withSystemRandom . asGenIO $ \gen ->
   forM [0 :: Int ..3] (const $ uniform gen) >>= \case
     [w1,w2,w3,w4] -> return $ fromWords w1 w2 w3 w4
-    _ -> error "logic"
+    _ -> error "logic"

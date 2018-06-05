@@ -111,7 +111,7 @@ resampleWithExtremities input' n m
   go _ _ _ [] = []
   go curIdx overRepIdx s (v:vs)
   -- uncomment the following line to debug cases where the assert on the line after would fail:
-  --        | overIdx < curIdx = error ("\noverIdx " ++ show overIdx ++ "\ncurIdx  " ++ show curIdx ++ "\nm' " ++ show m' ++ "\nn " ++ show n ++ "\ns " ++ show s)
+  --        | overIdx < curIdx = error ("\noverIdx " ++ show overIdx ++ "\ncurIdx  " ++ show curIdx ++ "\nm' " ++ show m' ++ "\nn " ++ show n ++ "\ns " ++ show s)
     | assert (overRepIdx >= curIdx) overRepIdx == curIdx =
         let nextS = s + 1
         in replicate (r+1) v ++ go (curIdx + 1) (getOverRepIdx nextS) nextS vs
@@ -120,7 +120,7 @@ resampleWithExtremities input' n m
 
   -- Returns maxBound when there is no over-representation
   getOverRepIdx s
-    | m' >  1 = floor( 0.5 + (fromIntegral ((n - 1) * s) :: Float) / fromIntegral (m'-1))
+    | m' >  1 = floor( 0.5 + (fromIntegral ((n - 1) * s) :: Float) / fromIntegral (m'-1))
     | m' == 1 = if s == 0
                   then
                     quot n 2
@@ -153,7 +153,7 @@ mkMinMax (e:rest) = go rest $ MinMax e e 1
  where
   go [] x = x
   go (v:vs) c@(MinMax l h n)
-   | v < l = go vs $ MinMax v h $ n + 1
+   | v < l = go vs $ MinMax v h $ n + 1
    | v > h = go vs $ MinMax l v $ n + 1
    | otherwise = go vs c
 
@@ -185,7 +185,7 @@ resampleMinMaxLinear i inLen outLen
   go inp l r =
     let len
           | r == 0 = lastBucketLen
-          | otherwise = bucketLen
+          | otherwise = bucketLen
         (scope,rest) = splitAt len inp
         nextL
          | null scope = l
@@ -228,12 +228,12 @@ resampleMinMaxLogarithmic i n m
   | otherwise =
       reverse $ go (take n i) 0 0 []
      where
-      -- Assuming m >= 2 and n >= 2, we want x /= 1 such that:
+      -- Assuming m >= 2 and n >= 2, we want x /= 1 such that:
       --   n = (1-x^m)/(1-x)
       --   n * (1-x) = 1-x^m
       --   x^m - n*x + n-1 = 0
       --
-      -- @f(y) = x^m - n*x + n - 1@ has exactly one root > 1 because:
+      -- @f(y) = x^m - n*x + n - 1@ has exactly one root > 1 because:
       --
       -- The derivative of the curve is:
       --  m * x^(m-1) - n
@@ -246,7 +246,7 @@ resampleMinMaxLogarithmic i n m
       --
       -- Now we try to find lower and upper bounds for this root > 1 :
       --
-      -- A lower bound for this root is the smallest x > 1 such that m * x^(m-1) - n = 0
+      -- A lower bound for this root is the smallest x > 1 such that m * x^(m-1) - n = 0
       -- => lowerBound = (n/m)^(1/(m-1))
       lowerBound = (fromIntegral n / fromIntegral m)**(1/(fromIntegral m - 1))
       -- Upperbounds must verify:
@@ -258,7 +258,7 @@ resampleMinMaxLogarithmic i n m
 
       -- m >= 2, hence n/m <= n/2
       -- n >= 2, hence n/2 <= n-1
-      -- hence n/m <= n-1, and  lowerBound < upperBound, so we can apply the Newton root-finding method:
+      -- hence n/m <= n-1, and  lowerBound < upperBound, so we can apply the Newton root-finding method:
       mayRoot = findRoot
         (\x -> x^m - fromIntegral n*(x-1) - 1)
         (\x -> fromIntegral m * x^(m-1) - fromIntegral n)

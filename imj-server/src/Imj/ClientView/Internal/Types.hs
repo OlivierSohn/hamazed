@@ -51,7 +51,7 @@ data ClientView c = ClientView {
   , getColor :: {-# UNPACK #-} !(Color8 Foreground)
   , unClientView :: !c
 } deriving(Generic)
-instance NFData c => NFData (ClientView c) where
+instance NFData c => NFData (ClientView c) where
   rnf (ClientView _ a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
 instance Show c => Show (ClientView c) where
   show (ClientView _ a b c d ) = show ("ClientView" :: String,a,b,c,d)

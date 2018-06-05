@@ -115,7 +115,7 @@ triggerRenderOr readInput = visible <$> gets eventsGroup >>= \needsRender ->
                     waitEvts
                     liftIO (atomicModifyIORef' countStopped (\v -> (v,v))) >>= \case
                       0 -> go
-                      _ -> liftIO (wait a >>= \(res,asy) -> do
+                      _ -> liftIO (wait a >>= \(res,asy) -> do
                         void $ forkIO $ cancel asy
                         return res)
               go)

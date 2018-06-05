@@ -61,7 +61,7 @@ contains a@(RectArea (Coords r1 c1) (Coords r2 c2)) (Coords r c)
   -- viewport could be empty:
   | isEmpty a = False
   -- coordinates could be outside bounds:
-  | otherwise = not $ r < r1 || r > r2 || c < c1 || c > c2
+  | otherwise = not $ r < r1 || r > r2 || c < c1 || c > c2
 
 rectAreaCenter :: RectArea a -> Coords Pos
 rectAreaCenter (RectArea from to) =

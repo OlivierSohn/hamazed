@@ -400,7 +400,7 @@ shipParticleSystems k =
 moveWorld :: MonadState (AppState HamazedGame) m
           => Map ShipId (Coords Vel)
           -> Set ShipId
-          -> m ()
+          -> m ()
 moveWorld accelerations shipsLosingArmor = getWorld >>= fmapM (\(World balls ships space' rs f) -> do
   let newBalls =
         Map.map (\n@(Number e@(NumberEssence ps _ _) colors _) ->
@@ -421,7 +421,7 @@ moveWorld accelerations shipsLosingArmor = getWorld >>= fmapM (\(World balls shi
               | otherwise = Destroyed
 
             newStatus = case status of
-              Destroyed -> Destroyed
+              Destroyed -> Destroyed
               Armored ->
                 if sid `elem` shipsLosingArmor
                   then
@@ -588,7 +588,7 @@ checkTargetAndAmmo :: Int
                    -- ^ The current sum of all shot 'Numbers'
                    -> LevelTarget
                    -- ^ The 'Level' 's target number.
-                   -> Maybe LevelOutcome
+                   -> Maybe LevelOutcome
 checkTargetAndAmmo ammo currentNumber (LevelTarget goal constraint) =
     checkSum <|> checkAmmo <|> Nothing
   where

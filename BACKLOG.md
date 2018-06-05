@@ -1,8 +1,14 @@
+
 - To improve latency, use memory pools for :
 * channels
 * instruments.
 
+https://github.com/foonathan/memory/blob/d18f21408b1495c3aa17948425e8ad0ec9a5669e/include/foonathan/memory/smart_ptr.hpp
+to allocate a unique_ptr object
 https://github.com/foonathan/memory/blob/master/include/foonathan/memory/memory_pool.hpp
+pool
+https://github.com/foonathan/memory/blob/ca1cad564d8f0df096ebb273c22c56a41d607117/include/foonathan/memory/allocator_storage.hpp
+handles access to the allocator
 
 A garbage collection mechanism will be implemented for instruments and channels,
 still, sometimes the pool will need to grow : the user of the library is free to specify
@@ -20,6 +26,10 @@ maintain a global list (under lock) of lambdas pairs:
         if all mononotechannel elements enveloppes are done.
       the function should take the isUsed lock of the instrument else race conditions will occur.
   - one to finalize the synth (and hence return the channels) : after calling this we remove the pair.
+
+- we can improve the memory layout of audioelements : today, almost half the bits are unused
+in MonoNoteChannel<VolumeAdjustedOscillator<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>>.
+(see testFreeList)
 
 - make a player app where a melody is played and we can interactively change the instrument used to play it.
 

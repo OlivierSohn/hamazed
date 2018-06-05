@@ -39,7 +39,7 @@ instance Show AlmostFloat where
     str = showFFloat (Just 6) f ""
     trimZeros = bool id (reverse . dropWhile (=='0') . reverse) $ '.' `elem` str
 
-almostDistance :: AlmostFloat -> AlmostFloat -> Float
+almostDistance :: AlmostFloat -> AlmostFloat -> Float
 almostDistance a@(AlmostFloat f) a'@(AlmostFloat f')
   | a == a' = 0
   | otherwise = abs(f-f')

@@ -64,7 +64,7 @@ instance ColorTheme ColorCycles where
     thisHue = fromMaybe refHue $ hue c -- gray ships are assimilated to refShipColor
     r = rotateHues $ thisHue - refHue
 
-rotateHues :: Float -> ColorCycle a -> ColorCycle a
+rotateHues :: Float -> ColorCycle a -> ColorCycle a
 rotateHues dh (ColorCycle a b) =
   ColorCycle (rotateHue dh a) (rotateHue dh b)
 

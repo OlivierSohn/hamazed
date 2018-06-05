@@ -64,7 +64,7 @@ data EventCategory =
 
 data EventRepr = EventRepr {-# UNPACK #-} !Char {-# UNPACK #-} !(Color8 Foreground)
 
-evtRepToCS :: EventRepr -> ColorString
+evtRepToCS :: EventRepr -> ColorString
 evtRepToCS (EventRepr c color) = colored (singleton c) color
 
 evtCatToRep :: EventCategory -> EventRepr

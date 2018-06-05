@@ -124,7 +124,7 @@ class GameLogic (GameLogicT c)
 
 data EventsForClient g =
     FromClient !(Event (ClientOnlyEvtT g))
-  | FromServer !(ServerEvent (ServerT g))
+  | FromServer !(ServerEvent (ServerT g))
   deriving(Generic)
 instance (GameLogic g) => Show (EventsForClient g) where
   show (FromClient e) = show ("FromClient", e)
@@ -159,7 +159,7 @@ class (LeftInfo (ClientInfoT g))
 
   -- | Returns the color of the external frame. Defaults to 'rgb 2 1 1'.
   getFrameColor :: Maybe g
-                -> LayeredColor
+                -> LayeredColor
   getFrameColor _ = onBlack $ rgb 2 1 1
 
   -- | Returns the position of the external frame.

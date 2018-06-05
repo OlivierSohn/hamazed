@@ -56,7 +56,7 @@ mkWorld (WorldEssence balls ships space) wid =
   let renderedSpace = mkRenderedSpace materialColor materialGlyph space
   in World (Map.map mkNumber balls) ships space renderedSpace wid
 
-worldToEssence :: World -> (WorldEssence, WorldId)
+worldToEssence :: World -> (WorldEssence, WorldId)
 worldToEssence (World balls ships space _ wid) =
   (WorldEssence (Map.map getNumEssence balls) ships space, wid)
 
@@ -122,7 +122,7 @@ mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shap
 -- | Updates 'PosSpeed' of a movable item, according to 'Space'.
 updateMovableItem :: Space
                   -- ^ The surrounding 'Space' will be taken into account for collisions.
-                  -> PosSpeed
+                  -> PosSpeed
                   -- ^ The current position and speed of the moving item.
                   -> PosSpeed
                   -- ^ The updated position and speed.
@@ -151,7 +151,7 @@ doBallMotionUntilCollision :: Space -> PosSpeed -> PosSpeed
 doBallMotionUntilCollision space (PosSpeed pos speed) =
   let trajectory = bresenham $ mkSegment pos $ sumPosSpeed pos speed
   in case trajectory of
-    [] -> error "logic"
+    [] -> error "logic"
     _:_ ->
       let newPos = maybe (Unsafe.last trajectory) snd $ firstCollision (`location` space) trajectory
       in PosSpeed newPos speed

@@ -51,7 +51,7 @@ renderResultsHtml :: UUID
                   -> IO FilePath
 renderResultsHtml k status resultsAndSubresults = do
   deleteOrRename dir k
-  renderCss (dir <> "/" <> cssName) mkCss
+  renderCss (dir <> "/" <> cssName) mkCss
   renderHtml (dir <> "/html/results") $
     fromHeaderBody
       (do

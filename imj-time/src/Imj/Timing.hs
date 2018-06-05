@@ -130,12 +130,12 @@ newtype Multiplicator a = Multiplicator Double deriving(Eq, Show, Generic, Prett
 
 
 {-# INLINE fromSystemDuration #-}
-fromSystemDuration :: Multiplicator a -> Time Duration System -> Time Duration a
+fromSystemDuration :: Multiplicator a -> Time Duration System -> Time Duration a
 fromSystemDuration (Multiplicator m) =
   unsafeFromTimeSpec . unsafeGetTimeSpec . (.*) m
 
 {-# INLINE toSystemDuration #-}
-toSystemDuration :: Multiplicator a -> Time Duration a -> Time Duration System
+toSystemDuration :: Multiplicator a -> Time Duration a -> Time Duration System
 toSystemDuration (Multiplicator m) =
   (.*) (1/m) . unsafeFromTimeSpec . unsafeGetTimeSpec
 
@@ -147,11 +147,11 @@ Time a |-| Time b = Time $ a-b
 (|+|) :: Time Duration a -> Time Duration a -> Time Duration a
 Time a |+| Time b = Time $ a+b
 {- | Scalar multiplication for 'Time' 'Duration' -}
-(.*) :: Double -> Time Duration a -> Time Duration a
+(.*) :: Double -> Time Duration a -> Time Duration a
 scale .* t =
   fromSecs $ scale * unsafeToSecs t
 {- | 'Time' 'Duration' ratio -}
-(./) :: Time Duration a -> Time Duration a -> Double
+(./) :: Time Duration a -> Time Duration a -> Double
 a ./ b =
   unsafeToSecs a / unsafeToSecs b
 {-# INLINE (.*) #-}
@@ -239,7 +239,7 @@ unsafeFromTimeSpec = Time
 
 {-# INLINE strictlyNegative #-}
 strictlyNegative :: Time Duration a -> Bool
-strictlyNegative (Time t) = t < 0
+strictlyNegative (Time t) = t < 0
 
 
 data TimeRange a = TimeRange {
@@ -258,8 +258,8 @@ timeSpan (TimeRange v1 v2) = v1...v2
 {-# INLINABLE extendRange #-}
 extendRange :: Time Point a -> TimeRange a -> TimeRange a
 extendRange !v r@(TimeRange v1 v2)
-  | v < v1 = TimeRange v v2
-  | v > v2 = TimeRange v1 v
+  | v < v1 = TimeRange v v2
+  | v > v2 = TimeRange v1 v
   | otherwise = r
 
 getCurrentSecond :: IO Int

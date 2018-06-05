@@ -7,7 +7,7 @@ import           Prelude hiding (length, read)
 
 import           Imj.Data.Vector.Unboxed.Mutable.Dynamic
 
--- | returns 1 on success, else errors
+-- | returns 1 on success, else errors
 testVector :: IO Bool
 testVector = do
   mapM_ testWithCapacity [0..28]

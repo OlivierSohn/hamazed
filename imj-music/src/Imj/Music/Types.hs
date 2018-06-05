@@ -83,7 +83,7 @@ data NoteSpec = NoteSpec !NoteName {-# UNPACK #-} !Octave !Instrument
 instance Binary NoteSpec
 instance NFData NoteSpec
 instance Ord NoteSpec where
-  compare n@(NoteSpec _ _ a) m@(NoteSpec _ _ b) =
+  compare n@(NoteSpec _ _ a) m@(NoteSpec _ _ b) =
     compare (noteToMidiPitch n, a) $ (noteToMidiPitch m, b)
 
 -- | According to http://subsynth.sourceforge.net/midinote2freq.html, C1 has 0 pitch
@@ -109,7 +109,7 @@ data Score = Score {
   _voices :: ![Voice]
 } deriving(Generic,Show, Eq)
 
-mkScore :: Instrument -> [[Symbol]] -> Score
+mkScore :: Instrument -> [[Symbol]] -> Score
 mkScore i s = Score $ map (mkVoice i) s
 
 -- | Keeps track of progress, and loops when the end is found.
@@ -125,7 +125,7 @@ data Voice = Voice {
 mkVoice :: Instrument -> [Symbol] -> Voice
 mkVoice i l = Voice 0 Nothing (V.fromList l) i
 
--- | A music fragment
+-- | A music fragment
 data Music =
      StartNote !NoteSpec {-# UNPACK #-} !MidiVelocity
    | StopNote !NoteSpec

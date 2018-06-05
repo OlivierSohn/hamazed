@@ -73,7 +73,7 @@ mapRange :: (Fractional a, Eq a)
          -> Maybe a
          -- ^ value 2
 mapRange l1 h1 l2 h2 v1
-  | denom == 0 = Nothing
+  | denom == 0 = Nothing
   | otherwise = Just $ l2 + normalized * (h2 - l2)
  where
   denom = h1 - l1
@@ -110,7 +110,7 @@ clamp :: Ord a
       -- ^ The inclusive maximum bound
       -> a
 clamp !n min_ max_
-  | n < min_ = min_
+  | n < min_ = min_
   | n > max_ = max_
   | otherwise = n
 

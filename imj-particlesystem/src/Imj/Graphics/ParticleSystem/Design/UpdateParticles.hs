@@ -201,7 +201,7 @@ getCoordsBeforeMutation'
                   ) $ fronteerIntersection prevVecCoords vecCoords fronteerLine
 
 data PixelFronteer = HorizontalPxFronteer !Float
-                   | VerticalPxFronteer !Float
+                   | VerticalPxFronteer !Float
 
 -- | Find an intersection, if any, between a line and a pixel fronteer.
 fronteerIntersection :: Vec2 Pos

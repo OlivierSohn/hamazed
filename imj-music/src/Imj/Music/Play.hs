@@ -79,7 +79,7 @@ sizeVoice :: Voice -> Int
 sizeVoice (Voice _ _ v _) = V.length v
 
 -- | Like 'stepNVoice' but also uses 'stopVoice' to finalize the music.
-stepNVoiceAndStop :: Int -> Voice -> (Voice, [[Music]])
+stepNVoiceAndStop :: Int -> Voice -> (Voice, [[Music]])
 stepNVoiceAndStop n s =
   (s'', reverse $ lastMusic:music)
  where

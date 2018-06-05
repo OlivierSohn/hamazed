@@ -45,7 +45,7 @@ maximumMaybe = \case
 
 {-# INLINE replicateElements #-}
 -- | Replicates each list element n times and concatenates the result.
-replicateElements :: Int -> [a] -> [a]
+replicateElements :: Int -> [a] -> [a]
 replicateElements n = concatMap (replicate n)
 
 -- | Divides a list in n lists of sizes s or s+1. Bigger lists are placed at the

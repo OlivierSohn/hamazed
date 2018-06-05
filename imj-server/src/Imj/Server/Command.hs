@@ -57,6 +57,6 @@ command = do
         _ ->
           maybe
             (fail $ "'" <> unpack cmdName <> "' is an unknown command.")
-            (\parser -> parser)
+            (\parser -> parser)
             $ cmdParsers !? cmdName
     _ -> RequestApproval . Says . maxOneSpace <$> (takeText <* endOfInput)

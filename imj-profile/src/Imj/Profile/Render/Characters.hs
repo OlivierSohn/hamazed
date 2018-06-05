@@ -125,7 +125,7 @@ showTestResults timeoutValue l title =
     logarithmically 10 $ map (\case
       NTimeouts _ -> fromMaybe (error "Please provide a value") timeoutValue
       FinishedAverage dt _ -> dt
-      NoResult -> error "logic") $ IMap.elems validOrTimeout
+      NoResult -> error "logic") $ IMap.elems validOrTimeout
 
   cancelledNormalizedQuantities =
     IMap.map (const Nothing) cancelled

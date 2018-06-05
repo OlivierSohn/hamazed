@@ -298,7 +298,7 @@ instance ServerClientHandler HamazedServer where
       p@(WallDistribution prevSize _) ->
         let adjustedSize
              | newSize < minBlockSize = minBlockSize
-             | newSize > maxBlockSize = maxBlockSize
+             | newSize > maxBlockSize = maxBlockSize
              | otherwise = newSize
              where newSize = prevSize + i
         in bool
@@ -323,7 +323,7 @@ instance ServerClientHandler HamazedServer where
 instance ServerClientLifecycle HamazedServer where
 
   onStartClient = \case
-    NewClient -> return ()
+    NewClient -> return ()
     ReconnectingClient ->
       getsState scheduledGame >>= liftIO . tryReadMVar >>= maybe
         (serverLog $ pure "No game is running")
@@ -415,7 +415,7 @@ onLevelOutcome playerIds outcome =
       Lost{} ->
         registerScore $ pred levelN
       Won ->
-        if levelN == lastLevel
+        if levelN == lastLevel
           then
             registerScore levelN
           else
@@ -423,7 +423,7 @@ onLevelOutcome playerIds outcome =
 
     notifyEveryoneN $
       (GameInfo $ LevelResult levelN outcome):
-      [GameInfo GameWon | outcome == Won && levelN == lastLevel] ++
+      [GameInfo GameWon | outcome == Won && levelN == lastLevel] ++
       map (GameInfo . Highscores) (maybeToList hs)
 
     adjustAllClients (\c -> case getState c of
@@ -431,7 +431,7 @@ onLevelOutcome playerIds outcome =
       _ -> c)
 
     modifyState $ \s ->
-     if outcome == Won && levelN < lastLevel
+     if outcome == Won && levelN < lastLevel
       then -- next level
         s { levelSpecification = (levelSpecification s) { levelNumber = succ levelN }
           , intent = IntentPlayGame Nothing
@@ -444,7 +444,7 @@ onLevelOutcome playerIds outcome =
       IntentSetup ->
         -- make fresh clients become players
         adjustAllClients' (\c -> case getState c of
-          Just (Playing _) -> error "inconsistent"
+          Just (Playing _) -> error "inconsistent"
           Just ReadyToPlay -> Nothing
           Nothing -> Just $ c { getState = Just ReadyToPlay })
           >>= notifyEveryoneN' . map (PlayerInfo Joins) . Set.toList
@@ -529,7 +529,7 @@ gameScheduler st =
       then return ()
       else
         -- block until 'scheduledGame' contains a 'CurrentGame'
-        readMVar mayGame >>= \(CurrentGame refWorld _ _ _) -> do
+        readMVar mayGame >>= \(CurrentGame refWorld _ _ _) -> do
           let run x = modifyMVar st $ \s -> fmap swap $ runStateT (run' refWorld x) s
               toActOrNotToAct act maybeRefTime continuation = run act >>= \case
                 Executed dt ->
@@ -739,7 +739,7 @@ addStats stats key =
       $ wid == key
 
 gameError :: (MonadIO m, MonadState (ServerState HamazedServer) m, MonadReader ConstClientView m)
-          => String -> m ()
+          => String -> m ()
 gameError = error' "Game"
 
 --------------------------------------------------------------------------------
@@ -799,12 +799,12 @@ onlyPlayersMap = Map.filter (isJust . getState . unClientView) . clientsMap
 
 {-# INLINABLE notifyPlayersN' #-}
 notifyPlayersN' :: (MonadIO m, MonadState (ServerState HamazedServer) m)
-               => [ServerEvent HamazedServer] -> m ()
+               => [ServerEvent HamazedServer] -> m ()
 notifyPlayersN' evts =
   notifyN' evts =<< gets onlyPlayersMap
 
 {-# INLINABLE notifyPlayers #-}
 notifyPlayers :: (MonadIO m, MonadState (ServerState HamazedServer) m)
-              => ServerEventT HamazedServer -> m ()
+              => ServerEventT HamazedServer -> m ()
 notifyPlayers evt =
   notifyN [evt] =<< gets onlyPlayersMap

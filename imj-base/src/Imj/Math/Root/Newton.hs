@@ -131,6 +131,6 @@ findRoot f df low high
 
     takeBest (b, vB, n)
       | b == from = Just (b, StoppedProgressing) -- we are in a cycle
-      | vFrom < vB = newtonRoot newton $ Just (from, vFrom, 1::Int) -- we have a new best.
-      | n > 100 = Just (b, StoppedProgressing) -- the best didn't change in 100 iterations, return it.
+      | vFrom < vB = newtonRoot newton $ Just (from, vFrom, 1::Int) -- we have a new best.
+      | n > 100 = Just (b, StoppedProgressing) -- the best didn't change in 100 iterations, return it.
       | otherwise = newtonRoot newton $ Just (b, vB, n+1)

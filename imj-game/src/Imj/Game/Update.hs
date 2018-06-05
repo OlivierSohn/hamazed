@@ -298,7 +298,7 @@ updateStatus mayFrame t = gets game >>= \(Game state (Screen _ ref) _ _ drawnSta
     ClientState Over x -> case x of
       Excluded ->
         inform "Joining..."
-      Included y -> case y of
+      Included y -> case y of
         Setup ->
           inform "..."
         (PlayLevel _) ->
@@ -306,7 +306,7 @@ updateStatus mayFrame t = gets game >>= \(Game state (Screen _ ref) _ _ drawnSta
     ClientState Ongoing x -> case x of
       Excluded ->
         inform "A game is currently running on the server, please wait..."
-      Included y -> case y of
+      Included y -> case y of
         Setup ->
           return []
         PlayLevel (Countdown n Running) ->

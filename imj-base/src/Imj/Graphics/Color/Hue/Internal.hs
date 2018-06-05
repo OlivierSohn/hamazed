@@ -233,7 +233,7 @@ saturatedToRgb s@(SaturatedColor intensity idx) =
 {-# INLINE rgbToSaturated #-}
 rgbToSaturated :: Int -> Int -> Int -> SaturatedColor a
 rgbToSaturated r g b = case max3 r g b of
-  0 -> mkBlackSaturated
+  0 -> mkBlackSaturated
   i ->
     let intensity = mkIntensity i
         l = edgeLength intensity
@@ -249,7 +249,7 @@ rgbToSaturated r g b = case max3 r g b of
                                 <|> fmap (4*l +) (computeIndex b r g)
     in SaturatedColor intensity index
 
-rotateHue'' :: Float -> SaturatedColor a -> SaturatedColor a
+rotateHue'' :: Float -> SaturatedColor a -> SaturatedColor a
 rotateHue'' _ c@(SaturatedColor (Intensity 0) _) = c
 rotateHue'' deltaHue (SaturatedColor i index) =
   SaturatedColor i $ hueToIndex i $ deltaHue + indexToHue i index

@@ -35,11 +35,11 @@ data Choice = Choice {
 instance Positionable Choice where
   drawAt (Choice v up down color) coords = do
     case down of
-      ' ' -> return ()
+      ' ' -> return ()
       _ -> drawAt (Colored color downTxt) coords
     drawAt (Colored color v) $ move (Text.length downTxt) RIGHT coords
     case up of
-      ' ' -> return ()
+      ' ' -> return ()
       _ -> drawAt (Colored color upTxt) $ move (Text.length downTxt + Text.length v) RIGHT coords
 
    where

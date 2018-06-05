@@ -34,7 +34,7 @@ worldSizeFromLevel level shape =
         Rectangle'2x1 -> 2
   in Size h w
 
--- | Returns every (canonicalized) small world sizes used in Hamazed game.
+-- | Returns every (canonicalized) small world sizes used in Hamazed game.
 exhaustiveSmallSizes :: [Size]
 exhaustiveSmallSizes =
   dedup $ map canonicalize $

@@ -184,7 +184,7 @@ renderAll = do
                                  ++ " de "  ++ showTime' dtDelta
                                  ++ " cmd " ++ showTime' dtCmds
                                  ++ " fl "  ++ showTime' dtFlush
-        (Debug False) -> return ())
+        (Debug False) -> return ())
     res
   maybe
     (return ())
@@ -261,4 +261,4 @@ mkOccurencesHist o =
   OccurencesHist [o] mempty
 
 mkEmptyOccurencesHist :: OccurencesHist
-mkEmptyOccurencesHist = OccurencesHist [] mempty
+mkEmptyOccurencesHist = OccurencesHist [] mempty

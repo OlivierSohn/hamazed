@@ -111,7 +111,7 @@ countRotations' :: RotationOrder -> Size -> Int
 countRotations' Order1 (Size (Length y) (Length x)) = x + y - 1
 countRotations' Order2 (Size (Length y) (Length x)) = x * y - 1
 countRotations' Rect1 (Size (Length y) (Length x)) =
-  if x < 3 || y < 3
+  if x < 3 || y < 3
     then
       0
     else
@@ -140,7 +140,7 @@ produceRotations ro x@(M r c _ v) =
 
 {-# INLINE canHaveAtDistance1Rotations #-}
 canHaveAtDistance1Rotations :: Matrix a -> Bool
-canHaveAtDistance1Rotations (M r c _ _) = not $ c < 3 || r < 3 -- to avoid duplicate rotations
+canHaveAtDistance1Rotations (M r c _ _) = not $ c < 3 || r < 3 -- to avoid duplicate rotations
 
 setRotation :: (Storable a) => Matrix a -> Int -> Matrix a
 setRotation m@(M _ _ _ v) i
@@ -152,7 +152,7 @@ setRotation m@(M _ _ _ v) i
 unsafeSetRotation :: Matrix a -> Int -> Matrix a
 unsafeSetRotation m i = m { rotation = i }
 
-modulate :: (Storable a) => Int -> Matrix a -> Matrix a
+modulate :: (Storable a) => Int -> Matrix a -> Matrix a
 modulate n mat@(M _ _ _ v)
  | n <= 1 = mat
  | n >= len = error $ "out of range modulo:" ++ show n

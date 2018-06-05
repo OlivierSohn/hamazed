@@ -86,7 +86,7 @@ zeroCoords = Coords 0 0
 {-# INLINE diffCoords #-}
 diffCoords :: Coords a
            -- ^ a
-           -> Coords a
+           -> Coords a
            -- ^ b
            -> Coords a
            -- ^ a - b
@@ -97,7 +97,7 @@ diffCoords (Coords r1 c1) (Coords r2 c2) =
 {-# INLINE sumCoords #-}
 sumCoords :: Coords a
            -- ^ a
-           -> Coords a
+           -> Coords a
            -- ^ b
            -> Coords a
            -- ^ a + b
@@ -105,7 +105,7 @@ sumCoords (Coords r1 c1) (Coords r2 c2) =
   Coords (r1 + r2) (c1 + c2)
 
 {-# INLINE multiply #-}
-multiply :: Int -> Coords a -> Coords a
+multiply :: Int -> Coords a -> Coords a
 multiply n (Coords r c) =
   Coords (r * fromIntegral n) (c * fromIntegral n)
 
@@ -173,7 +173,7 @@ mkSegment :: Coords Pos
           -- ^ Segment start
           -> Coords Pos
           -- ^ Segment end
-          -> Segment
+          -> Segment
 mkSegment e1@(Coords r1 c1) e2@(Coords r2 c2)
   | r1 == r2  = Horizontal r1 c1 c2
   | c1 == c2  = Vertical   c1 r1 r2

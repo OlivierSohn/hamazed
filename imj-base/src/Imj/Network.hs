@@ -128,7 +128,7 @@ getServerPort = \case
         (return . ServerPort)
         $ readMaybe value)
 
--- | Memory-efficient representation of a MAC address
+-- | Memory-efficient representation of a MAC address
 newtype MAC = MAC Word64
   deriving(Generic, Binary, Eq, Ord, NFData, Show)
 

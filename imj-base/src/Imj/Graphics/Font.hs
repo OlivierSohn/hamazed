@@ -306,7 +306,7 @@ createFonts mkFont = do
 getFontSize :: FTGL.Font -> IO FontSize
 getFontSize = fmap FontSize . FTGL.getFontFaceSize
 
-setFontSize :: FontSize -> FTGL.Font -> IO ()
+setFontSize :: FontSize -> FTGL.Font -> IO ()
 setFontSize x font =
   FTGL.setFontFaceSize font (fromIntegral x) 72 >>= \err -> do
     when (err /= 1) $ -- according to http://ftgl.sourceforge.net/docs/html/FTFont_8h.html#00c8f893cbeb98b663f9755647a34e8c
@@ -359,7 +359,7 @@ loadFont b s = withTempFontFile b s $ \filePath ->
     --FTGL.createTextureFont filePath
     --FTGL.createExtrudeFont filePath
 
-charsetAABB :: CharSet ForOffset -> FTGL.Font -> IO (AABB FontCoordinates)
+charsetAABB :: CharSet ForOffset -> FTGL.Font -> IO (AABB FontCoordinates)
 charsetAABB (CharSet []) _ = error "empty charset"
 charsetAABB (CharSet charset) font = do
   (errors, aabbs) <- partitionEithers <$> mapM (glyphBBox font) charset
@@ -377,7 +377,7 @@ data AABB a = AABB {
 instance NFData (AABB a)
 
 -- | returns the smallest 'AABB' containg the given 'AABB's.
-combine :: AABB a -> AABB a -> AABB a
+combine :: AABB a -> AABB a -> AABB a
 combine (AABB (Vec2 xmin  ymin ) (Vec2 xmax  ymax ))
         (AABB (Vec2 xmin' ymin') (Vec2 xmax' ymax')) =
   AABB (Vec2 (min xmin xmin') (min ymin ymin'))

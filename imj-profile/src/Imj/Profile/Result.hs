@@ -51,22 +51,22 @@ instance NFData Summary
 
 getSummaryDuration :: Summary -> Maybe (Time Duration System)
 getSummaryDuration = \case
-  NTimeouts _ -> Nothing
-  NoResult -> Nothing
+  NTimeouts _ -> Nothing
+  NoResult -> Nothing
   FinishedAverage dt _ -> Just dt
 
 data TestStatus a = -- TODO remove maybe unused Ord, Eq
     NotStarted
   | Finished !(Time Duration System) !a
-  | Timeout
+  | Timeout
   deriving(Generic, Show)
--- | 'Eq' and 'Ord' instances are based on durations : 'Finished' < ' Timeout' < 'NotStarted'
+-- | 'Eq' and 'Ord' instances are based on durations : 'Finished' < ' Timeout' < 'NotStarted'
 instance (Eq a) => Eq (TestStatus a) where
   NotStarted == NotStarted = True
   Finished x _ == Finished y _ = x == y
   Timeout == Timeout = True
   _ == _ = False
--- | 'Eq' and 'Ord' instances are based on durations : 'Finished' < ' Timeout' < 'NotStarted'
+-- | 'Eq' and 'Ord' instances are based on durations : 'Finished' < ' Timeout' < 'NotStarted'
 instance (Ord a) => Ord (TestStatus a) where
   compare Timeout Timeout = EQ
   compare (Finished x _) (Finished y _) = compare x y
@@ -103,12 +103,12 @@ instance (Eq k, Eq a) => Eq (TestDurations k a) where
 -- else return the average of finished tests.
 summarize :: TestDurations k a -> Summary
 summarize (TD d)
- | nTimeouts == 0 = case Map.elems $ Map.mapMaybe (\case Finished dt _ -> Just dt; _ -> Nothing) d of
+ | nTimeouts == 0 = case Map.elems $ Map.mapMaybe (\case Finished dt _ -> Just dt; _ -> Nothing) d of
     [] -> NoResult
     xs@(_:_) -> FinishedAverage (average xs) $ mkDispersion xs
  | otherwise = NTimeouts nTimeouts
   where
-   nTimeouts = Map.size $ Map.filter (\case Timeout -> True; _ -> False) d
+   nTimeouts = Map.size $ Map.filter (\case Timeout -> True; _ -> False) d
 
 -- Dispersion is normalized standard deviation (normalized in the sense that the mean is mapped to 1)
 newtype Dispersion = Dispersion Float

@@ -46,7 +46,7 @@ deltaFlush ref renderFunc sizeFunc =
           (\msg -> do
             void $ render DeltaMode renderFunc buffers -- draw with previous buffers
             return (sz, Left msg))
-          (\b -> do
+          (\b -> do
             writeIORef ref b
             initializeWithContent buffers b
             (,) sz . Right <$> render FullMode renderFunc b))

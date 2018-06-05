@@ -30,7 +30,7 @@ data Level = Level {
   , getLevelOutcome' :: {-unpack sum-} !(Maybe LevelOutcome)
 } deriving (Generic, Show)
 
-mkLevel :: LevelEssence -> Level
+mkLevel :: LevelEssence -> Level
 mkLevel = flip Level Nothing
 
 data LevelEssence = LevelEssence {

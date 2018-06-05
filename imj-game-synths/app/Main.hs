@@ -395,7 +395,7 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
           6 -> SineSynthAHDSR env p {ahdsrSustain = changeParam predefinedSustains s inc}
           7 -> SineSynthAHDSR env p {ahdsrRelease = changeParam predefinedReleases r inc}
           8 -> SineSynthAHDSR env p {ahdsrReleaseItp = changeParam predefinedReleaseItp ri inc}
-          _ -> error "logic"
+          _ -> error "logic"
         _ -> instr
 
 

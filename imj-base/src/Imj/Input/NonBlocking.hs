@@ -16,7 +16,7 @@ import           System.IO( hReady
 import           Imj.Input.Types
 import           Imj.Input.Blocking
 
-callIf :: IO a -> IO Bool -> IO (Maybe a)
+callIf :: IO a -> IO Bool -> IO (Maybe a)
 callIf call condition =
   condition >>= \c ->
     if c

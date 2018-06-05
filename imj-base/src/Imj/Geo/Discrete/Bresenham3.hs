@@ -17,7 +17,7 @@ import           Data.List( zip3 )
 
 With the following modifications :
 
-* fix a bug when rise1 == rise2, rise1 > run and rise2 > run
+* fix a bug when rise1 == rise2, rise1 > run and rise2 > run
 * make it produce an infinite list that goes beyond the target
 * replace 'div' by 'quot' when we know the integral is positive
 * add bangs -}

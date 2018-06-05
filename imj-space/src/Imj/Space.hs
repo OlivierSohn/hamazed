@@ -143,7 +143,7 @@ mkFilledSpace s@(Size heightEmptySpace widthEmptySpace) =
 -- 'IO' is used for random numbers generation.
 mkRandomlyFilledSpace :: Int
                       -- ^ Size of square blocks in the big world.
-                      -> AlmostFloat
+                      -> AlmostFloat
                       -- ^ Wall probability, expected to be between 0 and 1.
                       -> Size
                       -- ^ Size of the /big/ world
@@ -196,7 +196,7 @@ smallWorldToBigWorld :: Size
 smallWorldToBigWorld s blockSize small@(SmallWorld (SmallMatInfo _ smallWorldMat) _) =
   BigWorld (mkSpaceFromMat s $ map (map materialAndKeyToMaterial) innerMat) (smallToBig blockSize s small)
  where
-  replicateElems :: [a] -> [a]
+  replicateElems :: [a] -> [a]
   replicateElems = replicateElements blockSize
   innerMat = replicateElems $ map replicateElems $ Cyclic.toLists smallWorldMat
 
@@ -219,7 +219,7 @@ type TopoMatch = Either SmallWorldRejection SmallWorld
 mkMatrixPipeline :: ComponentCount
                  -> AlmostFloat
                  -- ^ Probability to generate a wall
-                 -> Size
+                 -> Size
                  -- ^ Size of the matrix
                  -> LowerBounds
                  -> Maybe MatrixVariants
@@ -243,7 +243,7 @@ mkMatrixPipeline nComponents' wallProba (Size (Length nRows) (Length nCols)) lb 
 
   nBlocks = nRows * nCols
 
-runPipeline :: Int -> NonEmpty GenIO -> IO Bool -> MatrixPipeline -> IO (Maybe SmallWorld, Statistics)
+runPipeline :: Int -> NonEmpty GenIO -> IO Bool -> MatrixPipeline -> IO (Maybe SmallWorld, Statistics)
 runPipeline nBlocks generators continue (MatrixPipeline (MatrixSource produce) (MatrixTransformer consume)) = do
   resVar <- newEmptyMVar :: IO (MVar (Maybe SmallWorld, Statistics))
   run resVar
@@ -279,7 +279,7 @@ runPipeline nBlocks generators continue (MatrixPipeline (MatrixSource produce) (
             consume s ba <$> produce v gen >>= \(BRMV m s') ->
                 either (const $ go s') (void . tryPutMVar resM . flip (,) s' . Just) m
 
-checkRandomMatrix :: LowerBounds -> SmallMatInfo -> Either SmallWorldRejection SmallMatInfo
+checkRandomMatrix :: LowerBounds -> SmallMatInfo -> Either SmallWorldRejection SmallMatInfo
 checkRandomMatrix (LowerBounds minAirCount minWallCount countBlocks) m@(SmallMatInfo countAirBlocks _)
    | countAirBlocks < minAirCount = Left $ NotEnough Air
    | countWallBlocks < minWallCount = Left $ NotEnough Wall
@@ -323,7 +323,7 @@ foldStats :: Statistics -> NonEmpty TopoMatch -> BestRandomMatrixVariation
 foldStats stats (x:|xs) =
   List.foldl' (\(BRMV _ s) v -> BRMV v $ addToStats v s) (BRMV x $ addToStats x stats) xs
 
-addToStats' :: SmallWorldRejection -> Statistics -> Statistics
+addToStats' :: SmallWorldRejection -> Statistics -> Statistics
 addToStats' (NotEnough Air) s = s { countNotEnoughWalls  = 1 + countNotEnoughWalls s }
 addToStats' (NotEnough Wall) s = s { countNotEnoughWalls  = 1 + countNotEnoughWalls s }
 addToStats' UnusedFronteers s = s { countUnusedFronteers = 1 + countUnusedFronteers s }
@@ -681,7 +681,7 @@ countBigCCElts :: Int -> ConnectedComponent -> Int
 countBigCCElts blockSize c =
   blockSize * blockSize * countSmallCCElts c -- doesn't include extensions.
 
-getSmallMatIndex :: Int -> (Undirected.Vertex -> Int) -> ConnectedComponent -> Int
+getSmallMatIndex :: Int -> (Undirected.Vertex -> Int) -> ConnectedComponent -> Int
 getSmallMatIndex smallIndex resolver c@(ConnectedComponent v)
   | smallIndex < 0 || smallIndex >= countSmallCCElts c = error $ "index out of bounds:" ++ show smallIndex
   | otherwise = resolver $ v V.! smallIndex
@@ -777,7 +777,7 @@ mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) v =
   !nCols = Cyclic.ncols mat
 
   mayGraph =
-    if canContinue > 0
+    if canContinue > 0
       then
         Just $ Undirected.Graph (fromIntegral nAirKeys) $ runST $ do
           -- 8 is size of Word64 in bytes
@@ -868,13 +868,13 @@ extend'' final initial =
 -- @Coord 0 0@ corresponds to indexes 1 1 in matrix
 getMaterial :: Coords Pos -> Space -> Material
 getMaterial coords@(Coords r c) space
-  | r < 0 || c < 0 = Wall
-  | r >= fromIntegral rs || c >= fromIntegral cs = Wall
+  | r < 0 || c < 0 = Wall
+  | r >= fromIntegral rs || c >= fromIntegral cs = Wall
   | otherwise = unsafeGetMaterial coords space
   where
     (Size rs cs) = getSize space
 
--- | If 'Coords' is inside 'Space', returns 0. Else returns
+-- | If 'Coords' is inside 'Space', returns 0. Else returns
 -- the manhattan distance to the space border.
 distanceToSpace :: Coords Pos -> Space -> Int
 distanceToSpace (Coords r c) space =

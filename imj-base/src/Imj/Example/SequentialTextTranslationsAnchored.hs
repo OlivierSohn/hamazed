@@ -37,7 +37,7 @@ import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Timing
 
--- | Shows the differences between 'AnchorChars' and 'AnchorStrings', by comparing,
+-- | Shows the differences between 'AnchorChars' and 'AnchorStrings', by comparing,
 -- with the same inputs:
 --
 -- * 'mkSequentialTextTranslationsCharAnchored' / 'drawAnimatedTextCharAnchored'

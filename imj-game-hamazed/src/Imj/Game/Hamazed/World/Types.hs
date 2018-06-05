@@ -247,7 +247,7 @@ mkNumber :: NumberEssence -> Number
 mkNumber e = Number e [] Reachable
 
 data NumberType =
-    Reachable
+    Reachable
   | Unreachable
   | Preferred
   | Dangerous
@@ -361,7 +361,7 @@ scopedLocation world@(World _ _ space _ _) (Screen mayTermSize screenCenter) sco
   termContains (Size h w) =
     let corner = getWorldCorner world screenCenter
         (Coords r c) = sumCoords pos corner
-    in r < fromIntegral h && c >= 0 && c < fromIntegral w
+    in r < fromIntegral h && c >= 0 && c < fromIntegral w
 
 
 {-# INLINE findShip #-}

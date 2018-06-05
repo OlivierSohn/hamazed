@@ -71,7 +71,7 @@ import           Imj.Server.Internal.Types
 import           Imj.Network
 
 
--- | Server initialization.
+-- | Server initialization.
 class (Show (ClientViewT s)
      , Generic (ClientViewT s)
      , NFData (ClientViewT s)
@@ -92,7 +92,7 @@ class (Show (ClientViewT s)
   -- | Creates the client view
   mkInitialClient :: ClientViewT s
 
--- | Actions running in parallel to client handlers ().
+-- | Actions running in parallel to client handlers ().
 class ServerInParallel s where
   -- | Actions that will be run concurrently after server initialization.
   --
@@ -129,7 +129,7 @@ class (Show (ValuesT s), Generic (ValuesT s), Binary (ValuesT s), NFData (Values
   -- ^ Data passed in 'ClientEvent' 'Connect'.
   type ConnectIdT s = ClientName Proposed
 
-  -- | Handle an incoming client event.
+  -- | Handle an incoming client event.
   handleClientEvent :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
                     => ClientEventT s
                     -> m [MVar (ServerState s) -> IO ()]
@@ -164,15 +164,15 @@ class (Show (ValuesT s), Generic (ValuesT s), Binary (ValuesT s), NFData (Values
 
   onDelta :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
           => Int
-          -> EnumValueKeyT s
-          -> m ()
+          -> EnumValueKeyT s
+          -> m ()
   onDelta _ _ = fail "Please implement 'onDelta' when you define 'EnumValueKeyT'"
 
 -- | Methods related to the lifecycle of a client. Note that client-specific infos
 -- ('ClientId' and connection) are available through 'MonadReader' 'ConstClientView',
 -- or passed as parameter (see 'afterClientLeft').
 class ServerClientLifecycle s where
-  -- | Called after the client has been added and sent the greeting events (see 'greetNewcomer').
+  -- | Called after the client has been added and sent the greeting events (see 'greetNewcomer').
   -- Default implementation does nothing.
   onStartClient :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
                 => ClientLifecycle -> m ()
@@ -212,13 +212,13 @@ class (Show (ServerEventT s)
   type ServerEventT s
   -- ^ Events sent by the server that must be handled by the client.
 
-  -- | These 'ServerEventT' are sent to the newly added client. They should include
+  -- | These 'ServerEventT' are sent to the newly added client. They should include
   -- state information that the client needs to know to be up-to-date w.r.t the
   -- current server state.
   greetNewcomer :: (MonadIO m, MonadState (ServerState s) m)
                 => m [ServerEventT s]
   greetNewcomer = return []
-  -- | These 'ServerEvent' are sent to the newly added client. They should include
+  -- | These 'ServerEvent' are sent to the newly added client. They should include
   -- state information that the client needs to know to be up-to-date w.r.t the
   -- current server state.
   greetNewcomer' :: (MonadIO m, MonadState (ServerState s) m)

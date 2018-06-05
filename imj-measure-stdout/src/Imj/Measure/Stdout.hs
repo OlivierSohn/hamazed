@@ -139,7 +139,7 @@ testStdout (OtherTests True) = do
                 --          cursorforward | cursorForward
                 -- It also shows that the \0 for the end of the string is not stored
                 -- in the buffer (ie the length of the buffer used for cursorforward is 3)
-                 (putChar '|' >> putStr cursorForward, "putChar '|' >> putStr cursorForward")
+                 (putChar '|' >> putStr cursorForward, "putChar '|' >> putStr cursorForward")
 
                 -- shows the effect of buffering on displayable characters
                 ,(putChar '|', "putChar '|'")

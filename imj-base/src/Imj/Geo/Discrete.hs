@@ -78,7 +78,7 @@ extremities oblique@(Oblique c1 _ l)
 -- | Returns the number of valid positions when moving in a given direction
 -- from a start position. The start position is tested also, hence when this function
 -- returns 0, the start is invalid.
-countInDir :: Direction -> Coords Pos -> (Coords Pos -> Bool) -> Word32
+countInDir :: Direction -> Coords Pos -> (Coords Pos -> Bool) -> Word32
 countInDir dir start continue =
     extend 0
   where

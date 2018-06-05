@@ -122,7 +122,7 @@ homogenousDist :: Size -> Size -> Maybe Int
 homogenousDist s1 s2 = hDist (canonicalize s1) (canonicalize s2)
  where
   hDist (Size h w) (Size h' w')
-    | dh > 0 && dw < 0 = Nothing
+    | dh > 0 && dw < 0 = Nothing
     | dh < 0 && dw > 0 = Nothing
     | otherwise = Just $ fromIntegral dh + fromIntegral dw
    where

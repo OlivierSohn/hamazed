@@ -50,7 +50,7 @@ data Event e =
     Timeout {-# UNPACK #-} !Deadline
   -- ^ The 'Deadline' needs to be handled immediately.
   | Log !MessageLevel !Text
-  | ToggleEventRecording
+  | ToggleEventRecording
   | CanvasSizeChanged
   -- ^ Produced by the delta renderer when a size change was detected upon rendering.
   | RenderingTargetChanged
@@ -59,7 +59,7 @@ data Event e =
   | ApplyPPUDelta {-# UNPACK #-} !Size
   | ApplyFontMarginDelta {-# UNPACK #-} !FontMargin
   -- ^ Produced by the platform
-  | ChatCmd {-unpack sum-} !ChatCommand
+  | ChatCmd {-unpack sum-} !ChatCommand
   | SendChatMessage
   -- ^ Send message or execute command if the message starts with a '/'
   | AppEvent !e

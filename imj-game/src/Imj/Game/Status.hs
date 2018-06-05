@@ -47,9 +47,9 @@ data GameStatus =
     , _havePressed :: !(Map ClientId Bool) }
   -- ^ Maybe Int is a countdown : when Nothing, the message is displayed.
   -- A 'True' in the 'Map' means the key was pressed.
-  | Countdown !Int !GameStatus
+  | Countdown !Int !GameStatus
   -- ^ Int is in seconds
-  | CancelledNoConnectedPlayer
+  | CancelledNoConnectedPlayer
   deriving(Generic, Show, Eq)
 instance Binary GameStatus
 instance NFData GameStatus

@@ -70,7 +70,7 @@ import           Imj.Graphics.Text.ColorString.Interpolation
 
 newtype ColorString = ColorString [(Text, LayeredColor)] deriving(Show, Generic, Eq)
 instance Semigroup ColorString where
-  (ColorString x) <> (ColorString y) = ColorString $ x ++ y
+  (ColorString x) <> (ColorString y) = ColorString $ x ++ y
 instance Monoid ColorString where
   mempty = ColorString []
   mappend = (<>)

@@ -94,7 +94,7 @@ editableTxtToColorStr NotEditing (EditableText txt _) =
   colored' txt pendingTextColorsInactive
 
 data ChatCommand =
-    ToggleEditing
+    ToggleEditing
    -- ^ Enter or exit chat "text edit" mode
   | Insert !Char
   | DeleteAtEditingPosition
@@ -134,7 +134,7 @@ takeMessage :: Chat -> (Chat, Text)
 takeMessage c@(Chat (EditableText txt _) _ _ _) =
   (c { editableText = mkEditableText }, txt)
 
-runChat :: ChatCommand -> Chat -> Chat
+runChat :: ChatCommand -> Chat -> Chat
 runChat ToggleEditing c@(Chat _ edit _ _) =
   c { getIsEditing = toggleIsEditing edit }
 runChat (Insert char) c@(Chat (EditableText txt pos) _ _ _) =

@@ -20,7 +20,7 @@ import           Imj.Random.Util
 -- https://hackage.haskell.org/package/tf-random
 -- https://hackage.haskell.org/package/splitmix
 
-mkImageName :: SeedNumber -> String -> Size -> Maybe AlmostFloat -> String
+mkImageName :: SeedNumber -> String -> Size -> Maybe AlmostFloat -> String
 mkImageName (SeedNumber seed) genName (Size (Length h) (Length w)) proba =
   intercalate "-" [show seed, genName, maybe "gray" show proba , show w ++ "x" ++ show h]
 
@@ -29,7 +29,7 @@ writeRndImage :: (PngSavable k)
 writeRndImage seed name sz proba =
   writePng (mkImageName seed name sz proba ++ ".png")
 
-mkSystemRandomImage :: SeedNumber -> Size -> AlmostFloat -> IO (Image Word8)
+mkSystemRandomImage :: SeedNumber -> Size -> AlmostFloat -> IO (Image Word8)
 mkSystemRandomImage (SeedNumber seed) (Size (Length h) (Length w)) proba = do
     setStdGen $ mkStdGen seed -- make test deterministic
 

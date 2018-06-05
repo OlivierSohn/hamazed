@@ -80,7 +80,7 @@ module Imj.Game.Hamazed.World
       -- ** BattleShip
     , BattleShip(..)
     -- ** Number
-    -- | 'Number's can be shot by the 'BattleShip' to finish the 'Level'.
+    -- | 'Number's can be shot by the 'BattleShip' to finish the 'Level'.
     --
     -- Number can collide with the 'BattleShip', hence triggering colorfull
     -- 'ParticleSystem' explosions.

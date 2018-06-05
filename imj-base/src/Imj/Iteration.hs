@@ -24,7 +24,7 @@ import           Imj.Prelude
 data Iteration = Iteration !Speed !Frame deriving(Show, Generic)
 instance PrettyVal Iteration
 
--- | The 'Speed' at which the iteration occurs (if speed > 1, some 'Frame's are skipped).
+-- | The 'Speed' at which the iteration occurs (if speed > 1, some 'Frame's are skipped).
 newtype Speed = Speed Int
   deriving(Eq, Show, Num, Integral, Real, Enum, Ord, PrettyVal, Generic)
 

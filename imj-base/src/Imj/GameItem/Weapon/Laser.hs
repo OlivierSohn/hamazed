@@ -77,7 +77,7 @@ stopRayAtFirstCollision coords s@(LaserRay dir start len) =
         $ map (`laserHits` s) coords
       (newLen, res) = case collisions of
         [] -> (len, Nothing)
-        l -> let minElt = minimumBy (\(_, i) (_, j) -> compare i j) l
+        l -> let minElt = minimumBy (\(_, i) (_, j) -> compare i j) l
              in (succ $ snd minElt, Just $ fst minElt)
   in (LaserRay dir start newLen, res)
 
@@ -126,6 +126,6 @@ laserHits (Coords r c) (LaserRay dir start@(Coords startR startC) len)
  where
   (Coords endR endC) = move (fromIntegral $ pred len) dir start
   isBetween x b b'
-    | x <= b && x >= b' = Just $ fromIntegral (b-x)
+    | x <= b && x >= b' = Just $ fromIntegral (b-x)
     | x <= b' && x >= b = Just $ fromIntegral (x-b)
     | otherwise = Nothing

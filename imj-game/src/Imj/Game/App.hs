@@ -154,7 +154,7 @@ run prox
     when (isJust mayPPU)        $ conflict "--ppu"
     when (isJust mayScreenSize) $ conflict "--screenSize"
     when (isJust mayConnectId)  $ conflict "--connectId"
-    maybe (return ()) (\b -> case b of
+    maybe (return ()) (\b -> case b of
       BackendType True _ -> conflict "--render"
       BackendType False _ -> return ()) maybeBackend
   when (isJust mayConfig && isJust maySrvName) $
@@ -193,7 +193,7 @@ run prox
           Right () -> return ()
 
         readMVar ready >>= either
-          (\e -> baseLog (colored (pack e) red) >> error e)
+          (\e -> baseLog (colored (pack e) red) >> error e)
           (baseLog . flip colored chartreuse . pack)
         -- the listening socket is available, we can continue.
 

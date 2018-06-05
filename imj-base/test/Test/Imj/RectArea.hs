@@ -9,7 +9,7 @@ import           Control.Monad(when)
 import           Imj.Geo.Discrete
 import           Imj.Graphics.UI.RectArea
 
--- | returns True on success, else errors
+-- | returns True on success, else errors
 testRectArea :: IO Bool
 testRectArea = do
   let emptyArea1 = RectArea (Coords 1 1) (Coords 0 1)

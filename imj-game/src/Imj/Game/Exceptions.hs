@@ -23,7 +23,7 @@ instance Show GracefulProgramEnd where
 
 data UnexpectedProgramEnd =
     UnexpectedProgramEnd !Text
-  | ErrorFromServer !String
+  | ErrorFromServer !String
 instance Exception UnexpectedProgramEnd
 instance Show UnexpectedProgramEnd where
   show (UnexpectedProgramEnd s) = withNewline $ unpack s

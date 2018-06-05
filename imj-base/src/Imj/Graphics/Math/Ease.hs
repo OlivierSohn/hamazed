@@ -36,8 +36,8 @@ given a <http://gizma.com/easing/ 4th order ease in-out function> \( quartEaseIn
 
 \[ y = quartEaseInOut(t) =
 \begin{cases}
-{1 \over 2} *  (2*t)^4,                          & \;\;\;\; \text{if $t < {1 \over 2}$} \\[2ex]
--{1 \over 2} * \left( [ 2*(t-1) ]^4 - 2 \right), & \;\;\;\; \text{if $t > {1 \over 2}$}
+{1 \over 2} *  (2*t)^4,                          & \;\;\;\; \text{if $t < {1 \over 2}$} \\[2ex]
+-{1 \over 2} * \left( [ 2*(t-1) ]^4 - 2 \right), & \;\;\;\; \text{if $t > {1 \over 2}$}
 \end{cases}
 \]
 
@@ -53,12 +53,12 @@ t>{1 \over 2} \iff y>{1 \over 2}
 
 
 \[ \begin{alignedat}{3}
-\text{if $y < {1 \over 2} $, given the $quartEaseInOut$ equation for $t < {1 \over 2} $ :}
+\text{if $y < {1 \over 2} $, given the $quartEaseInOut$ equation for $t < {1 \over 2} $ :}
   &&                            y &= {1 \over 2} * (2*t)^4   &&  \\
-  \implies &&  \quad            t &= \left({y \over 2^3}\right)^{1/4} && \quad \forall y < {1 \over 2} \\
-\text{if $y > {1 \over 2} $, given the $quartEaseInOut$ equation for $t > {1 \over 2} $ :}
+  \implies &&  \quad            t &= \left({y \over 2^3}\right)^{1/4} && \quad \forall y < {1 \over 2} \\
+\text{if $y > {1 \over 2} $, given the $quartEaseInOut$ equation for $t > {1 \over 2} $ :}
   &&                y &= - {1 \over 2} * \left( [2*(t-1)]^4 - 2 \right) &&  \\
-  \implies && \quad t &= 1-\left[{1-y \over 2^3}\right]^{1/4}    && \quad \forall y > {1 \over 2}
+  \implies && \quad t &= 1-\left[{1-y \over 2^3}\right]^{1/4}    && \quad \forall y > {1 \over 2}
 \end{alignedat} \]
 
 /Note that there are multiple solutions, we chose the ones that produce results in the \( [\,0,1]\, \) range./
@@ -67,8 +67,8 @@ Hence, the formulas for 'invQuartEaseInOut' are :
 
 \[ t = invQuartEaseInOut(y) =
 \begin{cases}
-\left({y \over 2^3}\right)^{1/4},     & \text{if $y < {1 \over 2}$} \\[2ex]
-1-\left[{1-y \over 2^3}\right]^{1/4}, & \text{if $y > {1 \over 2}$}
+\left({y \over 2^3}\right)^{1/4},     & \text{if $y < {1 \over 2}$} \\[2ex]
+1-\left[{1-y \over 2^3}\right]^{1/4}, & \text{if $y > {1 \over 2}$}
 \end{cases}
 \]
 

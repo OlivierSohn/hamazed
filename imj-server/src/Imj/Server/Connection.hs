@@ -208,7 +208,7 @@ notifyEveryone :: (MonadIO m
                  , Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
                  , MonadState (ServerState s) m)
                => ServerEventT s
-               -> m ()
+               -> m ()
 notifyEveryone evt =
   notifyN [evt] =<< gets clientsMap
 
@@ -217,7 +217,7 @@ notifyEveryone' :: (MonadIO m
                   , Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
                   , MonadState (ServerState s) m)
                 => ServerEvent s
-                -> m ()
+                -> m ()
 notifyEveryone' evt =
   notifyN' [evt] =<< gets clientsMap
 
@@ -226,7 +226,7 @@ notifyEveryoneN :: (MonadIO m
                   , Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
                   , MonadState (ServerState s) m)
                 => [ServerEventT s]
-                -> m ()
+                -> m ()
 notifyEveryoneN evts =
   notifyN evts =<< gets clientsMap
 
@@ -235,7 +235,7 @@ notifyEveryoneN' :: (MonadIO m
                    , Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
                    , MonadState (ServerState s) m)
                 => [ServerEvent s]
-                -> m ()
+                -> m ()
 notifyEveryoneN' evts =
   notifyN' evts =<< gets clientsMap
 

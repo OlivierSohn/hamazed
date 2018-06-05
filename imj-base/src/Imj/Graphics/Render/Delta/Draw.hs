@@ -114,7 +114,7 @@ writeToBack _ Nothing _ = return ()
 writeToBack (Buffer b) (Just pos) cell =
   unsafeWrite b (fromIntegral pos) cell
 
-writeNToBack :: Buffer Back -> Dim BufferIndex -> Int -> Cell -> IO ()
+writeNToBack :: Buffer Back -> Dim BufferIndex -> Int -> Cell -> IO ()
 writeNToBack (Buffer b) pos n cell = do
   let startIdx = fromIntegral pos
   mapM_ (\i -> unsafeWrite b i cell) [startIdx..startIdx+n-1]

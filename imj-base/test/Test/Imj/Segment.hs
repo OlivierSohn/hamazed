@@ -6,7 +6,7 @@ import           Control.Monad(when)
 
 import           Imj.Geo.Discrete
 
--- | returns 'True' on success, else errors
+-- | returns 'True' on success, else errors
 testSegment :: IO Bool
 testSegment = do
   let horizontal = mkSegment (Coords 0 0) (Coords 0 2)

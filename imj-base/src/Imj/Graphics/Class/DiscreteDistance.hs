@@ -75,7 +75,7 @@ instance (DiscreteDistance a)
   distance l l' =
     Unsafe.maximum $ zipWith distance l $ assert (length l == length l') l'
 
--- | Using bresenham 2d line algorithm.
+-- | Using bresenham 2d line algorithm.
 instance DiscreteDistance (Coords Pos) where
   distance a b = fromIntegral $ bresenhamLength a b
 

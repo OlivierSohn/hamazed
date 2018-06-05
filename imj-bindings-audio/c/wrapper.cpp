@@ -242,7 +242,6 @@ namespace imajuscule {
     namespace mySynth = imajuscule::audio::vasine;
     //namespace mySynth = imajuscule::audio::sine;
 
-    // this is very temporary, until mononotechannel uses pointers to the channels instead of ids.
     template<typename T>
     struct withChannels {
       withChannels(NoXFadeChans & chans) : chans(chans) {}
@@ -260,7 +259,11 @@ namespace imajuscule {
       }
 
       T obj;
+
+      // Note that if mononotechannel used pointers to the channels instead of ids
+      // we would not need this field:
       NoXFadeChans & chans;
+
       std::mutex isUsed;
     };
 
@@ -388,6 +391,106 @@ namespace imajuscule {
 // functions herein are part of the interface
 extern "C" {
 
+/*
+  void testFreeList() {
+    using FL = imajuscule::FreeList<int64_t, 4096/sizeof(int64_t)>;
+    FL l;
+    l.Take();
+// should the size of the free list be limited to a page/ aligned to the start of the page?
+    using namespace imajuscule::audioelement;
+    using namespace imajuscule::audio::mySynth;
+    using namespace imajuscule::audio;
+    std::cout << "sizeof synth " << sizeof(SynthT<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>) << std::endl;
+    std::cout << "sizeof mnc " << sizeof(MonoNoteChannel<VolumeAdjustedOscillator<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>>) << std::endl;
+    std::cout << "sizeof au " << sizeof(AudioElement<float>) << std::endl;
+    std::cout << "sizeof aub " << sizeof(AudioElement<float>::buffer_placeholder_t) << std::endl;
+    union {
+        AudioElement<float>::buffer_placeholder_t for_alignment;
+        float buffer[n_frames_per_buffer];
+    } u;
+    std::cout << "sizeof auu " << sizeof(u) << std::endl;
+
+    struct F { // 64 bytes
+      union {
+          AudioElement<float>::buffer_placeholder_t for_alignment;
+          float buffer[n_frames_per_buffer];
+      };
+    };
+    struct G_ { // 128 bytes
+      union {
+          AudioElement<float>::buffer_placeholder_t for_alignment;
+          float buffer[n_frames_per_buffer];
+      };
+      bool me : 1;
+    };
+    struct G { // 128 bytes
+      union {
+          AudioElement<float>::buffer_placeholder_t for_alignment;
+          float buffer[n_frames_per_buffer];
+      };
+      bool me : 1;
+    }__attribute__((packed));
+    struct G2 { // 128 bytes
+      union {
+          AudioElement<float>::buffer_placeholder_t for_alignment;
+          float buffer[n_frames_per_buffer];
+      };
+      bool me;
+    }__attribute__((packed));
+    struct g2_ : public G2 {
+      int32_t i;
+    }__attribute__((packed));
+    struct g2 : public G2 {
+      int32_t i : 3;
+    }__attribute__((packed));
+
+    struct H { // 68 bytes
+      union {
+          float buffer[n_frames_per_buffer];
+      };
+      bool me : 1;
+    };
+    struct H2 { // 68 bytes
+      float buffer[n_frames_per_buffer];
+      bool me : 1;
+    };
+    struct I { // 128 bytes
+      union {
+          AudioElement<float>::buffer_placeholder_t for_alignment;
+      };
+      bool me : 1;
+    };
+    struct I2 { // 128 bytes
+      AudioElement<float>::buffer_placeholder_t for_alignment;
+      bool me : 1;
+    };
+    struct i2_ : public I2 {
+      int stuff;
+    };
+    struct i2 : public I2 {
+      int stuff;
+    }__attribute__((packed));
+    struct ii2 : public i2 {
+      int stuff2;
+    };
+
+    std::cout << "sizeof F " << sizeof(F) << std::endl;
+    std::cout << "sizeof G_ " << sizeof(G_) << std::endl;
+    std::cout << "sizeof G " << sizeof(G) << std::endl;
+    std::cout << "sizeof G2 " << sizeof(G2) << std::endl;
+    std::cout << "sizeof g2_ " << sizeof(g2_) << std::endl;
+    std::cout << "sizeof g2 " << sizeof(g2) << std::endl;
+    std::cout << "sizeof H " << sizeof(H) << std::endl;
+    std::cout << "sizeof H2 " << sizeof(H2) << std::endl;
+    std::cout << "sizeof I " << sizeof(I) << std::endl;
+    std::cout << "sizeof I2 " << sizeof(I2) << std::endl;
+    std::cout << "sizeof i2_ " << sizeof(i2_) << std::endl;
+    std::cout << "sizeof i2 " << sizeof(i2) << std::endl;
+    std::cout << "sizeof ii2 " << sizeof(ii2) << std::endl;
+
+    std::cout << "sizeof NoXFadeChans " << sizeof(NoXFadeChans) << std::endl;
+  }*/
+
   bool initializeAudio () {
     using namespace std;
     using namespace imajuscule;
@@ -396,6 +499,8 @@ extern "C" {
     cout << "Warning : C++ sources of imj-bindings-audio were built without NDEBUG" << endl;
 #endif
     disableDenormals();
+
+    //testFreeList();
 
     setPortaudioEnvVars();
 
@@ -424,7 +529,7 @@ extern "C" {
       return false;
     }
 
-    if(imajuscule::thread::priorityIsReadOnly()) {    
+    if(imajuscule::thread::priorityIsReadOnly()) {
         cout << endl;
         cout << "Warning :" << endl;
         cout << "  The audio engine needs to be able to dynamically change a thread priority" << endl;

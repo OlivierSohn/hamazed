@@ -50,7 +50,7 @@ instance Positionable (TextBox ColorString) where
             szGroup = Size (fromIntegral nLines) w
         usingScissor (intersection contentArea $ mkRectArea upperLeftGroup szGroup) $ do
           modStr <- case c of
-            NoColor -> return id
+            NoColor -> return id
             Alternate False -> return id
             Alternate True -> do
               let bg = gray 1 -- it is intentionally not true black here, to have alternating backgrounds

@@ -96,10 +96,10 @@ instance (Real a, Show a) => Positionable (Slider a) where
         drawAligned_ (Colored color upDown) (mkCentered upDownCenter)
       Compact -> do
         case down of
-          ' ' -> return ()
+          ' ' -> return ()
           _ -> drawAt (Colored color downTxt) $ move 1 Down $ coords
         case up of
-          ' ' -> return ()
+          ' ' -> return ()
           _ -> drawAt (Colored color upTxt) $ move nSteps RIGHT barLeft
    where
     i = getDiscreteIndex s

@@ -211,7 +211,7 @@ takeKeyPressed k = state $ \s ->
       szPrev = Set.size prev
       cur = Set.delete k prev
       szCur = Set.size cur
-  in (szCur < szPrev, s { pressedKeys = cur })
+  in (szCur < szPrev, s { pressedKeys = cur })
 
 -- After this call, 'keyIsPressed' @k@  will return 'True'
 {-# INLINABLE addKeyPressed #-}

@@ -32,7 +32,7 @@ testIntensities = do
       let ref = saturatedCycle $ mkIntensity i
           n = length ref
       case ref of
-        [] -> error "test"
+        [] -> error "test"
         (r:_) -> do
           n `shouldBe` countHuesOfSameIntensity r
           fromList ref `shouldBe` fromList (sameIntensityHues r))

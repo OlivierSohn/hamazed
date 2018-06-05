@@ -52,7 +52,7 @@ diffVec2d (Vec2 vx vy) (Vec2 wx wy) =
   Vec2 (vx-wx) (vy-wy)
 
 -- | Multiplies a 'Vec2' by a scalar.
-scalarProd :: Float -> Vec2 a -> Vec2 a
+scalarProd :: Float -> Vec2 a -> Vec2 a
 scalarProd f (Vec2 x y) = Vec2 (f*x) (f*y)
 
 -- | Integrate twice a constant acceleration over a duration, return a position
@@ -139,7 +139,7 @@ fullCircle radius firstAngle resolution =
 -- The total number of points will always be a multiple of 4.
 translatedFullCircleFromQuarterArc :: Vec2 Pos
                                    -- ^ Center
-                                   -> Float
+                                   -> Float
                                    -- ^ Radius
                                    -> Float
                                    -- ^ The angle corresponding to the first sampled point
@@ -153,7 +153,7 @@ translatedFullCircleFromQuarterArc center radius firstAngle resolution =
 -- | Samples a circle.
 translatedFullCircle :: Vec2 Pos
                      -- ^ Center
-                     -> Float
+                     -> Float
                      -- ^ Radius
                      -> Float
                      -- ^ The angle corresponding to the first sampled point

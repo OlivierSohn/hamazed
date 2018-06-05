@@ -24,7 +24,7 @@ data VecPosSpeed = VecPosSpeed {
   , _vecPosSpeedSpeed :: {-# UNPACK #-} !(Vec2 Vel)
 } deriving (Eq, Show)
 
--- | Convert from 'PosSpeed' to 'VecPosSpeed'
+-- | Convert from 'PosSpeed' to 'VecPosSpeed'
 {-# INLINE posSpeed2VecPosSpeed #-}
 posSpeed2VecPosSpeed :: PosSpeed -> VecPosSpeed
 posSpeed2VecPosSpeed (PosSpeed pos speed) =

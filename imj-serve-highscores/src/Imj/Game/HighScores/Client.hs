@@ -20,7 +20,7 @@ import Servant.Client
 import Imj.Game.HighScores
 import Imj.Game.HighScores.API
 
--- | Returns the successor of the value passed.
+-- | Returns the successor of the value passed.
 --
 -- This function can be used to monitor the server.
 highScoresServerHealth :: Int -> ClientM Int

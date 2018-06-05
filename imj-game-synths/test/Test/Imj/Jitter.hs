@@ -111,7 +111,7 @@ testThreadDelay =
     ,(testPeriodEmulateYield,"waitTillYield")
     ]
 
-testPeriod :: Time Duration System -> Time Point System -> IO [Time Point System]
+testPeriod :: Time Duration System -> Time Point System -> IO [Time Point System]
 testPeriod period startTime =
   go 1 [startTime]
  where
@@ -126,7 +126,7 @@ testPeriod period startTime =
 
 -- using 100%CPU, emulate threadDelay by repeatedly calling getSystemTime and
 -- checking if "we are done waiting yet" :
-testPeriodEmulate :: Time Duration System -> Time Point System -> IO [Time Point System]
+testPeriodEmulate :: Time Duration System -> Time Point System -> IO [Time Point System]
 testPeriodEmulate period startTime =
   go 1 [startTime]
  where
@@ -147,7 +147,7 @@ testPeriodEmulate period startTime =
 
 -- using 100%CPU + yield, emulate threadDelay by repeatedly calling getSystemTime and
 -- checking if "we are done waiting yet" :
-testPeriodEmulateYield :: Time Duration System -> Time Point System -> IO [Time Point System]
+testPeriodEmulateYield :: Time Duration System -> Time Point System -> IO [Time Point System]
 testPeriodEmulateYield period startTime =
   go 1 [startTime]
  where

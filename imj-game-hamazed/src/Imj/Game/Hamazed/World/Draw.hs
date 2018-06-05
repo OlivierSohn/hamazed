@@ -48,7 +48,7 @@ drawWorld (World balls ships space _ _) s  = do
     case status of
       Armored   -> f shipBgColorSafe
       Unarmored -> f shipBgColor
-      Destroyed -> return ()
+      Destroyed -> return ()
 
 {-# INLINABLE drawNumber #-}
 drawNumber :: (Draw e, MonadReader e m, MonadIO m)

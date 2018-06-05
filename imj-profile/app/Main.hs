@@ -156,7 +156,7 @@ data TestAssumption =
 -- | Based on observed behaviour for 1,2,3 and 4 components.
 -- You may need to add values if you need a bigger number of components,
 -- and improve the efficiency of optimal strategies precomputation.
-mkAssumption :: ComponentCount -> TestAssumption
+mkAssumption :: ComponentCount -> TestAssumption
 mkAssumption (ComponentCount n)
   | n <= 1 = DifficultyIncreasesWithProbability
   | n == 2 = MinimalDifficultyAt $ almost 0.49
@@ -282,7 +282,7 @@ allStrategies =
 profile :: Properties -> NonEmpty GenIO -> IO (MkSpaceResult SmallWorld, Statistics)
 profile p gen = newMVar True >>= profileWithContinue p gen . readMVar
 
-profileWithContinue :: Properties -> NonEmpty GenIO -> IO Bool -> IO (MkSpaceResult SmallWorld, Statistics)
+profileWithContinue :: Properties -> NonEmpty GenIO -> IO Bool -> IO (MkSpaceResult SmallWorld, Statistics)
 profileWithContinue property gen c = do
   (res, stats) <- mkSmallWorld gen property c
   case res of

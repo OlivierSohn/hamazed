@@ -157,7 +157,7 @@ instance Storable MaterialAndKey where -- maps to a Word16
 {-# INLINE isAir #-}
 isAir :: a -> (Word16 -> a) -> MaterialAndKey -> a
 isAir no yes (MaterialAndKey x)
- | x < 0x8000 = yes x
+ | x < 0x8000 = yes x
  | otherwise = no
 
 {-# INLINE materialAndKeyToMaterial #-}
@@ -231,7 +231,7 @@ instance Show MatrixVariantsSpec where
 toVariantsSpec :: MatrixVariants -> MatrixVariantsSpec
 toVariantsSpec (Variants l next) = VariantsSpec (NE.map mkVariationSpec l) (fmap toVariantsSpec next)
 
-toVariants :: Size -> MatrixVariantsSpec -> MatrixVariants
+toVariants :: Size -> MatrixVariantsSpec -> MatrixVariants
 toVariants sz (VariantsSpec l next) = Variants (NE.map (mkVariation sz) l) (fmap (toVariants sz) next)
 
 prettyShowMatrixVariants :: Maybe MatrixVariants -> String
@@ -305,12 +305,12 @@ instance Show Variation where
   show i@Interleave{} = "I" ++ showVariationDetails i
   show r@Rotate{} = unwords ["R", showVariationDetails r]
 
-showVariationDetails :: Variation -> String
+showVariationDetails :: Variation -> String
 showVariationDetails (Rotate detail) = showRotationDetail detail
 showVariationDetails (Interleave r c) = show (nUseful r, nUseful c)
 showVariationDetails (Modulate from to) = show (from,to)
 
-showRotationDetail :: RotationDetail -> String
+showRotationDetail :: RotationDetail -> String
 showRotationDetail (RotationDetail order (ComponentCount n)) = unwords ["margin-" ++ show n, show order]
 
 data VariationSpec =
@@ -562,7 +562,7 @@ minCountAirBlocks (ComponentCount n) (Size (Length h) (Length w))
 
 minCountWallBlocks :: ComponentCount -> Size -> Maybe Int
 minCountWallBlocks (ComponentCount n) (Size (Length h) (Length w))
-  | h <= 0 || w <= 0 = bool Nothing (Just 0) $ n <= 0
+  | h <= 0 || w <= 0 = bool Nothing (Just 0) $ n <= 0
   | n <= 0 = Just $ w*h
   | n <= quot (h*w + 1) 2 = Just $ n - 1 -- at the limit, we have a checker board
   | otherwise = Nothing
@@ -638,7 +638,7 @@ prettyShowDurations (Durations total) =
     [ ("Total duration", showTime total)
     ]
 
-prettyShowStats :: Statistics -> [String]
+prettyShowStats :: Statistics -> [String]
 prettyShowStats (Statistics nRandomMatrices nMats ccm notEnoughAir notEnoughWall unusedFronteer ccCountMismatch ccSizesDistribution unusedSpace timings) =
   "" :
   showInBox strs
@@ -668,6 +668,6 @@ prettyShowStats (Statistics nRandomMatrices nMats ccm notEnoughAir notEnoughWall
 
   showFilterCount = showCount . negate
 
-prettyShowCCMap :: (String, String) -> Map ComponentCount Int -> [String]
+prettyShowCCMap :: (String, String) -> Map ComponentCount Int -> [String]
 prettyShowCCMap header =
   showArray (Just header) . map (show *** show) . Map.toAscList

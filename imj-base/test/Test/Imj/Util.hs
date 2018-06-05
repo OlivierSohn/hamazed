@@ -67,10 +67,10 @@ testLastAbove = do
 
   lastAbove False (\v -> return $ v <= 0) 0 (10 :: Int) >>= shouldBe $ Just 0
   lastAbove False (\v -> return $ v < 0) 0 (10 :: Int)  >>= shouldBe Nothing
-  lastAbove False (\v -> return $ v < 10) 0 (10 :: Int) >>= shouldBe $ Just 9
-  lastAbove False (\v -> return $ v <= 10) 0 (10 :: Int) >>= shouldBe $ Just 10
-  lastAbove False (\v -> return $ v < 5) 0 (10 :: Int)  >>= shouldBe $ Just 4
-  lastAbove False (\v -> return $ v < 50) 0 (10 :: Int) >>= shouldBe $ Just 10
+  lastAbove False (\v -> return $ v < 10) 0 (10 :: Int) >>= shouldBe $ Just 9
+  lastAbove False (\v -> return $ v <= 10) 0 (10 :: Int) >>= shouldBe $ Just 10
+  lastAbove False (\v -> return $ v < 5) 0 (10 :: Int)  >>= shouldBe $ Just 4
+  lastAbove False (\v -> return $ v < 50) 0 (10 :: Int) >>= shouldBe $ Just 10
 
   -- test with invalid args:
 
@@ -78,4 +78,4 @@ testLastAbove = do
   lastAbove False (\_ -> return True) 10 (0 :: Int) >>= shouldBe Nothing
 
   -- predicate not being decreasing:
-  lastAbove False (\v -> return $ v >= (10 :: Int)) 0 10 >>= shouldBe $ Nothing
+  lastAbove False (\v -> return $ v >= (10 :: Int)) 0 10 >>= shouldBe $ Nothing

@@ -16,7 +16,7 @@ testBres3 = do
   return $ length pairs == s -- True on success (on error, an error has already terminated the program)
 
 
--- | returns 1 on success, else errors
+-- | returns 1 on success, else errors
 test :: ((Int, Int, Int),(Int, Int, Int)) -> IO Int
 test (from, to) = do
   --putStrLn $ show from ++ show to

@@ -308,7 +308,7 @@ handlerError = error' "Handler"
 
 error' :: (Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
          , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
-       => String -> String -> m ()
+       => String -> String -> m ()
 error' from msg = do
   log $ colored (pack txt) red
   notifyClient' $ ServerError txt

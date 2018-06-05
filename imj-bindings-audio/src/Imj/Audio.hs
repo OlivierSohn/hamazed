@@ -34,10 +34,10 @@ import Imj.Music.CTypes
 foreign import ccall "effectOn" effectOn :: CInt -> CShort -> CFloat -> IO ()
 foreign import ccall "effectOff" effectOff :: CShort -> IO ()
 
--- | Should be called prior to using any other function (see 'withAudio')
+-- | Should be called prior to using any other function (see 'withAudio')
 foreign import ccall "initializeAudio" initializeAudio :: IO Bool
 
--- | Fades-out all audio quikcly (within 'maxShutdownDurationMicros') and closes
+-- | Fades-out all audio quikcly (within 'maxShutdownDurationMicros') and closes
 -- any open audio channel.
 foreign import ccall "stopAudioGracefully" stopAudioGracefully :: IO ()
 

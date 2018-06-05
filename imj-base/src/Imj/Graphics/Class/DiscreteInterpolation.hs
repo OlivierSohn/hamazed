@@ -92,7 +92,7 @@ instance (DiscreteInterpolation a)
     zipWith (\e e' -> interpolate e e' progress) l $ assert (length l == length l') l'
 
 
--- | Using bresenham 2d line algorithm.
+-- | Using bresenham 2d line algorithm.
 instance DiscreteInterpolation (Coords Pos) where
   interpolate c c' i
     | c == c' = c

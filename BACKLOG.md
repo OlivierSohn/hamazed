@@ -2,6 +2,8 @@
 in MonoNoteChannel<VolumeAdjustedOscillator<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>>.
 (see testFreeList)
 
+moving the 64bytes-aligned buffer elsewhere would help a lot.
+
 - make a player app where a melody is played and we can interactively change the instrument used to play it.
 
 - Decay :
@@ -14,10 +16,6 @@ long attack, EaseIn Sine : smooth
 - make volume of music / effects adjustable in hamazed
 
 - limit the sustain value to 0.01 when using propder for decay
-- at each param change, play a note?
-- read/use http://werner.yellowcouch.org/Papers/fastenv12/
-
-- Ideally we should JIT the parametrized audioelements code to have better performance: http://www.stephendiehl.com/llvm/
 
 - use 64 bit audio to reduce numerical errors (especially when summing a big signal with a small one)
 - remove 256 channels limit (review types for channel ids : uint8_t -> int, use -1 or maxBound for None)

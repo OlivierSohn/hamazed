@@ -457,7 +457,7 @@ namespace imajuscule {
 // functions herein are part of the interface
 extern "C" {
 
-/*
+
   void testFreeList() {
     using FL = imajuscule::FreeList<int64_t, 4096/sizeof(int64_t)>;
     FL l;
@@ -555,7 +555,7 @@ extern "C" {
     std::cout << "sizeof ii2 " << sizeof(ii2) << std::endl;
 
     std::cout << "sizeof NoXFadeChans " << sizeof(NoXFadeChans) << std::endl;
-  }*/
+  }
 
   bool initializeAudio () {
     using namespace std;
@@ -570,8 +570,6 @@ extern "C" {
 
     setPortaudioEnvVars();
 
-    getAudioContext().Init();
-
     // add a single Xfade channel (needed because soundengine and channel don't support envelopes entirely)
     static constexpr auto n_max_orchestrator_per_channel = 1;
     {
@@ -583,8 +581,6 @@ extern "C" {
         AudioFreeze l(getAudioContext().getChannelHandler().get_lock());
 
         getAudioContext().getChannelHandler().getChannels().getChannelsXFade().emplace_back(std::move(p));
-        // we reserve enough channels pointers so as to not reallocate while holding the audio lock
-        // in the future.
         getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade().reserve(100);
       }
     }
@@ -595,13 +591,15 @@ extern "C" {
       return false;
     }
 
+    getAudioContext().Init();
+
     if(imajuscule::thread::priorityIsReadOnly()) {
         cout << endl;
         cout << "Warning :" << endl;
         cout << "  The audio engine needs to be able to dynamically change a thread priority" << endl;
-        cout << "  to avoid the priority inversion effect while holding the audio lock." << endl;
-        cout << "  We detected that the system doesn't allow setting thread priorities, hence" << endl;
-        cout << "  you may occasionally hear some audio clics/cracks. To fix this, please" << endl;
+        cout << "  to avoid priority inversion when holding the audio lock." << endl;
+        cout << "  We detected that your system doesn't allow setting thread priorities, hence" << endl;
+        cout << "  you may occasionally hear some audio clics/cracks. To fix this, you can" << endl;
         cout << "  run the command again using 'sudo' : root privileges are required on Linux" << endl;
         cout << "  to use 'pthread_setschedparam'." << endl;
         cout << endl;
@@ -628,6 +626,13 @@ extern "C" {
     Synths<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>::finalize();
 
     getAudioContext().TearDown();
+
+    {
+      AudioFreeze l(getAudioContext().getChannelHandler().get_lock());
+
+      getAudioContext().getChannelHandler().getChannels().getChannelsXFade().clear();
+      getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade().clear();
+    }
   }
 
   void midiNoteOn(int envelCharacTime, int16_t pitch, float velocity) {

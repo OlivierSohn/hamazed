@@ -158,33 +158,6 @@ namespace imajuscule {
       return **(getAudioContext().getChannelHandler().getChannels().getChannelsXFade().begin());
     }
 
-    auto & addNoXfadeChannels(int nVoices) {
-      static constexpr auto n_max_orchestrator_per_channel = 0; // we don't use orchestrators
-      auto p = std::make_unique<NoXFadeChans>(
-        getAudioContext().getChannelHandler().get_lock_policy(),
-        std::min(nVoices, static_cast<int>(std::numeric_limits<uint8_t>::max())),
-        n_max_orchestrator_per_channel);
-      auto & res = *p;
-      {
-        bool ok = true;
-        {
-          auto & ch = getAudioContext().getChannelHandler();
-          auto & cs = ch.getChannels().getChannelsNoXFade();
-          {
-            AudioFreeze l(ch.get_lock());
-            if(cs.capacity() == cs.size()) {
-              ok = false; // emplace_back will allocate memory while holding the audio lock.
-            }
-            cs.emplace_back(std::move(p));
-          }
-        }
-        if(!ok) {
-          LG(WARN, "addNoXfadeChannels : Memory allocation occured while holding the audio lock");
-        }
-      }
-      return res;
-    }
-
     Event mkNoteOn(int pitch, float velocity) {
       Event e;
       e.type = Event::kNoteOnEvent;
@@ -293,13 +266,31 @@ namespace imajuscule {
       }
     };
 
+
+    struct tryScopedLock {
+      tryScopedLock(std::mutex&m) : m(m) {
+        success = m.try_lock();
+      }
+      operator bool () const {
+        return success;
+      }
+      ~tryScopedLock() {
+        if(success) {
+          m.unlock();
+        }
+      }
+    private:
+      std::mutex & m;
+      bool success;
+    };
+
     template <typename Envel>
     struct Synths {
       using T = mySynth::SynthT<Envel>;
       using K = typename Envel::Param;
 
       // NOTE the 'Using' is constructed while we hold the lock to the map.
-      // Hence, while garbage collecting, if we take the map lock,
+      // Hence, while garbage collecting / recycling, if we take the map lock,
       // and if the instrument lock is not taken, we have the guarantee that
       // the instrument lock won't be taken until we release the map lock.
       static Using<withChannels<T>> get(K const & rawEnvelParam) {
@@ -316,23 +307,25 @@ namespace imajuscule {
           if(it != synths.end()) {
             return Using(std::move(l), *(it->second));
           }
+          if(auto * p = recycleInstrument(synths, envelParam)) {
+            return Using(std::move(l), *p);
+          }
           auto p = std::make_unique<withChannels<T>>(addNoXfadeChannels(T::n_channels));
-          auto & res = *p;
           SetParam<Envel>::set(envelParam, p->obj);
-          if(p->obj.initialize(p->chans)) {
-              auto res = synths.emplace(envelParam, std::move(p));
-              return Using(std::move(l), *(res.first->second));
+          if(!p->obj.initialize(p->chans)) {
+            auto oneSynth = synths.begin();
+            if(oneSynth != synths.end()) {
+              LG(ERR, "a preexisting synth is returned");
+              // The channels have the same lifecycle as the instrument, the instrument will be destroyed
+              //  so we remove the associated channels:
+              removeRecentNoXFadeChannels(&p->chans);
+              return Using(std::move(l), *(oneSynth->second.get()));
+            }
+            LG(ERR, "an uninitialized synth is returned");
           }
-          else {
-            LG(ERR,"get().initialize failed");
-          }
-          auto oneSynth = synths.begin();
-          if(oneSynth != synths.end()) {
-            LG(ERR, "get : a preexisting synth is returned");
-            return Using(std::move(l), *(oneSynth->second.get()));
-          }
-          LG(ERR, "get : an uninitialized synth is returned");
-          return Using(std::move(l), res);
+          return Using(
+              std::move(l)
+            , *(synths.emplace(envelParam, std::move(p)).first->second));
         }
       }
 
@@ -345,23 +338,96 @@ namespace imajuscule {
       }
 
     private:
+      using Map = std::map<K,std::unique_ptr<withChannels<T>>>;
+
       static auto & map() {
-        static std::map<K,std::unique_ptr<withChannels<T>>> m;
+        static Map m;
         return m;
       }
       static auto & mutex() {
         static std::mutex m;
         return m;
       }
+
+      /* The caller is expected to take the map mutex. */
+      static withChannels<T> * recycleInstrument(Map & synths, K const & envelParam) {
+        for(auto it = synths.begin(), end = synths.end(); it != end; ++it) {
+          auto & i = it->second;
+          if(!i) {
+            LG(ERR,"inconsistent map");
+            continue;
+          }
+          auto & o = *i;
+          if(auto scoped = tryScopedLock(o.isUsed)) {
+            // we don't take the audio lock because hasOrchestratorsOrComputes relies on an
+            // atomically incremented / decremented counter.
+            if(o.chans.hasOrchestratorsOrComputes()) {
+              continue;
+            }
+
+            // - we have 0 orchestrator and 0 computes
+            // - no note is being started, hence we won't increase the number of orchestrators or computes.
+            // Hence, all enveloppes should be finished : if one is not finished, it will not have a chance to ever finish.
+            Assert(o.obj.areEnvelopeFinished() && "inconsistent envelopes");
+
+            // this code uses c++17 features not present in clang yet, so it's replaced by the code after.
+            /*
+            auto node = synths.extract(it);
+            node.key() = envelParam;
+            auto [inserted, isNew] = synths.insert(std::move(node));
+            */
+            std::unique_ptr<withChannels<T>> new_p;
+            new_p.swap(it->second);
+            synths.erase(it);
+            auto [inserted, isNew] = synths.emplace(envelParam, std::move(new_p));
+
+            Assert(isNew); // because prior to calling this function, we did a lookup
+            using namespace audioelement;
+            SetParam<Envel>::set(envelParam, inserted->second->obj);
+            return inserted->second.get();
+          }
+          else {
+            // a note is being started or stopped, we can't recycle this instrument.
+          }
+        }
+        return nullptr;
+      }
+
+      static auto & addNoXfadeChannels(int nVoices) {
+        static constexpr auto n_max_orchestrator_per_channel = 0; // we don't use orchestrators
+        auto p = std::make_unique<NoXFadeChans>(
+          getAudioContext().getChannelHandler().get_lock_policy(),
+          std::min(nVoices, static_cast<int>(std::numeric_limits<uint8_t>::max())),
+          n_max_orchestrator_per_channel);
+        auto & res = *p;
+        {
+          auto & ch = getAudioContext().getChannelHandler();
+          auto & cs = ch.getChannels().getChannelsNoXFade();
+          auto w = mkVectorWrapper(cs);
+          {
+            NoXFadeChans::LockCtrlFromNRT l(ch.get_lock());
+            reserveAndLock(1,w,l);
+            cs.emplace_back(std::move(p));
+            l.unlock();
+          }
+        }
+        return res;
+      }
+
+      static void removeRecentNoXFadeChannels(NoXFadeChans * o) {
+        auto & ch = getAudioContext().getChannelHandler();
+        auto & cs = ch.getChannels().getChannelsNoXFade();
+        std::unique_ptr<NoXFadeChans> p;
+        {
+          AudioFreeze l(ch.get_lock());
+          extractFromEnd(cs,o).swap(p);
+        }
+        // deallocation happens outside the audio lock scope.
+      }
     };
 
     template<typename Env>
     void midiEvent(typename Env::Param const & env, Event e) {
-      // if we garbage collect std::unique_ptr<withChannels<T>>,
-      // we should take the map lock, and we should have a lock in withInstrument
-      // indicating that we're issuing a command using this instrument.
-      // Here, the instrument lock should be taken _while_ the map lock is taken
-      // and released after onEvent2 returns.
       Synths<Env>::get(env).o.onEvent2(e, getAudioContext().getChannelHandler());
     }
   } // NS audio
@@ -553,6 +619,7 @@ extern "C" {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;
+
 
     windVoice().finalize(getXfadeChannels());
 

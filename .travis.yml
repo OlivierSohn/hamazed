@@ -10,7 +10,7 @@ os:
 
 env:
   - RESOLVER="lts-11.9"           # ghc 8.2.2
-  - RESOLVER="nightly-2018-05-27" # ghc 8.4.2
+  - RESOLVER="nightly-2018-06-07" # ghc 8.4.2
   - RESOLVER="nightly"
 
 matrix:

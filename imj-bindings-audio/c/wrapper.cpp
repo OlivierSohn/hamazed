@@ -184,8 +184,12 @@ namespace imajuscule {
     auto & windVoice () {
       constexpr auto n_audio_out = 2;
       constexpr bool withNoteOff = true;
+      using namespace audioelement;
       using VoiceWindImpl = Voice<n_audio_out, audio::SoundEngineMode::WIND, withNoteOff>;
-      static VoiceWindImpl v;
+      static constexpr auto n_mnc = VoiceWindImpl::n_channels;
+      using mnc_buffer = VoiceWindImpl::MonoNoteChannel::buffer_t;
+      static std::array<mnc_buffer,n_mnc> buffers;
+      static VoiceWindImpl v(std::make_from_tuple<VoiceWindImpl>(buffers));
       return v;
     }
 
@@ -217,7 +221,7 @@ namespace imajuscule {
 
     template<typename T>
     struct withChannels {
-      withChannels(NoXFadeChans & chans) : chans(chans) {}
+      withChannels(NoXFadeChans & chans) : chans(chans), obj(std::make_from_tuple<T>(buffers)) {}
       ~withChannels() {
         std::lock_guard<std::mutex> l(isUsed); // see 'Using'
       }
@@ -238,6 +242,10 @@ namespace imajuscule {
       NoXFadeChans & chans;
 
       std::mutex isUsed;
+
+      static constexpr auto n_mnc = T::n_channels;
+      using mnc_buffer = typename T::MonoNoteChannel::buffer_t;
+      std::array<mnc_buffer,n_mnc> buffers;
     };
 
     // a 'Using' instance gives the guarantee that the object 'o' passed to its constructor
@@ -457,7 +465,6 @@ namespace imajuscule {
 // functions herein are part of the interface
 extern "C" {
 
-
   void testFreeList() {
     using FL = imajuscule::FreeList<int64_t, 4096/sizeof(int64_t)>;
     FL l;
@@ -468,37 +475,37 @@ extern "C" {
     using namespace imajuscule::audio;
     std::cout << "sizeof synth " << sizeof(SynthT<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>) << std::endl;
     std::cout << "sizeof mnc " << sizeof(MonoNoteChannel<VolumeAdjustedOscillator<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>>) << std::endl;
-    std::cout << "sizeof au " << sizeof(AudioElement<float>) << std::endl;
-    std::cout << "sizeof aub " << sizeof(AudioElement<float>::buffer_placeholder_t) << std::endl;
+    std::cout << "sizeof au " << sizeof(AEBuffer<float>) << std::endl;
+    std::cout << "sizeof aub " << sizeof(AEBuffer<float>::buffer_placeholder_t) << std::endl;
     union {
-        AudioElement<float>::buffer_placeholder_t for_alignment;
+        AEBuffer<float>::buffer_placeholder_t for_alignment;
         float buffer[n_frames_per_buffer];
     } u;
     std::cout << "sizeof auu " << sizeof(u) << std::endl;
 
     struct F { // 64 bytes
       union {
-          AudioElement<float>::buffer_placeholder_t for_alignment;
+          AEBuffer<float>::buffer_placeholder_t for_alignment;
           float buffer[n_frames_per_buffer];
       };
     };
     struct G_ { // 128 bytes
       union {
-          AudioElement<float>::buffer_placeholder_t for_alignment;
+          AEBuffer<float>::buffer_placeholder_t for_alignment;
           float buffer[n_frames_per_buffer];
       };
       bool me : 1;
     };
     struct G { // 128 bytes
       union {
-          AudioElement<float>::buffer_placeholder_t for_alignment;
+          AEBuffer<float>::buffer_placeholder_t for_alignment;
           float buffer[n_frames_per_buffer];
       };
       bool me : 1;
     }__attribute__((packed));
     struct G2 { // 128 bytes
       union {
-          AudioElement<float>::buffer_placeholder_t for_alignment;
+          AEBuffer<float>::buffer_placeholder_t for_alignment;
           float buffer[n_frames_per_buffer];
       };
       bool me;
@@ -522,12 +529,12 @@ extern "C" {
     };
     struct I { // 128 bytes
       union {
-          AudioElement<float>::buffer_placeholder_t for_alignment;
+          AEBuffer<float>::buffer_placeholder_t for_alignment;
       };
       bool me : 1;
     };
     struct I2 { // 128 bytes
-      AudioElement<float>::buffer_placeholder_t for_alignment;
+      AEBuffer<float>::buffer_placeholder_t for_alignment;
       bool me : 1;
     };
     struct i2_ : public I2 {

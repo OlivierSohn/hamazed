@@ -1,9 +1,3 @@
-- we can improve the memory layout of audioelements : today, almost half the bits are unused
-in MonoNoteChannel<VolumeAdjustedOscillator<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>>.
-(see testFreeList)
-
-moving the 64bytes-aligned buffer elsewhere would help a lot.
-
 - make a player app where a melody is played and we can interactively change the instrument used to play it.
 
 - Decay :
@@ -18,26 +12,16 @@ long attack, EaseIn Sine : smooth
 - limit the sustain value to 0.01 when using propder for decay
 
 - use 64 bit audio to reduce numerical errors (especially when summing a big signal with a small one)
-- remove 256 channels limit (review types for channel ids : uint8_t -> int, use -1 or maxBound for None)
+- remove the 256 channels limit per Channels (review types for channel ids : uint8_t -> int, use -1 or maxBound for None)
 
 - on soundengine, instead of using the channel xfade,
 the duration could be interpreted by the channel as "when to trigger the enveloppe keyReleased()"
 (thus, also when to trigger the enveloppe of the following request).
 
-- use travis_wait 119 if haddock is too long
-
 - develop enveloppes:
-
-make "linear perceived" envelope : Logarithmic, with a negative offset, scaled:.
-* scale:
-    epsilon -> 1
-    0       -> 1
-
 use leap motion as input for envelope / pitch?
 
 - synths : verify if with 2 players, ghost notes occur.
-
-- https://devcenter.heroku.com/changelog-items/1418 -- take it into account in doc
 
 - add game doc., with /man /doc commands
 For synth:
@@ -84,7 +68,7 @@ The graphics timing can be less accurate.
   - In case of a game, we want audio to be synchronized with game events
 so handling audio events the same way as game event might be preferable.
 
-- array frame colors (grey for synths)
+- adjust array frame colors (grey for synths)
 
 - make generic : the server sends the game state to the client (putIGame / withAnim)
 

@@ -125,7 +125,9 @@ sudo apt-get install libpq-dev
 
 [stack] is the preferred tool to build the project:
 
-`stack build --pedantic`
+```shell
+stack build --pedantic
+```
 
 A recent enough C compiler should be used by GHC, so as to be able to build C++14.
 
@@ -133,7 +135,9 @@ A recent enough C compiler should be used by GHC, so as to be able to build C++1
 
 Passing no command line argument will run the games in single player mode:
 
-`stack exec <game-executable>`
+```shell
+stack exec <game-executable>
+```
 
 # Run the games in Multi-player mode
 
@@ -163,7 +167,7 @@ GHC versions 8.2.2 and 8.4.2.
 
 ## Supported platforms
 
-Supported client platforms are OSX and Linux (but see the rendering limitation).
+Officially supported client platforms are (recent versions of) macOS and Ubuntu.
 
 ## Music
 

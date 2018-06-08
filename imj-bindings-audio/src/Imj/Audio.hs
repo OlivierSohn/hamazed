@@ -1,19 +1,59 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 
+{- |
+      This module lets you play polyphonic, poly-instrumental music and sounds,
+      in real time.
+
+      Behind the scenes, it uses
+      <https://github.com/OlivierSohn/cpp.audio/tree/master/include a custom C++ audio engine> through
+      <https://github.com/OlivierSohn/hamazed/tree/master/imj-bindings-audio these bindings>.
+
+      The produced audio signal will be written to your audio system through the
+      cross-platform (Windows, OSX, Unix) <http://www.portaudio.com/ portaudio API>.
+
+      * C++ objects representing instruments are automatically recycled,
+      hence the RAM usage is proportional to the number of /active/ instruments at any given time.
+
+      * The real-time audio thread is /not/ managed by the GHC runtime, so there will be
+      /no/ audio pauses during GHC garbage collection.
+
+      * In the C++ audio engine, we control thread priorities so that when taking the
+      global audio lock, the thread that takes it has the realtime priority, to avoid priority inversion
+      when the realtime audio thread waits for the lock. This means that on linux,
+      you should ideally 'sudo' the command starting the program, so that
+      the program has the necessary privileges to configure thread priorities.
+      If you don't, a warning message will be logged in the console, and the program will run,
+      but with less guarantees about audio "smoothness" because we can potentially have priority
+      inversion effect.
+
+      * In theory (it has not beed much tested yet) it should be safe to call
+      functions in a concurent / multithreaded context, because the library
+      underneath uses locks to protect accesses to shared data.
+      * There is no restriction on the kind of thread (bounded / unbounded) you can call these functions from.
+
+-}
+
 module Imj.Audio
-      ( -- * Using audio
+      ( -- * Output audio
+      {- | 'usingAudio' will hide the gory details about the audio engine
+      initialization and teardown, and lets you execute an action where tou can:
+
+      * play notes with a simple instrument ('midiNoteOn', 'midiNoteOff')
+      * play notes with n envelope-based instrument ('midiNoteOnAHDSR', 'midiNoteOffAHDSR')
+      * play sound based on filtered white noise ('effectOn', 'effectOff')
+       -}
         usingAudio
-      -- * Midi Synth
       , midiNoteOn
       , midiNoteOff
-      -- * Midi AHDSR Synths
       , midiNoteOnAHDSR
       , midiNoteOffAHDSR
-      -- * Envelope graph
-      , analyzeAHDSREnvelope
-      -- * Effect
       , effectOn
       , effectOff
+      -- * Analyze envelopes
+      -- | 'analyzeAHDSREnvelope' lets you retrieve teh exact shape of the envelope
+      -- of an instrument. It can be usefull to give a visual feedback to users
+      -- tuning their envelopes.
+      , analyzeAHDSREnvelope
       -- * reexports
       , module Imj.Music.CTypes
       , CInt, CShort, CFloat

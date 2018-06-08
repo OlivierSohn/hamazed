@@ -15,9 +15,6 @@ env:
 
 matrix:
   allow_failures:
-    # cf https://github.com/commercialhaskell/stack/issues/3472 : allow linux to fail for ghc < 8.4.1
-    - os: linux
-      env: RESOLVER="lts-11.9"
     - env: RESOLVER="nightly"
 
 addons:

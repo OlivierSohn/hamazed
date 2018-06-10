@@ -23,7 +23,7 @@ class Audio e where
 
   playMusic
     :: (MonadIO m)
-    => e -> Music -> m ()
+    => e -> MusicalEvent -> m ()
 
 -- | Muted audio
 instance Audio () where

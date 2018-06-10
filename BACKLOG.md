@@ -1,5 +1,21 @@
 - windows compatibility
 
+--with-gcc is not working? if gcc >=7 is used, if constexpr should be understood,
+but it's not...
+
+
+
+
+c:\msys64\%MSYSTEM%\bin\gcc --version
+gcc (Rev2, Built by MSYS2 project) 7.3.0
+
+stack --skip-msys --with-gcc c:\msys64\%MSYSTEM%\bin\gcc exec -- gcc --version
+realgcc.exe (Rev2, Built by MSYS2 project) 6.2.0
+
+stack --skip-msys --with-gcc c:\msys64\%MSYSTEM%\bin\gcc --no-terminal --extra-lib-dirs c:\msys64\%MSYSTEM%\lib\ --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs c:\msys64\%MSYSTEM%\include\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --jobs 1
+#pragma message: compiled with gcc 6.2.0
+
+
 - make a player app where a melody is played and we can interactively change the instrument used to play it.
 
 - Decay :

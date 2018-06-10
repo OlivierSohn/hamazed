@@ -34,7 +34,7 @@ import           Imj.Music.Types
 playAtTempo :: Float
             -- ^ BPMs
             -> Instrument
-            -> [Symbol]
+            -> [VoiceInstruction]
             -> IO ()
 playAtTempo tempo i =
   void . forkIO . go . allMusic i
@@ -54,7 +54,7 @@ playAtTempo tempo i =
 -- of the other voice. NOTE it makes a difference only if the 2 notes have different velocities,
 -- which is not possible as of today.
 stepScore :: Score
-          -> (Score, [Music])
+          -> (Score, [MusicalEvent])
 stepScore (Score l) = (s,m)
  where
   nv = map stepVoice l
@@ -62,14 +62,14 @@ stepScore (Score l) = (s,m)
   m = concatMap snd nv
 
 stopScore :: Score
-          -> (Score, [Music])
+          -> (Score, [MusicalEvent])
 stopScore (Score l) = (s,m)
  where
   nv = map stopVoice l
   s = Score $ map fst nv
   m = concatMap snd nv
 
-allMusic :: Instrument -> [Symbol] -> [[Music]]
+allMusic :: Instrument -> [VoiceInstruction] -> [[MusicalEvent]]
 allMusic i x =
   snd $ stepNVoiceAndStop (sizeVoice s) s
  where
@@ -79,14 +79,14 @@ sizeVoice :: Voice -> Int
 sizeVoice (Voice _ _ v _) = V.length v
 
 -- | Like 'stepNVoice' but also uses 'stopVoice' to finalize the music.
-stepNVoiceAndStop :: Int -> Voice -> (Voice, [[Music]])
+stepNVoiceAndStop :: Int -> Voice -> (Voice, [[MusicalEvent]])
 stepNVoiceAndStop n s =
   (s'', reverse $ lastMusic:music)
  where
   (s', music) = stepNVoiceReversed n s
   (s'', lastMusic) = stopVoice s'
 
-stepNVoiceReversed :: Int -> Voice -> (Voice, [[Music]])
+stepNVoiceReversed :: Int -> Voice -> (Voice, [[MusicalEvent]])
 stepNVoiceReversed n score
   | n < 0 = (score,[])
   | otherwise = go n score []
@@ -94,11 +94,11 @@ stepNVoiceReversed n score
   go 0 s l = (s, l)
   go i s l = let (s',m) = stepVoice s in go (i-1) s' $ m:l
 
-stepNVoice :: Int -> Voice -> (Voice, [[Music]])
+stepNVoice :: Int -> Voice -> (Voice, [[MusicalEvent]])
 stepNVoice n score = let (s,l) = stepNVoiceReversed n score in (s,reverse l)
 
 stepVoice :: Voice
-          -> (Voice, [Music])
+          -> (Voice, [MusicalEvent])
 stepVoice (Voice i cur v inst) =
     ( Voice nextI newCur v inst
     , catMaybes [mayStopCur, mayStartNext])
@@ -130,7 +130,7 @@ stepVoice (Voice i cur v inst) =
     | i < fromIntegral len-1 = i+1
     | otherwise = 0
 
-stopVoice :: Voice -> (Voice, [Music])
+stopVoice :: Voice -> (Voice, [MusicalEvent])
 stopVoice (Voice _ cur l i) =
     ( Voice 0 Nothing l i
     , maybeToList noteChange)
@@ -140,7 +140,7 @@ stopVoice (Voice _ cur l i) =
     Note n o -> Just $ StopNote $ NoteSpec n o i
     Extend -> error "logic") cur
 
-play :: Music -> IO ()
+play :: MusicalEvent -> IO ()
 play (StartNote n@(NoteSpec _ _ i) (MidiVelocity v)) = case i of
   SineSynthAHDSR e ahdsr -> midiNoteOnAHDSR (fromIntegral $ fromEnum e) ahdsr pitch vel
   SineSynth ect -> midiNoteOn (fromIntegral $ unEnvelopeCharacteristicTime ect) pitch vel

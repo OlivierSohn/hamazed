@@ -701,6 +701,6 @@ twelvthScore = Score
     - - - - - - - -
   |]
 
-alarm :: [Symbol]
+alarm :: [VoiceInstruction]
 alarm =
   [notes|do ^do|]

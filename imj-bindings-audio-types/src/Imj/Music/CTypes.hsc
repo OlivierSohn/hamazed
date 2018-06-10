@@ -19,7 +19,8 @@ import           Data.Set(Set)
 import qualified Data.Set as Set
 
 {- |
-The AHDSR envelope is like an ADSR envelope, except that the signal can be hold after the attack:
+The AHDSR envelope is like an <https://www.wikiaudio.org/adsr-envelope/ ADSR envelope>
+, except that the signal can be hold after the attack:
 
 @
    | a |h| d |           |r|
@@ -31,9 +32,9 @@ The AHDSR envelope is like an ADSR envelope, except that the signal can be hold 
    ^                     ^
    |                     |
    key is pressed        key is released
-
-   Attack, decay and release phases can be shaped according to 'Interpolation'.
 @
+
+Attack, decay and release phases can be shaped using an 'Interpolation'.
 -}
 data AHDSR = AHDSR {
     ahdsrAttack :: {-# UNPACK #-} !Int

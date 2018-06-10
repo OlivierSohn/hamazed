@@ -1,3 +1,5 @@
+#include "compiler.prepro.h"
+
 #ifdef __cplusplus
 
 #include "cpp.audio/include/public.h"

@@ -18,7 +18,7 @@ import qualified Data.Vector as V
 import           Imj.Music.Types
 import           Imj.Timing
 
-recordMusic :: Time Point System -> Recording -> Music -> Recording
+recordMusic :: Time Point System -> Recording -> MusicalEvent -> Recording
 recordMusic t (Recording r) m = Recording (flip (:) r $ ATM m t)
 
 mkSequencerFromRecording :: k -> Recording -> Time Point System -> IO (Either Text (Sequencer k))
@@ -51,7 +51,7 @@ insertRecording (Recording r@(_:_)) k (Sequencer curPeriodStart periodLength ls)
   v = V.fromList $ map (\(ATM m t) -> RTM m $ refTime...t) rr
 
 startLoopThreadAt :: MonadIO m
-                  => (Music -> m ())
+                  => (MusicalEvent -> m ())
                   -> Time Point System
                   -> Time Duration System
                   -> V.Vector RelativeTimedMusic
@@ -62,7 +62,7 @@ startLoopThreadAt play begin elapsed l =
   v = V.dropWhile (\(RTM _ dt) -> dt < elapsed) l
 
 playOnce :: MonadIO m
-         => (Music -> m ())
+         => (MusicalEvent -> m ())
          -> V.Vector RelativeTimedMusic
          -> Time Point System
          -- ^ The reference time

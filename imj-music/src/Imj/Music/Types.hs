@@ -7,8 +7,17 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 
 module Imj.Music.Types
-      ( -- * Notes and instruments
-        Symbol(..)
+      (-- * Modeling keyboard state
+        PressedKeys(..)
+      , mkEmptyPressedKeys
+      -- * Notes and instruments
+      -- | In my music notation system, an 'Instrument' partition is modeled as a list of
+      -- /monophonic/ music voices which all have the same time granularity.
+      --
+      -- A music voice is a list of 'VoiceInstruction's where the nth 'VoiceInstruction'
+      -- specifies what the voice should do during the nth time quantum.
+
+      , VoiceInstruction(..)
       , NoteSpec(..), mkNoteSpec, noteToMidiPitch, noteToMidiPitch'
       , Instrument(..)
       , Envelope(..), cycleEnvelope, prettyShowEnvelope
@@ -34,10 +43,8 @@ module Imj.Music.Types
       , SequencerId(..)
       , MusicLine(..)
       , mkMusicLine
-      , PianoState(..)
-      , mkEmptyPiano
         -- * Midi-like instructions
-      , Music(..)
+      , MusicalEvent(..)
       -- * Reexport
       , AHDSR(..)
       , Interpolation(..), allInterpolations
@@ -60,23 +67,26 @@ import           GHC.Generics (Generic)
 import           Imj.Music.CTypes
 import           Imj.Timing
 
--- | Represents the keys currently pressed. Note that the same key can be pressed
--- twice if the lower and upper keyboards overlapp.
-data PianoState = PianoState !(Map NoteSpec Int)
+-- | Represents the keys currently pressed on a keyboard-based music device.
+-- The same key can be pressed multiple times for devices with multiple keyboards of overlapping ranges.
+data PressedKeys = PressedKeys !(Map NoteSpec Int)
   deriving(Generic, Show)
-instance Binary PianoState
-instance NFData PianoState
+instance Binary PressedKeys
+instance NFData PressedKeys
 
-mkEmptyPiano :: PianoState
-mkEmptyPiano = PianoState mempty
+mkEmptyPressedKeys :: PressedKeys
+mkEmptyPressedKeys = PressedKeys mempty
 
-data Symbol =
+data VoiceInstruction =
     Note !NoteName {-# UNPACK #-} !Octave
+    -- ^ Start playing a music note.
   | Extend
+    -- ^ Continue playing the ongoing music note.
   | Rest
+    -- ^ Stop playing the ongoing music note, or continue not playing.
   deriving(Generic,Show, Eq, Data)
-instance Binary Symbol
-instance NFData Symbol
+instance Binary VoiceInstruction
+instance NFData VoiceInstruction
 
 data NoteSpec = NoteSpec !NoteName {-# UNPACK #-} !Octave !Instrument
   deriving(Generic,Show, Eq, Data)
@@ -86,10 +96,10 @@ instance Ord NoteSpec where
   compare n@(NoteSpec _ _ a) m@(NoteSpec _ _ b) =
     compare (noteToMidiPitch n, a) $ (noteToMidiPitch m, b)
 
--- | According to http://subsynth.sourceforge.net/midinote2freq.html, C1 has 0 pitch
 noteToMidiPitch :: NoteSpec -> MidiPitch
 noteToMidiPitch (NoteSpec n oct _) = noteToMidiPitch' n oct
 
+-- | According to http://subsynth.sourceforge.net/midinote2freq.html, C1 has 0 pitch
 noteToMidiPitch' :: NoteName -> Octave -> MidiPitch
 noteToMidiPitch' n oct = MidiPitch $ 12 * (fromIntegral oct-1) + fromIntegral (fromEnum n)
 
@@ -105,33 +115,34 @@ midiPitchToNoteAndOctave pitch =
  where
   (o,n) = (fromIntegral pitch) `divMod` 12
 
-data Score = Score {
-  _voices :: ![Voice]
-} deriving(Generic,Show, Eq)
+-- | A 'Score' is a list of 'Voice's
+newtype Score = Score [Voice]
+  deriving(Generic,Show, Eq)
 
-mkScore :: Instrument -> [[Symbol]] -> Score
+mkScore :: Instrument -> [[VoiceInstruction]] -> Score
 mkScore i s = Score $ map (mkVoice i) s
 
--- | Keeps track of progress, and loops when the end is found.
+-- | Contains the instructions to play a voice ('Instrument' and 'VoiceInstruction's)
+-- and the state of the voice being played ('InstructionIdx' and current 'VoiceInstruction')
 data Voice = Voice {
-    _nextIdx :: !NoteIdx
-  , _curNote :: (Maybe Symbol)
-  -- ^ The invariant is that this can never be 'Just' 'Extend' : instead,
-  -- when a 'Extend' symbol is encountered, we don't change this value.
-  , voiceSymbols :: !(V.Vector Symbol)
+    _nextIdx :: !InstructionIdx
+    -- Index (in 'voiceInstructions') of the 'VoiceInstruction' thaht will be executed
+    -- during the next time quantum.
+  , _curInstruction :: (Maybe VoiceInstruction)
+  -- ^ Can never be 'Just' 'Extend' because when a 'Extend' symbol is encountered, we don't change this value.
+  , voiceInstructions :: !(V.Vector VoiceInstruction)
   , voiceInstrument :: !Instrument
 } deriving(Generic,Show, Eq)
 
-mkVoice :: Instrument -> [Symbol] -> Voice
+mkVoice :: Instrument -> [VoiceInstruction] -> Voice
 mkVoice i l = Voice 0 Nothing (V.fromList l) i
 
--- | A music fragment
-data Music =
+data MusicalEvent =
      StartNote !NoteSpec {-# UNPACK #-} !MidiVelocity
    | StopNote !NoteSpec
   deriving(Generic,Show, Eq)
-instance Binary Music
-instance NFData Music
+instance Binary MusicalEvent
+instance NFData MusicalEvent
 
 data Envelope =
     KeyRelease
@@ -199,7 +210,7 @@ mkEnvelopeCharacteristicTime :: Int
                              -> EnvelopeCharacteristicTime
 mkEnvelopeCharacteristicTime = EnvelCharacTime . min 100
 
-newtype NoteIdx = NoteIdx Int
+newtype InstructionIdx = InstructionIdx Int
   deriving(Generic,Show, Num, Integral, Real, Ord, Eq, Enum)
 
 data NoteName =
@@ -282,12 +293,12 @@ instance Binary MidiPitch where
   put (MidiPitch a) = put (fromIntegral a :: Int)
   get = MidiPitch . fromIntegral <$> (get :: Get Int)
 
-data AbsoluteTimedMusic = ATM !Music {-# UNPACK #-} !(Time Point System)
+data AbsoluteTimedMusic = ATM !MusicalEvent {-# UNPACK #-} !(Time Point System)
   deriving(Generic,Show)
 instance NFData AbsoluteTimedMusic
 
 data RelativeTimedMusic = RTM  {
-    _rtmMusic :: !Music
+    _rtmMusic :: !MusicalEvent
   , _rtmDt :: {-# UNPACK #-} !(Time Duration System)
 } deriving(Generic, Show)
 instance NFData RelativeTimedMusic
@@ -308,12 +319,12 @@ data Sequencer k = Sequencer {
 } deriving(Generic)
 instance NFData k => NFData (Sequencer k)
 
-data MusicLine = MusicLine {-# UNPACK #-} !(V.Vector RelativeTimedMusic) !(MVar PianoState)
+data MusicLine = MusicLine {-# UNPACK #-} !(V.Vector RelativeTimedMusic) !(MVar PressedKeys)
   deriving(Generic)
 instance NFData MusicLine
 
 mkMusicLine :: V.Vector RelativeTimedMusic -> IO MusicLine
-mkMusicLine v = MusicLine v <$> newMVar mkEmptyPiano
+mkMusicLine v = MusicLine v <$> newMVar mkEmptyPressedKeys
 
 newtype SequencerId = SequencerId Int
   deriving(Generic, Show, Ord, Eq, Enum)

@@ -46,6 +46,7 @@ library
   if os(windows)
     cc-options:        -D_UNICODE -DUNICODE
     -- TODO we may need -municode at link time.
+    -- TODO can we remove Unicode now that we don't build storage sources anymore?
 
 
 source-repository head

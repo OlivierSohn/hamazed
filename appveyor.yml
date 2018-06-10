@@ -64,10 +64,9 @@ test_script:
 ## This shows the version of gcc I want to use:
 - c:\msys64\MINGW32\bin\gcc --version
 
-- stack --version
-- stack --verbose --skip-msys --with-gcc=c:\msys64\MINGW32\bin\gcc setup > nul
-- stack --verbose --skip-msys --with-gcc=c:\msys64\MINGW32\bin\gcc exec -- gcc --version
-- echo "" | stack --verbose --skip-msys --with-gcc=c:\msys64\MINGW32\bin\gcc --no-terminal --extra-lib-dirs c:\msys64\MINGW32\lib\ --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs c:\msys64\MINGW32\include\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --jobs 1
+- stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW32\bin\gcc setup > nul
+- stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW32\bin\gcc exec -- gcc --version
+- echo "" | stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW32\bin\gcc --no-terminal --extra-lib-dirs c:\msys64\MINGW32\lib\ --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs c:\msys64\MINGW32\include\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --jobs 1
 
 #- stack --with-gcc=c:\msys64\MINGW32\bin\gcc setup > nul
 #- stack --with-gcc=c:\msys64\MINGW32\bin\gcc exec -- gcc --version

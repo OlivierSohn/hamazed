@@ -59,11 +59,11 @@ test_script:
 - bash -lc "pacman --noconfirm --sync --refresh --refresh --sysupgrade --sysupgrade"
 - bash -lc "pacman -S --noconfirm --needed base-devel mingw-w64-i686-toolchain mingw-w64-x86_64-toolchain git subversion mercurial mingw-w64-i686-cmake mingw-w64-x86_64-cmake"
 - c:\msys64\%MSYSTEM%\bin\gcc --version
-- stack --skip-msys --with-gcc c:\msys64\%MSYSTEM%\bin\gcc setup > nul
-- stack --skip-msys --with-gcc c:\msys64\%MSYSTEM%\bin\gcc exec -- gcc --version
+- stack --skip-msys --with-gcc=c:\msys64\%MSYSTEM%\bin\gcc setup > nul
+- stack --skip-msys --with-gcc=c:\msys64\%MSYSTEM%\bin\gcc exec -- gcc --version
 
 - cp C:\stack\portaudio-build\Release\portaudio_x86.dll C:\stack\portaudio-build\Release\portaudio.dll
 - cp C:\stack\portaudio-build\Release\portaudio_x86.lib C:\stack\portaudio-build\Release\portaudio.lib
 
 # The echo "" hack is to avoid complaints about 0 being an invalid file descriptor
-- echo "" | stack --skip-msys --with-gcc c:\msys64\%MSYSTEM%\bin\gcc --no-terminal --extra-lib-dirs c:\msys64\%MSYSTEM%\lib\ --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs c:\msys64\%MSYSTEM%\include\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --jobs 1
+- echo "" | stack --skip-msys --with-gcc=c:\msys64\%MSYSTEM%\bin\gcc --no-terminal --extra-lib-dirs c:\msys64\%MSYSTEM%\lib\ --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs c:\msys64\%MSYSTEM%\include\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --jobs 1

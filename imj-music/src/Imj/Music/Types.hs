@@ -34,6 +34,7 @@ module Imj.Music.Types
       , SequencerId(..)
       , MusicLine(..)
       , mkMusicLine
+      -- *** Modeling keyboard state
       , PianoState(..)
       , mkEmptyPiano
         -- * Midi-like instructions
@@ -60,8 +61,13 @@ import           GHC.Generics (Generic)
 import           Imj.Music.CTypes
 import           Imj.Timing
 
--- | Represents the keys currently pressed. Note that the same key can be pressed
--- twice if the lower and upper keyboards overlapp.
+-- |
+-- For simplicity, in this doc, we will call /device/ one of {piano,organ,synthesizer}.
+--
+-- Represents the keys currently pressed on the device.
+-- 'Set' 'NoteSpec' would have been sufficient to model a mono-keyboard devices.
+-- 'Map' 'NoteSpec' 'Int' allows to model multi-keyboards / split-keyboards devices where
+-- each key can be pressed multiple times (at most once per keyboard).
 data PianoState = PianoState !(Map NoteSpec Int)
   deriving(Generic, Show)
 instance Binary PianoState

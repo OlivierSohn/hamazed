@@ -28,7 +28,7 @@ import           Imj.Music.Types
 -- do ré {this is an inline comment} mi fa sol {note that
 --  inline comments can span
 --  over multiple lines! }
-musicSymbol :: Parser Symbol
+musicSymbol :: Parser VoiceInstruction
 musicSymbol = do
   between
     skipIgnored
@@ -102,7 +102,7 @@ musicSymbol = do
     _ <- char ':'
     skipMany $ noneOf ['\n','\r']
 
-musicSymbols :: Parser [Symbol]
+musicSymbols :: Parser [VoiceInstruction]
 musicSymbols = many1 musicSymbol
 
 location' :: Q SourcePos

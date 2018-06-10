@@ -258,7 +258,7 @@ instance NFData SynthsServerEvent
 instance Binary SynthsServerEvent
 
 data SynthClientEvent =
-    PlayNote !Music
+    PlayNote !MusicalEvent
   | WithMultiLineSequencer {-# UNPACK #-} !SequencerId
   | WithMonoLineSequencer
   | ForgetCurrentRecording
@@ -629,7 +629,7 @@ instance ServerClientHandler SynthsServer where
    where
 
     onRecordableNote :: (MonadIO m, MonadState (ServerState SynthsServer) m, MonadReader ConstClientView m)
-                       => Music
+                       => MusicalEvent
                        -> m [ServerEvent SynthsServer]
     onRecordableNote n = do
       cid <- asks clientId
@@ -652,7 +652,7 @@ instance ServerClientHandler SynthsServer where
                 ])
 
     playLoopMusic :: (MonadState (ServerState SynthsServer) m, MonadIO m)
-                  => SequencerId -> LoopId -> PressedKeys -> Music -> m ()
+                  => SequencerId -> LoopId -> PressedKeys -> MusicalEvent -> m ()
     playLoopMusic seqId loopId newPiano n =
       notifyEveryoneN'
         [ ServerAppEvt $ PianoValue (Right (seqId,loopId)) newPiano

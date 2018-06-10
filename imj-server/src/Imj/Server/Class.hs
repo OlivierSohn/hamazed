@@ -312,7 +312,7 @@ mapState' f s =
 
 data ServerEvent s =
     ServerAppEvt !(ServerEventT s)
-  | PlayMusic !Music
+  | PlayMusic !MusicalEvent
   | CommandError {-unpack sum-} !(ClientCommand (CustomCmdT s) Proposed)
                  {-# UNPACK #-} !Text
   -- ^ The command cannot be run, with a reason.

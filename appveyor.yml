@@ -61,10 +61,13 @@ test_script:
 - bash -lc "pacman --noconfirm --sync --refresh --refresh pacman"
 - bash -lc "pacman --noconfirm --sync --refresh --refresh --sysupgrade --sysupgrade"
 - bash -lc "pacman -S --noconfirm --needed base-devel mingw-w64-i686-toolchain mingw-w64-x86_64-toolchain git subversion mercurial mingw-w64-i686-cmake mingw-w64-x86_64-cmake"
-
-# This shows the version of gcc I want to use:
+## This shows the version of gcc I want to use:
 - c:\msys64\MINGW32\bin\gcc --version
 
-- stack --skip-msys --with-gcc=c:\msys64\MINGW32\bin\gcc setup > nul
-- stack --skip-msys --with-gcc=c:\msys64\MINGW32\bin\gcc exec -- gcc --version
-- echo "" | stack --skip-msys --with-gcc=c:\msys64\MINGW32\bin\gcc --no-terminal --extra-lib-dirs c:\msys64\MINGW32\lib\ --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs c:\msys64\MINGW32\include\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --jobs 1
+#- stack --skip-msys --with-gcc=c:\msys64\MINGW32\bin\gcc setup > nul
+#- stack --skip-msys --with-gcc=c:\msys64\MINGW32\bin\gcc exec -- gcc --version
+#- echo "" | stack --skip-msys --with-gcc=c:\msys64\MINGW32\bin\gcc --no-terminal --extra-lib-dirs c:\msys64\MINGW32\lib\ --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs c:\msys64\MINGW32\include\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --jobs 1
+
+- stack --with-gcc=c:\msys64\MINGW32\bin\gcc setup > nul
+- stack --with-gcc=c:\msys64\MINGW32\bin\gcc exec -- gcc --version
+- echo "" | stack --with-gcc=c:\msys64\MINGW32\bin\gcc --no-terminal --extra-lib-dirs c:\msys64\MINGW32\lib\ --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs c:\msys64\MINGW32\include\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --jobs 1

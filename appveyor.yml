@@ -58,6 +58,7 @@ test_script:
 - bash -lc "pacman --noconfirm --sync --refresh --refresh pacman"
 - bash -lc "pacman --noconfirm --sync --refresh --refresh --sysupgrade --sysupgrade"
 - bash -lc "pacman -S --noconfirm --needed base-devel mingw-w64-i686-toolchain mingw-w64-x86_64-toolchain git subversion mercurial mingw-w64-i686-cmake mingw-w64-x86_64-cmake"
+- c:\msys64\%MSYSTEM%\bin\gcc --version
 - stack --skip-msys --with-gcc c:\msys64\%MSYSTEM%\bin\gcc setup > nul
 - stack --skip-msys --with-gcc c:\msys64\%MSYSTEM%\bin\gcc exec -- gcc --version
 

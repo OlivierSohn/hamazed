@@ -10,4 +10,8 @@
 #include "cpp.os.logs/source/unity.build.cpp"
 #include "cpp.audio/source/unity.build.cpp"
 
+#ifdef __clang_major__
+#include "cpp.os.storage/source/unity.build.cpp"
+#endif
+
 #endif

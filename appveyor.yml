@@ -1,9 +1,46 @@
+# a hybrid mix of
+#   https://github.com/commercialhaskell/stack/blob/master/appveyor.yml
+# and, for building portaudio:
+#   https://github.com/quiet/quiet.py/blob/master/appveyor.yml
+
 
 # Disabled cache in hope of improving reliability of AppVeyor builds
 #cache:
 #- "c:\\sr" # stack root, short paths == fewer problems
 
+#TODO retry with the msys2 of stack, the particular error I was trying to fix was because a header is missing on Windows,
+# not because of missing c++17 features.
+
 build: off
+
+environment:
+  matrix:
+      - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+        COMPILER: cl.exe
+        APPVEYOR_SAVE_CACHE_ON_ERROR: false
+        MSYS2_ARCH: i686
+        MSYSTEM: MINGW32
+  global:
+    STACK_ROOT: "c:\\sr"
+
+
+before_build:
+  - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x86
+  - cd %APPVEYOR_BUILD_FOLDER%
+
+
+build_script:
+  - git clone https://git.assembla.com/portaudio.git
+  - cd portaudio
+  - git checkout tags/pa_stable_v190600_20161030
+  - cd ..
+  - mkdir portaudio-build
+  - cd portaudio-build
+  - cmake ../portaudio -DCMAKE_BUILD_TYPE=RELEASE
+  - msbuild portaudio.sln /property:Configuration=Release
+  - dir .
+  - cd ..
+  - dir C:\stack\portaudio-build\Release\
 
 before_test:
 # http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
@@ -13,12 +50,19 @@ before_test:
 - 7z x stack.zip stack.exe
 
 clone_folder: "c:\\stack"
-environment:
-  global:
-    STACK_ROOT: "c:\\sr"
+
 
 test_script:
-- stack setup > nul
-# The ugly echo "" hack is to avoid complaints about 0 being an invalid file
-# descriptor
-- echo "" | stack --no-terminal test imj-music --jobs 1
+- git submodule update --init --recursive
+- set PATH=C:\msys64\%MSYSTEM%\bin;C:\msys64\usr\bin;%PATH%
+- bash -lc "pacman --noconfirm --sync --refresh --refresh pacman"
+- bash -lc "pacman --noconfirm --sync --refresh --refresh --sysupgrade --sysupgrade"
+- bash -lc "pacman -S --noconfirm --needed base-devel mingw-w64-i686-toolchain mingw-w64-x86_64-toolchain git subversion mercurial mingw-w64-i686-cmake mingw-w64-x86_64-cmake"
+- stack --skip-msys --with-gcc c:\msys64\%MSYSTEM%\bin\gcc setup > nul
+- stack --skip-msys --with-gcc c:\msys64\%MSYSTEM%\bin\gcc exec -- gcc --version
+
+- cp C:\stack\portaudio-build\Release\portaudio_x86.dll C:\stack\portaudio-build\Release\portaudio.dll
+- cp C:\stack\portaudio-build\Release\portaudio_x86.lib C:\stack\portaudio-build\Release\portaudio.lib
+
+# The echo "" hack is to avoid complaints about 0 being an invalid file descriptor
+- echo "" | stack --skip-msys --with-gcc c:\msys64\%MSYSTEM%\bin\gcc --no-terminal --extra-lib-dirs c:\msys64\%MSYSTEM%\lib\ --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs c:\msys64\%MSYSTEM%\include\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --jobs 1

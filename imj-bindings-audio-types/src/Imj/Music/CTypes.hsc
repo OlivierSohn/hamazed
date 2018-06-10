@@ -18,28 +18,45 @@ import           Data.Binary(Binary(..))
 import           Data.Set(Set)
 import qualified Data.Set as Set
 
-{-
-The AHDSR envelope is like an ADSR envelope, except we allow to hold the value after the attack:
+{- |
+The AHDSR envelope is like an ADSR envelope, except that the signal can be hold after the attack:
 
 @
    | a |h| d |           |r|
-       ___                                      < 1
+       ---                                      < 1
       .    .
-     .       _____________                      < s
+     .       -------------                      < s
     .                     .
- ___                       ___________________  < 0
+ ---                       -------------------  < 0
    ^                     ^
    |                     |
    key is pressed        key is released
 
-   Irrespective of wether the key is released when the note reached sustain or not,
-    the envelope will touch 0 in 'release' samples.
+   Attack, decay and release phases can be shaped according to 'Interpolation'.
 @
 -}
 data AHDSR = AHDSR {
-    ahdsrAttack,ahdsrHold,ahdsrDecay,ahdsrRelease :: {-# UNPACK #-} !Int
-  , ahdsrAttackItp,ahdsrDecayItp,ahdsrReleaseItp :: !Interpolation
+    ahdsrAttack :: {-# UNPACK #-} !Int
+    -- ^ Attack duration : the number of samples between when the key is pressed and when the
+    -- envelope reaches 1
+  , ahdsrHold :: {-# UNPACK #-} !Int
+    -- ^ Hold duration: the number of samples during which the full value, 1, will be maintained
+    -- after the attack.
+  , ahdsrDecay :: {-# UNPACK #-} !Int
+    -- ^ Decay duration: the number of samples between the end of the Hold phase and the beginning of
+    -- sustain.
+  , ahdsrRelease :: {-# UNPACK #-} !Int
+    -- ^ Release duration: the number of samples between the moment the key is released and
+    -- the moment the envelope reaches 0 (irrespective of wether the envelope had enough time
+    -- to reach sustain or not).
+  , ahdsrAttackItp :: !Interpolation
+  -- ^ Determines how the envelope will be shaped during the attack.
+  , ahdsrDecayItp :: !Interpolation
+  -- ^ Determines how the envelope will be shaped during the decay.
+  , ahdsrReleaseItp :: !Interpolation
+  -- ^ Determines how the envelope will be shaped during the release.
   , ahdsrSustain :: {-# UNPACK #-} !Float
+  -- ^ The sustain value. Must be in the [0,1] range
 } deriving(Generic, Show, Eq, Data, Ord)
 instance NFData AHDSR
 instance Binary AHDSR

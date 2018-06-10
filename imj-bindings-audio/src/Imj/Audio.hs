@@ -35,12 +35,11 @@
 
 module Imj.Audio
       ( -- * Output audio
-      {- | 'usingAudio' will hide the gory details about the audio engine
-      initialization and teardown, and lets you execute an action where tou can:
+      {- | 'usingAudio' initializes the audio environment that will be used to:
 
       * play notes with a simple instrument ('midiNoteOn', 'midiNoteOff')
-      * play notes with n envelope-based instrument ('midiNoteOnAHDSR', 'midiNoteOffAHDSR')
-      * play sound based on filtered white noise ('effectOn', 'effectOff')
+      * play notes with an envelope-based instrument ('midiNoteOnAHDSR', 'midiNoteOffAHDSR')
+      * play a time-varying sound based on filtered white noise ('effectOn', 'effectOff')
        -}
         usingAudio
       , midiNoteOn
@@ -50,9 +49,8 @@ module Imj.Audio
       , effectOn
       , effectOff
       -- * Analyze envelopes
-      -- | 'analyzeAHDSREnvelope' lets you retrieve teh exact shape of the envelope
-      -- of an instrument. It can be usefull to give a visual feedback to users
-      -- tuning their envelopes.
+      -- | 'analyzeAHDSREnvelope' gives you the exact shape of the envelope
+      -- of an instrument. It can be usefull to give a visual feedback to users.
       , analyzeAHDSREnvelope
       -- * reexports
       , module Imj.Music.CTypes

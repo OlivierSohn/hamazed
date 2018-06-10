@@ -573,6 +573,7 @@ extern "C" {
 #endif
     disableDenormals();
 
+
     //testFreeList();
 
     setPortaudioEnvVars();

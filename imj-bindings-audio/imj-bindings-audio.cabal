@@ -37,11 +37,15 @@ library
     extra-lib-dirs:    /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A
   else
     extra-libraries:   uuid
+
   -- removing -DNDEBUG activates assertions in c/c++ sources.
   cc-options:          -std=c++17 -DNDEBUG -Os -ffast-math -fno-rtti
   if os(linux)
     -- -static-libstdc++ is not absolutely necessary.
     cc-options:        -fpermissive -static-libstdc++
+  if os(windows)
+    cc-options:        -D_UNICODE -DUNICODE
+    -- TODO we may need -municode at link time.
 
 
 source-repository head

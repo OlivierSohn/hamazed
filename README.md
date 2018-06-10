@@ -83,8 +83,8 @@ List of packages, inverse-topologically sorted wrt dependencies, with keywords /
   - Players are playing music together, in real-time, using their computer keyboards as synthesizers.
 - [imj-game-hamazed]
   - You're a ship pilot, shooting at flying numbers.
-  - Levels generation is randomized, so that you never play the same game twice.
-	- With 4 different level musics.
+	- Each level has its own original music!
+  - Levels generation is randomized, so that you will (very likely) never play the same game twice.
   - Demo (when the game was mono-player and had no music):
       [![asciicast](https://asciinema.org/a/156059.png)](https://asciinema.org/a/156059)
 - [imj-profile](/imj-profile)

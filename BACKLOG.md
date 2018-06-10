@@ -1,5 +1,8 @@
 - windows compatibility
 
+--with-gcc is not working? if gcc >=7 is used, if constexpr should be understood,
+but it's not...
+
 - make a player app where a melody is played and we can interactively change the instrument used to play it.
 
 - Decay :

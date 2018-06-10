@@ -7,8 +7,11 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 
 module Imj.Music.Types
-      ( -- * Notes and instruments
-        Symbol(..)
+      (-- *** Modeling keyboard state
+        PressedKeys(..)
+      , mkEmptyPressedKeys
+      -- * Notes and instruments
+      , Symbol(..)
       , NoteSpec(..), mkNoteSpec, noteToMidiPitch, noteToMidiPitch'
       , Instrument(..)
       , Envelope(..), cycleEnvelope, prettyShowEnvelope
@@ -34,9 +37,6 @@ module Imj.Music.Types
       , SequencerId(..)
       , MusicLine(..)
       , mkMusicLine
-      -- *** Modeling keyboard state
-      , PianoState(..)
-      , mkEmptyPiano
         -- * Midi-like instructions
       , Music(..)
       -- * Reexport
@@ -62,19 +62,15 @@ import           Imj.Music.CTypes
 import           Imj.Timing
 
 -- |
--- For simplicity, in this doc, we will call /device/ one of {piano,organ,synthesizer}.
---
--- Represents the keys currently pressed on the device.
--- 'Set' 'NoteSpec' would have been sufficient to model a mono-keyboard devices.
--- 'Map' 'NoteSpec' 'Int' allows to model multi-keyboards / split-keyboards devices where
--- each key can be pressed multiple times (at most once per keyboard).
-data PianoState = PianoState !(Map NoteSpec Int)
+-- Represents the keys currently pressed on a keyboard-based music device (piano/organ/synth).
+-- The same key can be pressed multiple times for devices with multiple keyboards of overlapping ranges.
+data PressedKeys = PressedKeys !(Map NoteSpec Int)
   deriving(Generic, Show)
-instance Binary PianoState
-instance NFData PianoState
+instance Binary PressedKeys
+instance NFData PressedKeys
 
-mkEmptyPiano :: PianoState
-mkEmptyPiano = PianoState mempty
+mkEmptyPressedKeys :: PressedKeys
+mkEmptyPressedKeys = PressedKeys mempty
 
 data Symbol =
     Note !NoteName {-# UNPACK #-} !Octave
@@ -314,12 +310,12 @@ data Sequencer k = Sequencer {
 } deriving(Generic)
 instance NFData k => NFData (Sequencer k)
 
-data MusicLine = MusicLine {-# UNPACK #-} !(V.Vector RelativeTimedMusic) !(MVar PianoState)
+data MusicLine = MusicLine {-# UNPACK #-} !(V.Vector RelativeTimedMusic) !(MVar PressedKeys)
   deriving(Generic)
 instance NFData MusicLine
 
 mkMusicLine :: V.Vector RelativeTimedMusic -> IO MusicLine
-mkMusicLine v = MusicLine v <$> newMVar mkEmptyPiano
+mkMusicLine v = MusicLine v <$> newMVar mkEmptyPressedKeys
 
 newtype SequencerId = SequencerId Int
   deriving(Generic, Show, Ord, Eq, Enum)

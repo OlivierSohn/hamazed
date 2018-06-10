@@ -67,8 +67,7 @@ import           GHC.Generics (Generic)
 import           Imj.Music.CTypes
 import           Imj.Timing
 
--- |
--- Represents the keys currently pressed on a keyboard-based music device (piano/organ/synth).
+-- | Represents the keys currently pressed on a keyboard-based music device.
 -- The same key can be pressed multiple times for devices with multiple keyboards of overlapping ranges.
 data PressedKeys = PressedKeys !(Map NoteSpec Int)
   deriving(Generic, Show)

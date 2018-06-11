@@ -44,6 +44,10 @@ packages:
     git: https://github.com/OlivierSohn/mwc-random.git
     commit: 89a5657db7cf0a6b95a6fba8467445208f9313e6
   extra-dep: true
+- location:
+    git: https://github.com/OlivierSohn/happy.git
+    commit: 07e1feab3bd565b296a3d913ac38bca039a5d146
+  extra-dep: true
 
 extra-deps:
 - FTGL-2.1              # for all resolvers (not part of stackage)

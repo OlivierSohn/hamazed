@@ -1,5 +1,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
+{-| Some instruments that can be used as a starting point.
+-}
+
 module Imj.Music.Instruments
       ( simpleInstrument
       , bellInstrument
@@ -16,7 +19,6 @@ import           Imj.Prelude
 import           Imj.Music.Types
 
 
--- | This instrument is used by default in 'notes' quasi quoter.
 simpleInstrument, bellInstrument, organicInstrument, shortInstrument, testInstrument, stringsInstrument :: Instrument
 longInstrument, longBellInstrument, bell2Instrument :: Instrument
 simpleInstrument = SineSynth $ mkEnvelopeCharacteristicTime 401

@@ -7,16 +7,22 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
+{-| The step*** functions return a list of 'MusicalEvent' which in turn can be
+played using 'play'.
+-}
+
 module Imj.Music.Play
-      ( noteToMidiPitch
-      , stepScore
+      ( -- * Step a Score
+        stepScore
       , stopScore
-      , sizeVoice
+      -- * Step a Voice
       , stepVoice
       , stopVoice
       , stepNVoice
       , stepNVoiceAndStop
+      -- * Play a MusicalEvent
       , play
+      -- * Utilities
       , playAtTempo
       , allMusic
       ) where
@@ -31,8 +37,9 @@ import           Foreign.C
 import           Imj.Audio
 import           Imj.Music.Types
 
+-- | Plays a series of 'VoiceInstruction' at a constant tempo, using an 'Instrument'.
 playAtTempo :: Float
-            -- ^ BPMs
+            -- ^ Beats per minute
             -> Instrument
             -> [VoiceInstruction]
             -> IO ()
@@ -47,12 +54,15 @@ playAtTempo tempo i =
 
   pause = round $ 1000*1000*60/tempo
 
--- TODO use ids for notes (one id per voice would be enough), to support this case well:
+-- TODO use ids for notes (one id per voice would be enough), to support this case well,
+-- where voice1 and voice2 are assigned to the same instrument:
 -- voice1: do - - - -
 -- voice2: . . do . .
 -- when the do of voice2 terminates, we want it to fadeout its own channel, not the one
 -- of the other voice. NOTE it makes a difference only if the 2 notes have different velocities,
 -- which is not possible as of today.
+-- | Steps a 'Score' forward (by a single time quantum),
+-- returns the list of 'MusicalEvent's that need to be played for this time quantum.
 stepScore :: Score
           -> (Score, [MusicalEvent])
 stepScore (Score l) = (s,m)
@@ -61,6 +71,8 @@ stepScore (Score l) = (s,m)
   s = Score $ map fst nv
   m = concatMap snd nv
 
+-- | Returns the 'MusicalEvent's that need to be played to stop the ongoing notes
+-- associated to this 'Score'.
 stopScore :: Score
           -> (Score, [MusicalEvent])
 stopScore (Score l) = (s,m)
@@ -69,6 +81,7 @@ stopScore (Score l) = (s,m)
   s = Score $ map fst nv
   m = concatMap snd nv
 
+-- | Function used mainly for testing purposes.
 allMusic :: Instrument -> [VoiceInstruction] -> [[MusicalEvent]]
 allMusic i x =
   snd $ stepNVoiceAndStop (sizeVoice s) s
@@ -97,6 +110,8 @@ stepNVoiceReversed n score
 stepNVoice :: Int -> Voice -> (Voice, [[MusicalEvent]])
 stepNVoice n score = let (s,l) = stepNVoiceReversed n score in (s,reverse l)
 
+-- | Steps a 'Voice' forward (by a single time quantum),
+-- returns the list of 'MusicalEvent's that need to be played for this time quantum.
 stepVoice :: Voice
           -> (Voice, [MusicalEvent])
 stepVoice (Voice i cur v inst) =
@@ -117,11 +132,11 @@ stepVoice (Voice i cur v inst) =
         Extend -> error "logic"
         (Note n o) -> case nextNote of
           Extend -> Nothing
-          _ -> Just $ StopNote (NoteSpec n o inst))
+          _ -> Just $ StopNote (InstrumentNote n o inst))
       cur
 
   mayStartNext = case nextNote of
-    (Note n o) -> Just $ StartNote (NoteSpec n o inst) 1
+    (Note n o) -> Just $ StartNote (InstrumentNote n o inst) 1
     _ -> Nothing
 
   len = V.length v
@@ -130,6 +145,8 @@ stepVoice (Voice i cur v inst) =
     | i < fromIntegral len-1 = i+1
     | otherwise = 0
 
+-- | Returns the 'MusicalEvent's that need to be played to stop the ongoing notes
+-- associated to this 'Voice'.
 stopVoice :: Voice -> (Voice, [MusicalEvent])
 stopVoice (Voice _ cur l i) =
     ( Voice 0 Nothing l i
@@ -137,20 +154,21 @@ stopVoice (Voice _ cur l i) =
  where
   noteChange = maybe Nothing (\case
     Rest -> Nothing
-    Note n o -> Just $ StopNote $ NoteSpec n o i
+    Note n o -> Just $ StopNote $ InstrumentNote n o i
     Extend -> error "logic") cur
 
+-- | Plays a 'MusicalEvent'
 play :: MusicalEvent -> IO ()
-play (StartNote n@(NoteSpec _ _ i) (MidiVelocity v)) = case i of
+play (StartNote n@(InstrumentNote _ _ i) (NoteVelocity v)) = case i of
   SineSynthAHDSR e ahdsr -> midiNoteOnAHDSR (fromIntegral $ fromEnum e) ahdsr pitch vel
   SineSynth ect -> midiNoteOn (fromIntegral $ unEnvelopeCharacteristicTime ect) pitch vel
   Wind k -> effectOn (fromIntegral k) pitch vel
  where
-  (MidiPitch pitch) = noteToMidiPitch n
+  (MidiPitch pitch) = instrumentNoteToMidiPitch n
   vel = CFloat v
-play (StopNote n@(NoteSpec _ _ i)) = case i of
+play (StopNote n@(InstrumentNote _ _ i)) = case i of
   SineSynthAHDSR e ahdsr -> midiNoteOffAHDSR (fromIntegral $ fromEnum e) ahdsr pitch
   SineSynth ect -> midiNoteOff (fromIntegral $ unEnvelopeCharacteristicTime ect) pitch
   Wind _ -> effectOff pitch
  where
-  (MidiPitch pitch) = noteToMidiPitch n
+  (MidiPitch pitch) = instrumentNoteToMidiPitch n

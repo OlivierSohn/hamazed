@@ -113,72 +113,72 @@ testParseMusic = do
     ]
 
   (allMusic i [notes|do ré mi|]) `shouldBe`
-    [ [StartNote (NoteSpec Do (Octave 6) i) (MidiVelocity 1.0)]
-    , [StopNote (NoteSpec Do (Octave 6) i), StartNote (NoteSpec Ré (Octave 6) i) (MidiVelocity 1.0)]
-    , [StopNote (NoteSpec Ré (Octave 6) i), StartNote (NoteSpec Mi (Octave 6) i) (MidiVelocity 1.0)]
-    , [StopNote (NoteSpec Mi (Octave 6) i)]
+    [ [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote (InstrumentNote Do (Octave 6) i), StartNote (InstrumentNote Ré (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote (InstrumentNote Ré (Octave 6) i), StartNote (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote (InstrumentNote Mi (Octave 6) i)]
     ]
 
   (allMusic i [notes|do - mi|]) `shouldBe`
-    [ [StartNote (NoteSpec Do (Octave 6) i) (MidiVelocity 1.0)]
+    [ [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
     , []
-    , [StopNote (NoteSpec Do (Octave 6) i), StartNote (NoteSpec Mi (Octave 6) i) (MidiVelocity 1.0)]
-    , [StopNote (NoteSpec Mi (Octave 6) i)]
+    , [StopNote (InstrumentNote Do (Octave 6) i), StartNote (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote (InstrumentNote Mi (Octave 6) i)]
     ]
 
   (allMusic i [notes|do - - mi|]) `shouldBe`
-    [ [StartNote (NoteSpec Do (Octave 6) i) (MidiVelocity 1.0)]
+    [ [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
     , []
     , []
-    , [StopNote (NoteSpec Do (Octave 6) i), StartNote (NoteSpec Mi (Octave 6) i) (MidiVelocity 1.0)]
-    , [StopNote (NoteSpec Mi (Octave 6) i)]
+    , [StopNote (InstrumentNote Do (Octave 6) i), StartNote (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote (InstrumentNote Mi (Octave 6) i)]
     ]
 
   (allMusic i [notes|do - . mi|]) `shouldBe`
-    [ [StartNote (NoteSpec Do (Octave 6) i) (MidiVelocity 1.0)]
+    [ [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
     , []
-    , [StopNote (NoteSpec Do (Octave 6) i)]
-    , [StartNote (NoteSpec Mi (Octave 6) i) (MidiVelocity 1.0)]
-    , [StopNote (NoteSpec Mi (Octave 6) i)]
+    , [StopNote (InstrumentNote Do (Octave 6) i)]
+    , [StartNote (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote (InstrumentNote Mi (Octave 6) i)]
     ]
 
   (allMusic i [notes|do . - mi|]) `shouldBe`
-    [ [StartNote (NoteSpec Do (Octave 6) i) (MidiVelocity 1.0)]
-    , [StopNote (NoteSpec Do (Octave 6) i)]
+    [ [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote (InstrumentNote Do (Octave 6) i)]
     , []
-    , [StartNote (NoteSpec Mi (Octave 6) i) (MidiVelocity 1.0)]
-    , [StopNote (NoteSpec Mi (Octave 6) i)]
+    , [StartNote (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote (InstrumentNote Mi (Octave 6) i)]
     ]
 
   (allMusic i [notes|do . . mi|]) `shouldBe`
-    [ [StartNote (NoteSpec Do (Octave 6) i) (MidiVelocity 1.0)]
-    , [StopNote (NoteSpec Do (Octave 6) i)]
+    [ [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote (InstrumentNote Do (Octave 6) i)]
     , []
-    , [StartNote (NoteSpec Mi (Octave 6) i) (MidiVelocity 1.0)]
-    , [StopNote (NoteSpec Mi (Octave 6) i)]
+    , [StartNote (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote (InstrumentNote Mi (Octave 6) i)]
     ]
 
   (allMusic i [notes|do . mi|]) `shouldBe`
-    [ [StartNote (NoteSpec Do (Octave 6) i) (MidiVelocity 1.0)]
-    , [StopNote (NoteSpec Do (Octave 6) i)]
-    , [StartNote (NoteSpec Mi (Octave 6) i) (MidiVelocity 1.0)]
-    , [StopNote (NoteSpec Mi (Octave 6) i)]
+    [ [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote (InstrumentNote Do (Octave 6) i)]
+    , [StartNote (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote (InstrumentNote Mi (Octave 6) i)]
     ]
 
   (allMusic i [notes|- do . mi|]) `shouldBe`
     [ []
-    , [StartNote (NoteSpec Do (Octave 6) i) (MidiVelocity 1.0)]
-    , [StopNote (NoteSpec Do (Octave 6) i)]
-    , [StartNote (NoteSpec Mi (Octave 6) i) (MidiVelocity 1.0)]
-    , [StopNote (NoteSpec Mi (Octave 6) i)]
+    , [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote (InstrumentNote Do (Octave 6) i)]
+    , [StartNote (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote (InstrumentNote Mi (Octave 6) i)]
     ]
 
   (allMusic i [notes|. do . mi|]) `shouldBe`
     [ []
-    , [StartNote (NoteSpec Do (Octave 6) i) (MidiVelocity 1.0)]
-    , [StopNote (NoteSpec Do (Octave 6) i)]
-    , [StartNote (NoteSpec Mi (Octave 6) i) (MidiVelocity 1.0)]
-    , [StopNote (NoteSpec Mi (Octave 6) i)]
+    , [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote (InstrumentNote Do (Octave 6) i)]
+    , [StartNote (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote (InstrumentNote Mi (Octave 6) i)]
     ]
 
 testParseMusicWithComments :: IO ()

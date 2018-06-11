@@ -12,22 +12,21 @@ module Imj.Music.Types
       , mkEmptyPressedKeys
       -- * Notes and instruments
       -- | In my music notation system, an 'Instrument' partition is modeled as a list of
-      -- /monophonic/ music voices which all have the same time granularity.
+      -- /monophonic/ music voices with the same time granularity.
       --
       -- A music voice is a list of 'VoiceInstruction's where the nth 'VoiceInstruction'
       -- specifies what the voice should do during the nth time quantum.
-
       , VoiceInstruction(..)
-      , NoteSpec(..), mkNoteSpec, noteToMidiPitch, noteToMidiPitch'
+      , InstrumentNote(..), mkInstrumentNote, instrumentNoteToMidiPitch, noteToMidiPitch
       , Instrument(..)
       , Envelope(..), cycleEnvelope, prettyShowEnvelope
       , EnvelopeCharacteristicTime, mkEnvelopeCharacteristicTime, unEnvelopeCharacteristicTime
-      , MidiPitch(..), midiPitchToNoteAndOctave, naturalPitch
+      , MidiPitch(..), midiPitchToNoteAndOctave, whiteKeyPitch
       , NoteName(..)
-      , naturalNote
+      , whiteKeyNote
       , Octave(..)
       , noOctave
-      , MidiVelocity(..)
+      , NoteVelocity(..)
         -- * Sequences of notes
         -- ** Logical
       , Score(..)
@@ -35,14 +34,14 @@ module Imj.Music.Types
       , Voice(..)
       , mkVoice
         -- ** Timed
-      , AbsoluteTimedMusic(..)
-      , RelativeTimedMusic(..)
+      , AbsolutelyTimedMusicalEvent(..)
+      , RelativelyTimedMusicalEvent(..)
       , Recording(..)
       , mkEmptyRecording
       , Sequencer(..)
       , SequencerId(..)
-      , MusicLine(..)
-      , mkMusicLine
+      , MusicLoop(..)
+      , mkMusicLoop
         -- * Midi-like instructions
       , MusicalEvent(..)
       -- * Reexport
@@ -68,8 +67,10 @@ import           Imj.Music.CTypes
 import           Imj.Timing
 
 -- | Represents the keys currently pressed on a keyboard-based music device.
--- The same key can be pressed multiple times for devices with multiple keyboards of overlapping ranges.
-data PressedKeys = PressedKeys !(Map NoteSpec Int)
+--
+-- The same key can be pressed multiple times for music devices having multiple keyboards
+-- with overlapping ranges.
+data PressedKeys = PressedKeys !(Map InstrumentNote Int)
   deriving(Generic, Show)
 instance Binary PressedKeys
 instance NFData PressedKeys
@@ -77,35 +78,27 @@ instance NFData PressedKeys
 mkEmptyPressedKeys :: PressedKeys
 mkEmptyPressedKeys = PressedKeys mempty
 
-data VoiceInstruction =
-    Note !NoteName {-# UNPACK #-} !Octave
-    -- ^ Start playing a music note.
-  | Extend
-    -- ^ Continue playing the ongoing music note.
-  | Rest
-    -- ^ Stop playing the ongoing music note, or continue not playing.
+-- | A music note played by an 'Instrument'
+data InstrumentNote = InstrumentNote !NoteName {-# UNPACK #-} !Octave !Instrument
   deriving(Generic,Show, Eq, Data)
-instance Binary VoiceInstruction
-instance NFData VoiceInstruction
+instance Binary InstrumentNote
+instance NFData InstrumentNote
+instance Ord InstrumentNote where
+  compare n@(InstrumentNote _ _ a) m@(InstrumentNote _ _ b) =
+    compare (instrumentNoteToMidiPitch n, a) $ (instrumentNoteToMidiPitch m, b)
 
-data NoteSpec = NoteSpec !NoteName {-# UNPACK #-} !Octave !Instrument
-  deriving(Generic,Show, Eq, Data)
-instance Binary NoteSpec
-instance NFData NoteSpec
-instance Ord NoteSpec where
-  compare n@(NoteSpec _ _ a) m@(NoteSpec _ _ b) =
-    compare (noteToMidiPitch n, a) $ (noteToMidiPitch m, b)
+instrumentNoteToMidiPitch :: InstrumentNote -> MidiPitch
+instrumentNoteToMidiPitch (InstrumentNote n oct _) = noteToMidiPitch n oct
 
-noteToMidiPitch :: NoteSpec -> MidiPitch
-noteToMidiPitch (NoteSpec n oct _) = noteToMidiPitch' n oct
+-- | According to http://subsynth.sourceforge.net/midinote2freq.html.
+--
+-- C1 has a 0 pitch
+noteToMidiPitch :: NoteName -> Octave -> MidiPitch
+noteToMidiPitch n oct = MidiPitch $ 12 * (fromIntegral oct-1) + fromIntegral (fromEnum n)
 
--- | According to http://subsynth.sourceforge.net/midinote2freq.html, C1 has 0 pitch
-noteToMidiPitch' :: NoteName -> Octave -> MidiPitch
-noteToMidiPitch' n oct = MidiPitch $ 12 * (fromIntegral oct-1) + fromIntegral (fromEnum n)
-
-mkNoteSpec :: MidiPitch -> Instrument -> NoteSpec
-mkNoteSpec pitch i =
-  NoteSpec n o i
+mkInstrumentNote :: MidiPitch -> Instrument -> InstrumentNote
+mkInstrumentNote pitch i =
+  InstrumentNote n o i
  where
   (n,o) = midiPitchToNoteAndOctave pitch
 
@@ -137,16 +130,32 @@ data Voice = Voice {
 mkVoice :: Instrument -> [VoiceInstruction] -> Voice
 mkVoice i l = Voice 0 Nothing (V.fromList l) i
 
+data VoiceInstruction =
+    Note !NoteName {-# UNPACK #-} !Octave
+    -- ^ Start playing a music note.
+  | Extend
+    -- ^ Continue playing the ongoing music note.
+  | Rest
+    -- ^ Stop playing the ongoing music note, or continue not playing.
+  deriving(Generic,Show, Eq, Data)
+instance Binary VoiceInstruction
+instance NFData VoiceInstruction
+
 data MusicalEvent =
-     StartNote !NoteSpec {-# UNPACK #-} !MidiVelocity
-   | StopNote !NoteSpec
+     StartNote !InstrumentNote {-# UNPACK #-} !NoteVelocity
+     -- ^ Start playing a note at the given volume
+   | StopNote !InstrumentNote
+     -- ^ Stop playing a note
   deriving(Generic,Show, Eq)
 instance Binary MusicalEvent
 instance NFData MusicalEvent
 
 data Envelope =
     KeyRelease
+    -- ^ The envelope release is triggered by 'StopNote'
   | AutoRelease
+  -- ^ 'StopNote' is not taken into account : the envelope release immediately
+  -- follows the envelope decay (the envelope sustain phase is skipped).
   deriving(Generic, Ord, Data, Eq, Show)
 instance Enum Envelope where
   fromEnum = \case
@@ -167,17 +176,20 @@ cycleEnvelope :: Envelope -> Envelope
 cycleEnvelope AutoRelease = KeyRelease
 cycleEnvelope e = succ e
 
+-- | A musical instrument (or musical effect).
 data Instrument =
     SineSynth !EnvelopeCharacteristicTime
+    -- ^ Simple sinus synthethizer, with phase randomization, and trapezoïdal linear envelope.
   | SineSynthAHDSR !Envelope !AHDSR
+    -- ^ Simple sinus synthethizer, with phase randomization, and AHDSR envelope.
   | Wind !Int
+  -- ^ Wind sound effect, modelled using filtered noise.
   deriving(Generic,Show, Eq, Data, Ord)
 instance Binary Instrument
 instance NFData Instrument
 
 
-{-
-
+{- |
 @
    | c |                | c |
        __________________                  < 1
@@ -188,15 +200,6 @@ instance NFData Instrument
    ^                     ^
    |                     |
    key is pressed        key is released
-
-   Note that eventhough 'unEnvelopeCharacteristicTime' is expressed in number of samples,
-   it specifies the /slope/ of the signal:
-
-   * If the key is released while the note is sutaining, the enveloppe will touch 0
-   in 'unEnvelopeCharacteristicTime' samples.
-   * If the key is released during attack (i.e we didn't reach the sustain phase yet),
-   the signal will release with the same /slope/ as in the case where the key is released while
-   the note is sustaining.
 @
 -}
 newtype EnvelopeCharacteristicTime = EnvelCharacTime {unEnvelopeCharacteristicTime :: Int}
@@ -213,6 +216,7 @@ mkEnvelopeCharacteristicTime = EnvelCharacTime . min 100
 newtype InstructionIdx = InstructionIdx Int
   deriving(Generic,Show, Num, Integral, Real, Ord, Eq, Enum)
 
+-- | Using the <https://en.wikipedia.org/wiki/Solf%C3%A8ge solgège> notation.
 data NoteName =
     Do
   | Réb
@@ -259,8 +263,9 @@ instance Enum NoteName where
     11 -> Si
     n -> error $ "out of range:" ++ show n
 
-naturalNote :: NoteName -> Bool
-naturalNote = \case
+-- | Returns 'True' when the 'NoteName' corresponds to a white key on the piano.
+whiteKeyNote :: NoteName -> Bool
+whiteKeyNote = \case
   Do -> True
   Réb -> False
   Ré -> True
@@ -274,57 +279,67 @@ naturalNote = \case
   Sib -> False
   Si -> True
 
-naturalPitch :: MidiPitch -> Bool
-naturalPitch = naturalNote . fst . midiPitchToNoteAndOctave
+-- | Returns 'True' when the 'MidiPitch' corresponds to a white key on the piano.
+whiteKeyPitch :: MidiPitch -> Bool
+whiteKeyPitch = whiteKeyNote . fst . midiPitchToNoteAndOctave
 
+-- | An <https://en.wikipedia.org/wiki/Octave octave>.
 newtype Octave = Octave Int
   deriving(Generic,Integral, Real, Num, Enum, Ord, Eq,Show,Binary,NFData, Data)
+
 noOctave :: Octave
 noOctave = Octave 6
 
-newtype MidiVelocity = MidiVelocity Float
+-- | In the range @[0,1]@. 0 means no sound, 1 means full volume.
+newtype NoteVelocity = NoteVelocity Float
  deriving (Generic, Num,Show,Eq)
-instance Binary MidiVelocity
-instance NFData MidiVelocity
+instance Binary NoteVelocity
+instance NFData NoteVelocity
 
+-- | cf <https://en.wikipedia.org/wiki/MIDI_tuning_standard the midi tuning standard>.
 newtype MidiPitch = MidiPitch CShort
   deriving(Show, Ord, Eq, NFData, Generic, Integral, Real, Enum, Num)
 instance Binary MidiPitch where
   put (MidiPitch a) = put (fromIntegral a :: Int)
   get = MidiPitch . fromIntegral <$> (get :: Get Int)
 
-data AbsoluteTimedMusic = ATM !MusicalEvent {-# UNPACK #-} !(Time Point System)
+-- | A 'MusicalEvent' that happens at an absolute time position.
+data AbsolutelyTimedMusicalEvent = ATM !MusicalEvent {-# UNPACK #-} !(Time Point System)
   deriving(Generic,Show)
-instance NFData AbsoluteTimedMusic
+instance NFData AbsolutelyTimedMusicalEvent
 
-data RelativeTimedMusic = RTM  {
+-- | A 'MusicalEvent' that happens at a relative time position.
+data RelativelyTimedMusicalEvent = RTM  {
     _rtmMusic :: !MusicalEvent
   , _rtmDt :: {-# UNPACK #-} !(Time Duration System)
 } deriving(Generic, Show)
-instance NFData RelativeTimedMusic
+instance NFData RelativelyTimedMusicalEvent
 
 data Recording = Recording {
-    _recordedMusic :: ![AbsoluteTimedMusic]
-    -- ^ Ordered by inverse time.
+    _recordedMusic :: ![AbsolutelyTimedMusicalEvent]
+    -- ^ Recent events are first in the list.
 }  deriving(Generic, Show)
 instance NFData Recording
 
 mkEmptyRecording :: Recording
 mkEmptyRecording = Recording []
 
+-- | A Sequencer defines a time period (time start + time duration) and has music loops
+-- that are played during this period.
 data Sequencer k = Sequencer {
     sequenceStart :: !(Time Point System)
+    -- ^ The reference time
   , sequencePeriod :: {-# UNPACK #-} !(Time Duration System)
-  , musicLines :: !(Map k MusicLine)
+  , musicLoops :: !(Map k MusicLoop)
 } deriving(Generic)
 instance NFData k => NFData (Sequencer k)
 
-data MusicLine = MusicLine {-# UNPACK #-} !(V.Vector RelativeTimedMusic) !(MVar PressedKeys)
+data MusicLoop = MusicLoop {-# UNPACK #-} !(V.Vector RelativelyTimedMusicalEvent) !(MVar PressedKeys)
   deriving(Generic)
-instance NFData MusicLine
+instance NFData MusicLoop
 
-mkMusicLine :: V.Vector RelativeTimedMusic -> IO MusicLine
-mkMusicLine v = MusicLine v <$> newMVar mkEmptyPressedKeys
+mkMusicLoop :: V.Vector RelativelyTimedMusicalEvent -> IO MusicLoop
+mkMusicLoop v = MusicLoop v <$> newMVar mkEmptyPressedKeys
 
 newtype SequencerId = SequencerId Int
   deriving(Generic, Show, Ord, Eq, Enum)

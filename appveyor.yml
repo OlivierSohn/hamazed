@@ -15,7 +15,7 @@ build: off
 
 environment:
   matrix:
-      - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+      - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
         APPVEYOR_SAVE_CACHE_ON_ERROR: false
         MSYSTEM: MINGW64
   global:

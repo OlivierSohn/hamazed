@@ -19,8 +19,8 @@ laserNote = 60
 laserSound :: IO ()
 laserSound = do
   let (noteName,octave) = midiPitchToNoteAndOctave laserNote
-      n = NoteSpec noteName octave (Wind laserProgram)
-  play $ StartNote n $ MidiVelocity 1
+      n = InstrumentNote noteName octave (Wind laserProgram)
+  play $ StartNote n $ NoteVelocity 1
   void $ forkIO $ do
     threadDelay $ 1000*60
     play $ StopNote n

@@ -114,6 +114,31 @@ location' = aux <$> location
 topLevel :: Parser a -> Parser a
 topLevel p = spaces *> p <* eof
 
+{- | This 'QuasiQuoter' supports the following syntaxes:
+
+simple melody:
+@[notes|do ré mi|]@
+
+simple melody, one octave higher:
+@[notes|^do ^ré ^mi|]@
+
+simple melody, two octaves higher:
+@[notes|^^do ^^ré ^^mi|]@
+
+simple melody, one octave lower:
+@[notes|vdo vré vmi|]@
+
+simple melody, two octaves lower:
+@[notes|vvdo vvré vvmi|]@
+
+simple melody, with a different rythm (@.@ indicates a pause, @-@ indicates a sustained note):
+@[notes|do . . ré mi - -|]@
+
+altered melody, where @d@ and @#@ shift the pitch up one semitone,
+@b@ shifts the pitch down one semitone:
+@[notes|dob réd mi|]@
+
+-}
 notes :: QuasiQuoter
 notes = QuasiQuoter {
       quoteExp = \str -> do

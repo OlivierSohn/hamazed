@@ -71,7 +71,7 @@ import qualified Imj.Graphics.UI.Choice as UI
 import           Imj.Music.Types
 import           Imj.Music.Analyze
 import           Imj.Music.Instruments
-import           Imj.Music.Piano
+import           Imj.Music.PressedKeys
 import           Imj.Music.Record
 import           Imj.Server.Class hiding(Do)
 import           Imj.Server.Connection
@@ -134,7 +134,7 @@ toggleView = \case
 data SynthsGame = SynthsGame {
     pianos :: !(Map ClientId PressedKeys)
   , pianoLoops :: !(Map SequencerId (Map LoopId PressedKeys))
-  , clientPressedKeys :: !(Map GLFW.Key NoteSpec)
+  , clientPressedKeys :: !(Map GLFW.Key InstrumentNote)
   , instrument :: !Instrument
   , envelopePlot :: EnvelopePlot
   , editedIndex :: !Int
@@ -270,7 +270,7 @@ data SynthsGameEvent =
     ChangeInstrument !Instrument
   | ChangeEditedFeature {-# UNPACK #-} !Int
   | ToggleEnvelopeViewMode
-  | InsertPressedKey !GLFW.Key !NoteSpec
+  | InsertPressedKey !GLFW.Key !InstrumentNote
   | RemovePressedKey !GLFW.Key
   deriving(Show)
 instance Categorized SynthsGameEvent
@@ -343,44 +343,44 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
     keyToNote = \case
       -- NOTE GLFW uses the US keyboard layout to name keys: https://en.wikipedia.org/wiki/British_and_American_keyboards
       -- lower keys
-      GLFW.Key'Z -> Just $ NoteSpec Do $ noOctave - 1
-      GLFW.Key'S -> Just $ NoteSpec Réb $ noOctave - 1
-      GLFW.Key'X -> Just $ NoteSpec Ré $ noOctave - 1
-      GLFW.Key'D -> Just $ NoteSpec Mib $ noOctave - 1
-      GLFW.Key'C -> Just $ NoteSpec Mi $ noOctave - 1
-      GLFW.Key'V -> Just $ NoteSpec Fa $ noOctave - 1
-      GLFW.Key'G -> Just $ NoteSpec Solb $ noOctave - 1
-      GLFW.Key'B -> Just $ NoteSpec Sol $ noOctave - 1
-      GLFW.Key'H -> Just $ NoteSpec Lab $ noOctave - 1
-      GLFW.Key'N -> Just $ NoteSpec La $ noOctave - 1
-      GLFW.Key'J -> Just $ NoteSpec Sib $ noOctave - 1
-      GLFW.Key'M -> Just $ NoteSpec Si $ noOctave - 1
-      GLFW.Key'Comma -> Just $ NoteSpec Do $ noOctave + 0
-      GLFW.Key'L -> Just $ NoteSpec Réb $ noOctave + 0
-      GLFW.Key'Period -> Just $ NoteSpec Ré $ noOctave + 0
-      GLFW.Key'Semicolon -> Just $ NoteSpec Mib $ noOctave + 0
-      GLFW.Key'Slash -> Just $ NoteSpec Mi $ noOctave + 0
+      GLFW.Key'Z -> Just $ InstrumentNote Do $ noOctave - 1
+      GLFW.Key'S -> Just $ InstrumentNote Réb $ noOctave - 1
+      GLFW.Key'X -> Just $ InstrumentNote Ré $ noOctave - 1
+      GLFW.Key'D -> Just $ InstrumentNote Mib $ noOctave - 1
+      GLFW.Key'C -> Just $ InstrumentNote Mi $ noOctave - 1
+      GLFW.Key'V -> Just $ InstrumentNote Fa $ noOctave - 1
+      GLFW.Key'G -> Just $ InstrumentNote Solb $ noOctave - 1
+      GLFW.Key'B -> Just $ InstrumentNote Sol $ noOctave - 1
+      GLFW.Key'H -> Just $ InstrumentNote Lab $ noOctave - 1
+      GLFW.Key'N -> Just $ InstrumentNote La $ noOctave - 1
+      GLFW.Key'J -> Just $ InstrumentNote Sib $ noOctave - 1
+      GLFW.Key'M -> Just $ InstrumentNote Si $ noOctave - 1
+      GLFW.Key'Comma -> Just $ InstrumentNote Do $ noOctave + 0
+      GLFW.Key'L -> Just $ InstrumentNote Réb $ noOctave + 0
+      GLFW.Key'Period -> Just $ InstrumentNote Ré $ noOctave + 0
+      GLFW.Key'Semicolon -> Just $ InstrumentNote Mib $ noOctave + 0
+      GLFW.Key'Slash -> Just $ InstrumentNote Mi $ noOctave + 0
       -- upper keys
-      GLFW.Key'Q -> Just $ NoteSpec Do $ noOctave + 0
-      GLFW.Key'2 -> Just $ NoteSpec Réb $ noOctave + 0
-      GLFW.Key'W -> Just $ NoteSpec Ré $ noOctave + 0
-      GLFW.Key'3 -> Just $ NoteSpec Mib $ noOctave + 0
-      GLFW.Key'E -> Just $ NoteSpec Mi $ noOctave + 0
-      GLFW.Key'R -> Just $ NoteSpec Fa $ noOctave + 0
-      GLFW.Key'5 -> Just $ NoteSpec Solb $ noOctave + 0
-      GLFW.Key'T -> Just $ NoteSpec Sol $ noOctave + 0
-      GLFW.Key'6 -> Just $ NoteSpec Lab $ noOctave + 0
-      GLFW.Key'Y -> Just $ NoteSpec La $ noOctave + 0
-      GLFW.Key'7 -> Just $ NoteSpec Sib $ noOctave + 0
-      GLFW.Key'U -> Just $ NoteSpec Si $ noOctave + 0
-      GLFW.Key'I -> Just $ NoteSpec Do $ noOctave + 1
-      GLFW.Key'9 -> Just $ NoteSpec Réb $ noOctave + 1
-      GLFW.Key'O -> Just $ NoteSpec Ré $ noOctave + 1
-      GLFW.Key'0 -> Just $ NoteSpec Mib $ noOctave + 1
-      GLFW.Key'P -> Just $ NoteSpec Mi $ noOctave + 1
-      GLFW.Key'LeftBracket -> Just $ NoteSpec Fa $ noOctave + 1
-      GLFW.Key'Equal -> Just $ NoteSpec Solb $ noOctave + 1
-      GLFW.Key'RightBracket -> Just $ NoteSpec Sol $ noOctave + 1
+      GLFW.Key'Q -> Just $ InstrumentNote Do $ noOctave + 0
+      GLFW.Key'2 -> Just $ InstrumentNote Réb $ noOctave + 0
+      GLFW.Key'W -> Just $ InstrumentNote Ré $ noOctave + 0
+      GLFW.Key'3 -> Just $ InstrumentNote Mib $ noOctave + 0
+      GLFW.Key'E -> Just $ InstrumentNote Mi $ noOctave + 0
+      GLFW.Key'R -> Just $ InstrumentNote Fa $ noOctave + 0
+      GLFW.Key'5 -> Just $ InstrumentNote Solb $ noOctave + 0
+      GLFW.Key'T -> Just $ InstrumentNote Sol $ noOctave + 0
+      GLFW.Key'6 -> Just $ InstrumentNote Lab $ noOctave + 0
+      GLFW.Key'Y -> Just $ InstrumentNote La $ noOctave + 0
+      GLFW.Key'7 -> Just $ InstrumentNote Sib $ noOctave + 0
+      GLFW.Key'U -> Just $ InstrumentNote Si $ noOctave + 0
+      GLFW.Key'I -> Just $ InstrumentNote Do $ noOctave + 1
+      GLFW.Key'9 -> Just $ InstrumentNote Réb $ noOctave + 1
+      GLFW.Key'O -> Just $ InstrumentNote Ré $ noOctave + 1
+      GLFW.Key'0 -> Just $ InstrumentNote Mib $ noOctave + 1
+      GLFW.Key'P -> Just $ InstrumentNote Mi $ noOctave + 1
+      GLFW.Key'LeftBracket -> Just $ InstrumentNote Fa $ noOctave + 1
+      GLFW.Key'Equal -> Just $ InstrumentNote Solb $ noOctave + 1
+      GLFW.Key'RightBracket -> Just $ InstrumentNote Sol $ noOctave + 1
       _ -> Nothing
 
     changeIntrumentValue instr idx inc =
@@ -571,7 +571,7 @@ instance ServerClientLifecycle SynthsServer where
         (\(seqId,s) -> do
           se@(Sequencer _ _ musLines) <- liftIO $ takeMVar s
           mapM_
-            (\(loopId,(MusicLine _ v)) -> do
+            (\(loopId,(MusicLoop _ v)) -> do
               piano <- liftIO $ takeMVar v
               case pianoEvts (Right (seqId, loopId)) piano of
                 [] -> return ()
@@ -613,10 +613,10 @@ instance ServerClientHandler SynthsServer where
                 (\msg -> do
                   notifyClient' $ Warn msg
                   return [])
-                (\((Sequencer start _ _), (MusicLine mus pianoV), progress) -> do
+                (\((Sequencer start _ _), (MusicLoop mus pianoV), progress) -> do
                   notifyEveryone $ NewLine seqId loopId
                   return
-                    [ (\v -> startLoopThreadAt
+                    [ (\v -> playOnceFrom
                           (\m -> do
                             (nChanged',newPiano') <- liftIO $ modifyMVar pianoV $ \piano ->
                               let (nChanged,newPiano) = onMusic m piano
@@ -645,7 +645,7 @@ instance ServerClientHandler SynthsServer where
               creator <- asks clientId
               newpiano <- _piano <$> adjustClient (\s@(SynthsClientView _ recording _) ->
                     s { _piano = piano'
-                      , _recording = recordMusic t recording n })
+                      , _recording = recordMusic (ATM n t) recording })
               return
                 [ ServerAppEvt $ PianoValue (Left creator) newpiano
                 , PlayMusic n
@@ -677,7 +677,7 @@ instance ServerClientHandler SynthsServer where
                   let s = (Sequencer now' a b)
                   return (s,s))
                   >>= \(Sequencer startTime duration vecs) -> do
-                    forM_ (Map.assocs vecs) $ \(lid,(MusicLine vec pianoV)) ->
+                    forM_ (Map.assocs vecs) $ \(lid,(MusicLoop vec pianoV)) ->
                       void $ forkIO $
                         playOnce
                           (\m -> do
@@ -725,8 +725,8 @@ showPianos :: MonadReader e m
            -> m [ColorString]
 showPianos _ _ Tip = return []
 showPianos title showKey m = do
-  let minNote = noteToMidiPitch' Do $ noOctave - 1
-      maxNote = noteToMidiPitch' Sol $ noOctave + 1
+  let minNote = noteToMidiPitch Do $ noOctave - 1
+      maxNote = noteToMidiPitch Sol $ noOctave + 1
   showArray (Just (CS.colored title $ rgb 2 1 2,"")) <$> mapM
     (\(i,piano) -> flip (,) (CS.colored (pack $ showKeys minNote maxNote piano) $ rgb 3 1 2) <$> showKey i)
     (Map.assocs m)
@@ -744,7 +744,7 @@ showKeys from to (PressedKeys m) =
   go l (k:ks) remainingPressed =
     case remainingPressed of
       [] -> go' freeChar remainingPressed
-      (NoteSpec pressedNoteName pressedNoteOctave _):ps ->
+      (InstrumentNote pressedNoteName pressedNoteOctave _):ps ->
         if (pressedNoteName, pressedNoteOctave) == midiPitchToNoteAndOctave k
           then
             go' pressedChar ps
@@ -761,9 +761,9 @@ showKeys from to (PressedKeys m) =
         _ -> Nothing
 
     freeChar
-      | naturalPitch k = '-'
+      | whiteKeyPitch k = '-'
       | otherwise = '*'
 
     pressedChar
-      | naturalPitch k = '_'
+      | whiteKeyPitch k = '_'
       | otherwise = '.'

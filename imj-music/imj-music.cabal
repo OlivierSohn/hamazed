@@ -23,7 +23,7 @@ library
                      , Imj.Music.Analyze
                      , Imj.Music.Compose
                      , Imj.Music.Instruments
-                     , Imj.Music.Piano
+                     , Imj.Music.PressedKeys
                      , Imj.Music.Play
                      , Imj.Music.Record
                      , Imj.Music.Types

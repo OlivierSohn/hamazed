@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module Imj.Music.Piano
+module Imj.Music.PressedKeys
       ( onMusic
       , releaseAllKeys
       , addNote
@@ -11,10 +11,10 @@ import qualified Data.Map.Strict as Map
 
 import           Imj.Music.Types
 
-addNote :: NoteSpec -> PressedKeys -> (Int, PressedKeys)
+addNote :: InstrumentNote -> PressedKeys -> (Int, PressedKeys)
 addNote n (PressedKeys s) = (1, PressedKeys $ Map.insertWith (+) n 1 s)
 
-removeNote :: NoteSpec -> PressedKeys -> (Int,PressedKeys)
+removeNote :: InstrumentNote -> PressedKeys -> (Int,PressedKeys)
 removeNote n (PressedKeys s) =
   (maybe 0 (const 1) mayNote, PressedKeys m)
  where

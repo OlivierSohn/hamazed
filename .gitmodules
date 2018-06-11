@@ -7,6 +7,3 @@
 [submodule "imj-bindings-audio/c/cpp.audio"]
 	path = imj-bindings-audio/c/cpp.audio
 	url = https://github.com/OlivierSohn/cpp.audio
-[submodule "imj-bindings-audio/c/cpp.os.storage"]
-	path = imj-bindings-audio/c/cpp.os.storage
-	url = https://github.com/OlivierSohn/cpp.os.storage

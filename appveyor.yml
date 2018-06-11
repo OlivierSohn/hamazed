@@ -39,8 +39,8 @@ build_script:
   - msbuild portaudio.sln /property:Configuration=Release
   - cd ..
 # rename lib and dll
-  - cp C:\stack\portaudio-build\Release\portaudio_x64.dll C:\stack\portaudio-build\Release\portaudio.dll
-  - cp C:\stack\portaudio-build\Release\portaudio_x64.lib C:\stack\portaudio-build\Release\portaudio.lib
+  - cp C:\stack\portaudio-build\Release\portaudio_x86.dll C:\stack\portaudio-build\Release\portaudio.dll
+  - cp C:\stack\portaudio-build\Release\portaudio_x86.lib C:\stack\portaudio-build\Release\portaudio.lib
   - dir C:\stack\portaudio-build\Release\
 
 before_test:

@@ -18,14 +18,13 @@ environment:
       - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
         COMPILER: cl.exe
         APPVEYOR_SAVE_CACHE_ON_ERROR: false
-        MSYS2_ARCH: i686
-        MSYSTEM: MINGW32
+        MSYSTEM: MINGW64
   global:
     STACK_ROOT: "c:\\sr"
 
 
 before_build:
-  - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x86
+  - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
   - cd %APPVEYOR_BUILD_FOLDER%
 
 
@@ -49,7 +48,7 @@ before_test:
 # http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
 - set PATH=C:\Program Files\Git\mingw64\bin;%PATH%
 
-- curl -sS -ostack.zip -L --insecure https://get.haskellstack.org/stable/windows-i386.zip
+- curl -sS -ostack.zip -L --insecure https://get.haskellstack.org/stable/windows-x86_64.zip
 - 7z x stack.zip stack.exe
 
 clone_folder: "c:\\stack"
@@ -57,18 +56,18 @@ clone_folder: "c:\\stack"
 
 test_script:
 - git submodule update --init --recursive
-- set PATH=C:\msys64\MINGW32\bin;C:\msys64\usr\bin;%PATH%
+- set PATH=C:\msys64\MINGW64\bin;C:\msys64\usr\bin;%PATH%
 - bash -lc "pacman --noconfirm --sync --refresh --refresh pacman"
 - bash -lc "pacman --noconfirm --sync --refresh --refresh --sysupgrade --sysupgrade"
 - bash -lc "pacman -S --noconfirm --needed base-devel mingw-w64-i686-toolchain mingw-w64-x86_64-toolchain git subversion mercurial mingw-w64-i686-cmake mingw-w64-x86_64-cmake"
 ## This shows the version of gcc I want to use:
-- c:\msys64\MINGW32\bin\gcc --version
+- c:\msys64\MINGW64\bin\gcc --version
 
-- stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW32\bin\gcc setup > nul
-- stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW32\bin\gcc exec -- gcc --version
-- echo "" | stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW32\bin\gcc --no-terminal --extra-lib-dirs c:\msys64\MINGW32\lib\ --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs c:\msys64\MINGW32\include\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music
+- stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW64\bin\gcc setup > nul
+- stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW64\bin\gcc exec -- gcc --version
+- echo "" | stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW64\bin\gcc --no-terminal --extra-lib-dirs c:\msys64\MINGW64\lib\ --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs c:\msys64\MINGW64\include\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music
 # --jobs 1
 
-#- stack --with-gcc=c:\msys64\MINGW32\bin\gcc setup > nul
-#- stack --with-gcc=c:\msys64\MINGW32\bin\gcc exec -- gcc --version
-#- echo "" | stack --with-gcc=c:\msys64\MINGW32\bin\gcc --no-terminal --extra-lib-dirs c:\msys64\MINGW32\lib\ --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs c:\msys64\MINGW32\include\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --jobs 1
+#- stack --with-gcc=c:\msys64\MINGW64\bin\gcc setup > nul
+#- stack --with-gcc=c:\msys64\MINGW64\bin\gcc exec -- gcc --version
+#- echo "" | stack --with-gcc=c:\msys64\MINGW64\bin\gcc --no-terminal --extra-lib-dirs c:\msys64\MINGW64\lib\ --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs c:\msys64\MINGW64\include\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --jobs 1

@@ -15,7 +15,7 @@ build: off
 
 environment:
   matrix:
-      - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+      - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
         APPVEYOR_SAVE_CACHE_ON_ERROR: false
         MSYSTEM: MINGW64
   global:
@@ -23,7 +23,7 @@ environment:
 
 
 before_build:
-  - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
+  - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x86
   - cd %APPVEYOR_BUILD_FOLDER%
 
 
@@ -36,7 +36,7 @@ build_script:
   - mkdir portaudio-build
   - cd portaudio-build
   - cmake ../portaudio -DCMAKE_BUILD_TYPE=RELEASE
-  - msbuild portaudio.sln /property:Configuration=Release /p:Platform="Any CPU"
+  - msbuild portaudio.sln /property:Configuration=Release
   - cd ..
 # rename lib and dll
   - cp C:\stack\portaudio-build\Release\portaudio_x64.dll C:\stack\portaudio-build\Release\portaudio.dll

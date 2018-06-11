@@ -16,7 +16,6 @@ build: off
 environment:
   matrix:
       - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
-        COMPILER: cl.exe
         APPVEYOR_SAVE_CACHE_ON_ERROR: false
         MSYSTEM: MINGW64
   global:
@@ -24,7 +23,7 @@ environment:
 
 
 before_build:
-  - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x86
+  - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
   - cd %APPVEYOR_BUILD_FOLDER%
 
 

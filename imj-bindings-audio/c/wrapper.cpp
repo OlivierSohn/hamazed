@@ -2,7 +2,7 @@
 
 #ifdef __cplusplus
 
-#include "cpp.audio/include/public.h"
+#include "library.cpp"
 
 extern "C" {
   enum envelType {
@@ -134,7 +134,6 @@ namespace imajuscule {
     }
   }
   namespace audio {
-
     using AllChans = ChannelsVecAggregate< 2, AudioOutPolicy::Master >;
 
     using NoXFadeChans = typename AllChans::NoXFadeChans;
@@ -183,17 +182,7 @@ namespace imajuscule {
       return e;
     }
 
-    auto & windVoice () {
-      constexpr auto n_audio_out = 2;
-      constexpr bool withNoteOff = true;
-      using namespace audioelement;
-      using VoiceWindImpl = Voice<n_audio_out, audio::SoundEngineMode::WIND, withNoteOff>;
-      static constexpr auto n_mnc = VoiceWindImpl::n_channels;
-      using mnc_buffer = VoiceWindImpl::MonoNoteChannel::buffer_t;
-      static std::array<mnc_buffer,n_mnc> buffers;
-      static VoiceWindImpl v(std::make_from_tuple<VoiceWindImpl>(buffers));
-      return v;
-    }
+    // no error above this
 
     namespace sine {
       template <typename Env>
@@ -275,7 +264,6 @@ namespace imajuscule {
         o.isUsed.unlock();
       }
     };
-
 
     struct tryScopedLock {
       tryScopedLock(std::mutex&m) : m(m) {
@@ -435,11 +423,25 @@ namespace imajuscule {
         // deallocation happens outside the audio lock scope.
       }
     };
-
+    
     template<typename Env>
     void midiEvent(typename Env::Param const & env, Event e) {
       Synths<Env>::get(env).o.onEvent2(e, getAudioContext().getChannelHandler());
     }
+
+    auto & windVoice()
+    {
+        constexpr auto n_audio_out = 2;
+        constexpr bool withNoteOff = true;
+        using namespace audioelement;
+        using VoiceWindImpl = Voice<n_audio_out, audio::SoundEngineMode::WIND, withNoteOff>;
+        static constexpr auto n_mnc = VoiceWindImpl::n_channels;
+        using mnc_buffer = VoiceWindImpl::MonoNoteChannel::buffer_t;
+        static std::array<mnc_buffer, n_mnc> buffers;
+        static VoiceWindImpl v(std::make_from_tuple<VoiceWindImpl>(buffers));
+        return v;
+    }
+
   } // NS audio
 
   namespace audioelement {
@@ -458,11 +460,9 @@ namespace imajuscule {
       }
     }
 
-
   } // NS audioelement
 
 }
-
 
 // functions herein are part of the interface
 extern "C" {
@@ -565,7 +565,7 @@ extern "C" {
 
     std::cout << "sizeof NoXFadeChans " << sizeof(NoXFadeChans) << std::endl;
   }
-
+  
   bool initializeAudio () {
     using namespace std;
     using namespace imajuscule;
@@ -574,7 +574,6 @@ extern "C" {
     cout << "Warning : C++ sources of imj-bindings-audio were built without NDEBUG" << endl;
 #endif
     disableDenormals();
-
 
     //testFreeList();
 
@@ -628,9 +627,8 @@ extern "C" {
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;
 
-
     windVoice().finalize(getXfadeChannels());
-
+    
     Synths<SimpleLinearEnvelope<float>>::finalize();
     Synths<AHDSREnvelope<float, EnvelopeRelease::WaitForKeyRelease>>::finalize();
     Synths<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>::finalize();
@@ -656,7 +654,7 @@ extern "C" {
     midiEvent<SimpleLinearEnvelope<float>>(envelCharacTime, mkNoteOff(pitch));
   }
 
-  void midiNoteOnAHDSR_(envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int16_t pitch, float velocity) {
+  void midiNoteOnAHDSR_(envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int16_t pitch, float velocity) {     
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;
@@ -686,6 +684,7 @@ extern "C" {
     auto voicing = Voicing(program,pitch,velocity,0.f,true,0);
     playOneThing(windVoice(),getAudioContext().getChannelHandler(),getXfadeChannels(),voicing);
   }
+
   void effectOff(int16_t pitch) {
     using namespace imajuscule::audio;
     stopPlaying(windVoice(),getAudioContext().getChannelHandler(),getXfadeChannels(),pitch);

@@ -19,8 +19,7 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   other-modules:
-  c-sources:           c/library.cpp
-                     , c/wrapper.cpp
+  c-sources:           c/wrapper.cpp
   exposed-modules:     Imj.Audio
   build-depends:       base >= 4.9 && < 4.12
                      , imj-bindings-audio-types ==0.1.*
@@ -35,8 +34,6 @@ library
     extra-libraries:   vDSP
     -- This path is valid on OSX 10.13.3:
     extra-lib-dirs:    /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A
-  else
-    extra-libraries:   uuid
 
   -- removing -DNDEBUG activates assertions in c/c++ sources.
   cc-options:          -std=c++17 -DNDEBUG -D_USE_MATH_DEFINES -Os -ffast-math -fno-rtti

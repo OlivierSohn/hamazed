@@ -35,7 +35,7 @@ build_script:
   - cd ..
   - mkdir portaudio-build
   - cd portaudio-build
-  - cmake ../portaudio -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_GENERATOR_PLATFORM="Visual Studio 14 2015 Win64"
+  - cmake ../portaudio -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_GENERATOR_PLATFORM="Visual Studio 14 2015 Win64" -DCMAKE_GENERATOR_TOOLSET="host=x64"
   - msbuild portaudio.sln /property:Configuration=Release
   - cd ..
 # rename lib and dll

@@ -7,7 +7,12 @@
   ghc.EXE: unable to load package `imj-bindings-audio-0.1.0.3`
 C:\stack\.stack-work\install\0584b48a\lib\x86_64-windows-ghc-8.4.3\imj-bindings-audio-0.1.0.3-GoO9TPfT7rT85xDuk6adsC\HSimj-bindings-audio-0.1.0.3-GoO9TPfT7rT85xDuk6adsC.o: unknown symbol `__imp__fwrite_nolock`
 
-we need to link with msvcrt 
+we need to link with msvcrt or use posix (available due to mingw)
+
+we could replace (all?)
+#ifdef _WIN32
+by
+#if defined (_MSC_VER)
 
 - make a player app where a melody is played and we can interactively change the instrument used to play it.
 

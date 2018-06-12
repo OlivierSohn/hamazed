@@ -28,8 +28,7 @@ module Imj.Music.Play
       ) where
 
 import           Imj.Prelude
-import           Control.Concurrent(threadDelay, forkIO)
-import           Control.Monad(void)
+import           Control.Concurrent(threadDelay)
 import           Data.Maybe(catMaybes, maybeToList)
 import qualified Data.Vector as V
 import           Foreign.C
@@ -44,7 +43,7 @@ playAtTempo :: Float
             -> [VoiceInstruction]
             -> IO ()
 playAtTempo tempo i =
-  void . forkIO . go . allMusic i
+  go . allMusic i
  where
   go [] = return()
   go (n:ns) = do

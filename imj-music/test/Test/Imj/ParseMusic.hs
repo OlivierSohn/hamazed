@@ -2,7 +2,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 
 module Test.Imj.ParseMusic
-          ( testParseMusic
+          ( testParseMonoVoice
           ) where
 
 import           Imj.Music.Types
@@ -10,11 +10,11 @@ import           Imj.Music.Compose
 import           Imj.Music.Instruments
 import           Imj.Music.Play
 
-testParseMusic :: IO ()
-testParseMusic = do
+testParseMonoVoice :: IO ()
+testParseMonoVoice = do
   let i = bellInstrument
 
-  testParseMusicWithComments
+  testParseMonoVoiceWithComments
 
   [notes|do|] `shouldBe`
     [Note Do noOctave]
@@ -181,8 +181,8 @@ testParseMusic = do
     , [StopNote (InstrumentNote Mi (Octave 6) i)]
     ]
 
-testParseMusicWithComments :: IO ()
-testParseMusicWithComments = do
+testParseMonoVoiceWithComments :: IO ()
+testParseMonoVoiceWithComments = do
   let expected =
         [ Note Do noOctave
         , Note Ré noOctave
@@ -222,6 +222,16 @@ testParseMusicWithComments = do
               :  a comment on an empty line4
     |]
     `shouldBe` expected
+
+
+testParsePolyVoice :: IO ()
+testParsePolyVoice = do
+  let i = bellInstrument
+
+  testParseMonoVoiceWithComments
+
+  [poly|do|] `shouldBe`
+    [[Note Do noOctave]]
 
 shouldBe :: (Show a, Eq a) => a -> a -> IO ()
 shouldBe actual expected =

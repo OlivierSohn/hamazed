@@ -1,20 +1,13 @@
-- windows compatibility
+- windows compatibility:
+  what's blocking: (see appveyor script)
+    * on ghc8.2.2: a stack bug that ignores --with-gcc, so I can't compile c++17 code
+    https://github.com/commercialhaskell/stack/issues/4073
+    * on ghc8.4.3:
 
---with-gcc is not working? if gcc >=7 is used, if constexpr should be understood,
-but it's not...
+  ghc.EXE: unable to load package `imj-bindings-audio-0.1.0.3`
+C:\stack\.stack-work\install\0584b48a\lib\x86_64-windows-ghc-8.4.3\imj-bindings-audio-0.1.0.3-GoO9TPfT7rT85xDuk6adsC\HSimj-bindings-audio-0.1.0.3-GoO9TPfT7rT85xDuk6adsC.o: unknown symbol `__imp__fwrite_nolock`
 
-
-
-
-c:\msys64\%MSYSTEM%\bin\gcc --version
-gcc (Rev2, Built by MSYS2 project) 7.3.0
-
-stack --skip-msys --with-gcc c:\msys64\%MSYSTEM%\bin\gcc exec -- gcc --version
-realgcc.exe (Rev2, Built by MSYS2 project) 6.2.0
-
-stack --skip-msys --with-gcc c:\msys64\%MSYSTEM%\bin\gcc --no-terminal --extra-lib-dirs c:\msys64\%MSYSTEM%\lib\ --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs c:\msys64\%MSYSTEM%\include\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --jobs 1
-#pragma message: compiled with gcc 6.2.0
-
+we need to link with msvcrt 
 
 - make a player app where a melody is played and we can interactively change the instrument used to play it.
 

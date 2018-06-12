@@ -64,6 +64,8 @@ test_script:
 
 - stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW64\bin\gcc setup > nul
 - stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW64\bin\gcc exec -- gcc --version
+# fail fast : first build imj-bindings-audio
+- echo "" | stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW64\bin\gcc --no-terminal --extra-lib-dirs c:\msys64\MINGW64\lib\ --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs c:\msys64\MINGW64\include\ --extra-include-dirs C:\stack\portaudio\include\ test imj-bindings-audio --jobs 1
 - echo "" | stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW64\bin\gcc --no-terminal --extra-lib-dirs c:\msys64\MINGW64\lib\ --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs c:\msys64\MINGW64\include\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --jobs 1
 
 #- stack --with-gcc=c:\msys64\MINGW64\bin\gcc setup > nul

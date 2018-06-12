@@ -17,7 +17,6 @@ environment:
   matrix:
       - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
         APPVEYOR_SAVE_CACHE_ON_ERROR: false
-        MSYSTEM: MINGW64
   global:
     STACK_ROOT: "c:\\sr"
 
@@ -35,6 +34,7 @@ build_script:
   - cd ..
   - mkdir portaudio-build
   - cd portaudio-build
+  # should we pass -Ax64 ? see https://gitlab.kitware.com/cmake/cmake/issues/17451
   - cmake ../portaudio -DCMAKE_BUILD_TYPE=RELEASE -G "Visual Studio 14 2015 Win64" -T host=x64
   - msbuild portaudio.sln /property:Configuration=Release
   - cd ..

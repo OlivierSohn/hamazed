@@ -3,13 +3,6 @@
 
 #ifdef __cplusplus
 
-namespace imajuscule {
-    namespace audio {
-        // explicit instantiation to attempt to fix the symbol not found error
-        template void playOneThing(VoiceWindImpl&a, ChannelHandler&b, XFadeChans&c, Voicing const &d);
-    }
-}
-
 extern "C" {
 
   void testFreeList() {
@@ -110,7 +103,7 @@ extern "C" {
 
     std::cout << "sizeof NoXFadeChans " << sizeof(NoXFadeChans) << std::endl;
   }
-  
+
   bool initializeAudio () {
     using namespace std;
     using namespace imajuscule;
@@ -173,7 +166,7 @@ extern "C" {
     using namespace imajuscule::audioelement;
 
     windVoice().finalize(getXfadeChannels());
-    
+
     Synths<SimpleLinearEnvelope<float>>::finalize();
     Synths<AHDSREnvelope<float, EnvelopeRelease::WaitForKeyRelease>>::finalize();
     Synths<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>::finalize();
@@ -199,7 +192,7 @@ extern "C" {
     midiEvent<SimpleLinearEnvelope<float>>(envelCharacTime, mkNoteOff(pitch));
   }
 
-  void midiNoteOnAHDSR_(envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int16_t pitch, float velocity) {     
+  void midiNoteOnAHDSR_(envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int16_t pitch, float velocity) {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;

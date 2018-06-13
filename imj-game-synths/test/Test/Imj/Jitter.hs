@@ -92,6 +92,7 @@ testThreadDelay =
       actual <- testF p t
       let expected = map (\i -> addDuration (i .* p) t) [0..]
           differences = zipWith ((...)) expected actual
+          zeroWithMargin = fromSecs $ -0.0001
       putStrLn $ show $ histogram (map (\ v -> fromIntegral $ toMicros v :: Float) differences) 15
       putStrLn $ unlines $ map show differences
       print $ maximumMaybe differences
@@ -100,7 +101,7 @@ testThreadDelay =
       -- "There is no guarantee that the thread will be rescheduled promptly when the delay has expired,
       -- but the thread will never continue to run earlier than specified."
       mapM_
-        (\d -> when (strictlyNegative d) $ error $ "earlier " ++ showDetailedTime d)
+        (\d -> when (d < zeroWithMargin) $ error $ "earlier " ++ showDetailedTime d)
         differences
  where
   periods = map fromSecs [0.1,0.01,0.001,0.0001]

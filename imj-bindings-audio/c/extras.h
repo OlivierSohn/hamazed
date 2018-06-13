@@ -389,7 +389,7 @@ namespace imajuscule {
         // deallocation happens outside the audio lock scope.
       }
     };
-    
+
     template<typename Env>
     void midiEvent(typename Env::Param const & env, Event e) {
       Synths<Env>::get(env).o.onEvent2(e, getAudioContext().getChannelHandler());
@@ -398,8 +398,6 @@ namespace imajuscule {
     using VoiceWindImpl = Voice<2, audio::SoundEngineMode::WIND, true>;
 
     VoiceWindImpl & windVoice();
-
-    extern template void playOneThing(VoiceWindImpl&, ChannelHandler&, XFadeChans&, Voicing const &);
 
   } // NS audio
 

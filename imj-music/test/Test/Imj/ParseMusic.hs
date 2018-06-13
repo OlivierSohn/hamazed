@@ -223,7 +223,7 @@ testParseMonoVoiceWithComments = do
     |]
     `shouldBe` expected
 
-
+{- TODO
 testParsePolyVoice :: IO ()
 testParsePolyVoice = do
   let i = bellInstrument
@@ -232,6 +232,7 @@ testParsePolyVoice = do
 
   [poly|do|] `shouldBe`
     [[Note Do noOctave]]
+-}
 
 shouldBe :: (Show a, Eq a) => a -> a -> IO ()
 shouldBe actual expected =

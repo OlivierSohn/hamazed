@@ -16,6 +16,7 @@ cabal-version:       >=1.10
 
 Tested-With: GHC == 8.0.2, GHC == 8.2.2
 
+-- this doesn't link with some CI clang versions.
 executable imj-music-demo-exe
   hs-source-dirs:      app
   main-is:             Main.hs

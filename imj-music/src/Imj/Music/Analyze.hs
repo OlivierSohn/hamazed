@@ -2,7 +2,7 @@
 {-# LANGUAGE LambdaCase #-}
 
 module Imj.Music.Analyze
-      ( envelopeToVectors
+      ( envelopeShape
       ) where
 
 import           Imj.Prelude
@@ -11,16 +11,18 @@ import           Data.Vector.Unboxed(Vector)
 import           Imj.Audio
 import           Imj.Music.Types
 
--- | Returns a list of consecutive envelope values.
+-- | Returns lists of consecutive envelope values.
 --
 -- If the 'Instrument' uses an
--- 'Envelope' 'KeyRelease', it will return two lists, the first will be the beginning
--- of the envelope, until the sustain phase begins, the second will start when the key is released.
+-- 'Envelope' 'AutoRelease', a single list is returned, covering all envelope phases, from attack to release.
 --
 -- If the 'Instrument' uses an
--- 'Envelope' 'AutoRelease', it will return a single list.
-envelopeToVectors :: Instrument -> IO [Vector Float]
-envelopeToVectors = \case
+-- 'Envelope' 'KeyRelease', two lists are returned:
+--
+-- * The first list covers phases from attack to the beginning of sustain.
+-- * The second list covers the end of sustain to the release phase.
+envelopeShape :: Instrument -> IO [Vector Float]
+envelopeShape = \case
   SineSynthAHDSR e ahdsr -> analyzeAHDSREnvelope (fromIntegral $ fromEnum e) ahdsr
   SineSynth _ -> return []
   Wind _ -> return []

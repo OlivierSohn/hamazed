@@ -21,7 +21,6 @@ image:
     executables:
     - imj-serve-highscores-exe
 
-
 packages:
 - './imj-base'
 - './imj-bindings-audio'
@@ -33,7 +32,6 @@ packages:
 - './imj-serve-highscores'
 - './imj-measure-stdout'
 - './imj-music'
-- './imj-music-demo'
 - './imj-particlesystem'
 - './imj-prelude'
 - './imj-profile'

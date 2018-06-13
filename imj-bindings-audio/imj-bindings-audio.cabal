@@ -20,6 +20,8 @@ library
   hs-source-dirs:      src
   other-modules:
   c-sources:           c/wrapper.cpp
+                     , c/library.cpp
+                     , c/extras.cpp
   exposed-modules:     Imj.Audio
   build-depends:       base >= 4.9 && < 4.12
                      , imj-bindings-audio-types ==0.1.*

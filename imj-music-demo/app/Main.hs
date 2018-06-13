@@ -8,7 +8,7 @@ import           Control.Monad(void)
 import           Imj.Music
 
 main :: IO ()
-main = usingAudio $ do
+main = usingAudio2 $ do
   inParallel $
     map
       (playAtTempo 120 simpleInstrument)

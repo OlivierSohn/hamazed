@@ -8,7 +8,7 @@ module Imj.Music
       , module Imj.Music.PressedKeys
       , module Imj.Music.Record
       , module Imj.Music.Types
-      , usingAudio
+      , usingAudio2
       ) where
 
 import Imj.Audio
@@ -20,3 +20,7 @@ import Imj.Music.Play
 import Imj.Music.PressedKeys
 import Imj.Music.Record
 import Imj.Music.Types
+
+
+usingAudio2 :: MonadUnliftIO m => m a -> m a
+usingAudio2 = usingAudio

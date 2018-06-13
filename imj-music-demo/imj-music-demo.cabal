@@ -16,7 +16,22 @@ cabal-version:       >=1.10
 
 Tested-With: GHC == 8.0.2, GHC == 8.2.2
 
--- this doesn't link with some CI clang versions.
+-- this doesn't link with this clang version:
+--
+-- stack --resolver lts-11.9 exec -- gcc --version
+-- Configured with: --prefix=/Applications/Xcode.app/Contents/Developer/usr --with-gxx-include-dir=/usr/include/c++/4.2.1
+-- ++echo 'Apple LLVM version 8.1.0 (clang-802.0.42)
+-- Target: x86_64-apple-darwin16.7.0
+-- Thread model: posix
+-- InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin'
+--
+-- but it' ok with:
+-- stack --resolver lts-11.9 exec -- gcc --version
+-- Configured with: --prefix=/Applications/Xcode.app/Contents/Developer/usr --with-gxx-include-dir=/usr/include/c++/4.2.1
+-- Apple LLVM version 9.1.0 (clang-902.0.39.2)
+-- Target: x86_64-apple-darwin17.6.0
+-- Thread model: posix
+-- InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin
 executable imj-music-demo-exe
   hs-source-dirs:      app
   main-is:             Main.hs

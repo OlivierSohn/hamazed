@@ -21,7 +21,6 @@ executable imj-music-demo-exe
   hs-source-dirs:      app
   main-is:             Main.hs
   build-depends:       base >= 4.9 && < 4.12
-                     , imj-bindings-audio ==0.1.*
                      , imj-music ==0.1.*
                      , imj-prelude ==0.1.*
   default-language:    Haskell2010

@@ -5,10 +5,7 @@ module Main where
 import           Control.Concurrent(forkIO, threadDelay)
 import           Control.Monad(void)
 
-import           Imj.Audio
-import           Imj.Music.Compose
-import           Imj.Music.Instruments
-import           Imj.Music.Play
+import           Imj.Music
 
 main :: IO ()
 main = usingAudio $ do

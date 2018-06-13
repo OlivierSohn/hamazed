@@ -8,8 +8,10 @@ module Imj.Music
       , module Imj.Music.PressedKeys
       , module Imj.Music.Record
       , module Imj.Music.Types
+      , usingAudio
       ) where
 
+import Imj.Audio
 import Imj.Music.Alter
 import Imj.Music.Analyze
 import Imj.Music.Compose

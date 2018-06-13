@@ -18,6 +18,7 @@ environment:
     STACK_ROOT: "c:\\sr"
 
 
+# 32-bit GHC has a bug which makes the build crash hence we use the 64-bit version.
 before_build:
   - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
   - cd %APPVEYOR_BUILD_FOLDER%
@@ -32,7 +33,7 @@ build_script:
   - mkdir portaudio-build
   - cd portaudio-build
   # TODO should we pass -Ax64 ? see https://gitlab.kitware.com/cmake/cmake/issues/17451
-  - cmake ../portaudio -DCMAKE_BUILD_TYPE=RELEASE -G "Visual Studio 14 2015 Win64" -T host=x64
+  - cmake ../portaudio -DCMAKE_BUILD_TYPE=RELEASE -G "Visual Studio 14 2015 Win64" -T host=x64 -Ax64
   - msbuild portaudio.sln /property:Configuration=Release
   - cd ..
 # rename lib and dll

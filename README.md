@@ -29,6 +29,13 @@ to host the game server on [Heroku].
 
 You can even create your own multi-player game, starting from the [tutorial-game](/imj-game-tutorial-increment).
 
+# Supported platforms
+
+Officially supported client platforms are (recent versions of) macOS and Ubuntu.
+
+On macOS, a recent version of `clang` is needed to build. On Ubuntu, a recent version of `gcc`
+is needed to build.
+
 # Packages
 
 List of packages, inverse-topologically sorted wrt dependencies, with keywords / short description for each of them:
@@ -164,10 +171,6 @@ GHC versions 8.2.2 and 8.4.2.
 
 
 # Game engine highlights
-
-## Supported platforms
-
-Officially supported client platforms are (recent versions of) macOS and Ubuntu.
 
 ## Music
 

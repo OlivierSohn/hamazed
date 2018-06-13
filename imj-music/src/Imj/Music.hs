@@ -22,5 +22,7 @@ import Imj.Music.Record
 import Imj.Music.Types
 
 
+import           Control.Monad.IO.Unlift(MonadUnliftIO)
+
 usingAudio2 :: MonadUnliftIO m => m a -> m a
 usingAudio2 = usingAudio

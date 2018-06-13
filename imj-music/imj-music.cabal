@@ -47,6 +47,7 @@ library
 executable imj-music-exe
   hs-source-dirs:      example
   main-is:             Main.hs
+  extra-libraries:     stdc++
   build-depends:       base >= 4.9 && < 4.12
                      , imj-bindings-audio ==0.1.*
                      , imj-music

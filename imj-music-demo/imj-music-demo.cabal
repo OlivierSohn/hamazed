@@ -1,0 +1,31 @@
+name:                imj-music-demo
+version:             0.1.0.3
+Category:            Audio, Music
+Synopsis:            A demo of imj-music.
+Description:         Executable demonstrating the use of the imj-music library.
+homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-music-demo//README.md
+bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
+license:             BSD3
+license-file:        LICENSE
+author:              Olivier Sohn
+maintainer:          olivier.sohn@gmail.com
+copyright:           2017 - 2018 Olivier Sohn
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+Tested-With: GHC == 8.0.2, GHC == 8.2.2
+
+executable imj-music-demo-exe
+  hs-source-dirs:      app
+  main-is:             Main.hs
+  build-depends:       base >= 4.9 && < 4.12
+                     , imj-bindings-audio ==0.1.*
+                     , imj-music ==0.1.*
+                     , imj-prelude ==0.1.*
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/OlivierSohn/hamazed/
+  subdir:   imj-music-demo

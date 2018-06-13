@@ -43,6 +43,8 @@ library
                      , vector >= 0.12.0.1 && < 0.13
   default-language:    Haskell2010
 
+-- this doesn't link with some CI clang versions.
+--   imj-music-demo is an attempt to circumvent the link error.
 --executable imj-music-exe
 --  hs-source-dirs:      example
 --  main-is:             Main.hs

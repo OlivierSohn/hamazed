@@ -8,6 +8,7 @@ os:
   - osx
   - linux
 
+# earlier clang versions may induce "symbols not found" errors
 osx_image: xcode9.3
 
 env:
@@ -54,7 +55,21 @@ before_install:
     sudo unlink /usr/bin/gcc && sudo ln -s /usr/bin/gcc-7 /usr/bin/gcc
     gcc --version
   fi
-
+# We need to install clang on osx
+- |
+  if [[ $TRAVIS_OS_NAME == 'osx' ]]
+  then
+    brew bundle --verbose
+    brew info llvm
+    brew update
+    brew install llvm
+    brew info llvm
+    export CC="/usr/local/opt/llvm/bin/clang"
+    export CXX="/usr/local/opt/llvm/bin/clang++"
+    export LDFLAGS="-L/usr/local/opt/llvm/lib"
+    export CPPFLAGS="-I/usr/local/opt/llvm/include"
+    export PATH="/usr/local/opt/llvm/bin:$PATH"
+  fi
 - mkdir -p ~/.local/bin
 - export PATH=$HOME/.local/bin:$PATH
 - |

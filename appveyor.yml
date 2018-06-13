@@ -33,7 +33,7 @@ build_script:
   - mkdir portaudio-build
   - cd portaudio-build
   # TODO should we pass -Ax64 ? see https://gitlab.kitware.com/cmake/cmake/issues/17451
-  - cmake ../portaudio -DCMAKE_BUILD_TYPE=RELEASE -G "Visual Studio 14 2015 Win64" -T host=x64 -Ax64
+  - cmake ../portaudio -DCMAKE_BUILD_TYPE=RELEASE -G "Visual Studio 14 2015" -T host=x64 -Ax64
   - msbuild portaudio.sln /property:Configuration=Release
   - cd ..
 # rename lib and dll

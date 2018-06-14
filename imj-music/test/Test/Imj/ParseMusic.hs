@@ -3,6 +3,7 @@
 
 module Test.Imj.ParseMusic
           ( testParseMonoVoice
+          , testParsePolyVoice
           ) where
 
 import           Imj.Music.Types
@@ -12,99 +13,114 @@ import           Imj.Music.Play
 
 testParseMonoVoice :: IO ()
 testParseMonoVoice = do
-  let i = bellInstrument
-
   testParseMonoVoiceWithComments
 
-  [notes|do|] `shouldBe`
+  [voice||] `shouldBe`
+    ([] :: [VoiceInstruction])
+
+  [voice|do|] `shouldBe`
     [Note Do noOctave]
 
-  [notes|do ré|] `shouldBe`
+{-
+  We could use this notation to allow multine melodies within a block:
+
+  [voice|
+  | do ré mi
+  | sol do ré
+  mi fa sol : upper line voice, continued
+  | la sol mi
+
+  | fa sol sol : the previous blank line indicates a different system
+    |] `shouldBe`
+    [Note Do noOctave]
+-}
+
+  [voice|do ré|] `shouldBe`
     [Note Do noOctave
     ,Note Ré noOctave
     ]
 
-  [notes|do ré
+  [voice|do ré
 |] `shouldBe`
     [Note Do noOctave
     ,Note Ré noOctave
     ]
 
-  [notes|do ré
+  [voice|do ré
  |] `shouldBe`
     [Note Do noOctave
     ,Note Ré noOctave
     ]
 
-  [notes|
+  [voice|
   do ré
   |] `shouldBe`
     [Note Do noOctave
     ,Note Ré noOctave
     ]
 
-  [notes|do v ré|] `shouldBe`
+  [voice|do v ré|] `shouldBe`
     [Note Do noOctave
     ,Note Ré (noOctave-1)
     ]
 
-  [notes|do vré|] `shouldBe`
+  [voice|do vré|] `shouldBe`
     [Note Do noOctave
     ,Note Ré (noOctave-1)
     ]
 
-  [notes|do ^ré|] `shouldBe`
+  [voice|do ^ré|] `shouldBe`
     [Note Do noOctave
     ,Note Ré (noOctave+1)
     ]
 
-  [notes|do ^^ré|] `shouldBe`
+  [voice|do ^^ré|] `shouldBe`
     [Note Do noOctave
     ,Note Ré (noOctave+2)
     ]
 
-  [notes|do ^vré|] `shouldBe`
+  [voice|do ^vré|] `shouldBe`
     [Note Do noOctave
     ,Note Ré noOctave
     ]
 
-  [notes|do vvré|] `shouldBe`
+  [voice|do vvré|] `shouldBe`
     [Note Do noOctave
     ,Note Ré (noOctave-2)
     ]
 
-  [notes|do v v ré|] `shouldBe`
+  [voice|do v v ré|] `shouldBe`
     [Note Do noOctave
     ,Note Ré (noOctave-2)
     ]
 
-  [notes|do . do|] `shouldBe`
+  [voice|do . do|] `shouldBe`
     [Note Do noOctave
     ,Rest
     ,Note Do noOctave
     ]
 
-  [notes|do - do|] `shouldBe`
+  [voice|do - do|] `shouldBe`
     [Note Do noOctave
     ,Extend
     ,Note Do noOctave
     ]
 
-  [notes|do - - do|] `shouldBe`
+  [voice|do - - do|] `shouldBe`
     [Note Do noOctave
     ,Extend
     ,Extend
     ,Note Do noOctave
     ]
 
-  [notes|do - . do|] `shouldBe`
+  [voice|do - . do|] `shouldBe`
     [Note Do noOctave
     ,Extend
     ,Rest
     ,Note Do noOctave
     ]
 
-  [notes|do . - - do|] `shouldBe`
+  [voice|do . - - do|] `shouldBe`
     [Note Do noOctave
     ,Rest
     ,Extend
@@ -112,21 +128,23 @@ testParseMonoVoice = do
     ,Note Do noOctave
     ]
 
-  (allMusic i [notes|do ré mi|]) `shouldBe`
+  let i = bellInstrument
+
+  (allMusic i [voice|do ré mi|]) `shouldBe`
     [ [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
     , [StopNote (InstrumentNote Do (Octave 6) i), StartNote (InstrumentNote Ré (Octave 6) i) (NoteVelocity 1.0)]
     , [StopNote (InstrumentNote Ré (Octave 6) i), StartNote (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
     , [StopNote (InstrumentNote Mi (Octave 6) i)]
     ]
 
-  (allMusic i [notes|do - mi|]) `shouldBe`
+  (allMusic i [voice|do - mi|]) `shouldBe`
     [ [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
     , []
     , [StopNote (InstrumentNote Do (Octave 6) i), StartNote (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
     , [StopNote (InstrumentNote Mi (Octave 6) i)]
     ]
 
-  (allMusic i [notes|do - - mi|]) `shouldBe`
+  (allMusic i [voice|do - - mi|]) `shouldBe`
     [ [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
     , []
     , []
@@ -134,7 +152,7 @@ testParseMonoVoice = do
     , [StopNote (InstrumentNote Mi (Octave 6) i)]
     ]
 
-  (allMusic i [notes|do - . mi|]) `shouldBe`
+  (allMusic i [voice|do - . mi|]) `shouldBe`
     [ [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
     , []
     , [StopNote (InstrumentNote Do (Octave 6) i)]
@@ -142,7 +160,7 @@ testParseMonoVoice = do
     , [StopNote (InstrumentNote Mi (Octave 6) i)]
     ]
 
-  (allMusic i [notes|do . - mi|]) `shouldBe`
+  (allMusic i [voice|do . - mi|]) `shouldBe`
     [ [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
     , [StopNote (InstrumentNote Do (Octave 6) i)]
     , []
@@ -150,7 +168,7 @@ testParseMonoVoice = do
     , [StopNote (InstrumentNote Mi (Octave 6) i)]
     ]
 
-  (allMusic i [notes|do . . mi|]) `shouldBe`
+  (allMusic i [voice|do . . mi|]) `shouldBe`
     [ [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
     , [StopNote (InstrumentNote Do (Octave 6) i)]
     , []
@@ -158,14 +176,14 @@ testParseMonoVoice = do
     , [StopNote (InstrumentNote Mi (Octave 6) i)]
     ]
 
-  (allMusic i [notes|do . mi|]) `shouldBe`
+  (allMusic i [voice|do . mi|]) `shouldBe`
     [ [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
     , [StopNote (InstrumentNote Do (Octave 6) i)]
     , [StartNote (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
     , [StopNote (InstrumentNote Mi (Octave 6) i)]
     ]
 
-  (allMusic i [notes|- do . mi|]) `shouldBe`
+  (allMusic i [voice|- do . mi|]) `shouldBe`
     [ []
     , [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
     , [StopNote (InstrumentNote Do (Octave 6) i)]
@@ -173,7 +191,7 @@ testParseMonoVoice = do
     , [StopNote (InstrumentNote Mi (Octave 6) i)]
     ]
 
-  (allMusic i [notes|. do . mi|]) `shouldBe`
+  (allMusic i [voice|. do . mi|]) `shouldBe`
     [ []
     , [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
     , [StopNote (InstrumentNote Do (Octave 6) i)]
@@ -187,23 +205,23 @@ testParseMonoVoiceWithComments = do
         [ Note Do noOctave
         , Note Ré noOctave
         ]
-  [notes|do:
+  [voice|do:
     ré|]
     `shouldBe` expected
 
-  [notes|do:
+  [voice|do:
     ré:|]
     `shouldBe` expected
 
-  [notes|do:comment1
+  [voice|do:comment1
     ré:comment2|]
     `shouldBe` expected
 
-  [notes|do   :  comment1  : with inner colons :: :: !
+  [voice|do   :  comment1  : with inner colons :: :: !
     ré  :  comment2  : with inner colons :: :: !|]
     `shouldBe` expected
 
-  [notes|do   :  comment1  : with inner colons :: :: !
+  [voice|do   :  comment1  : with inner colons :: :: !
               :  a comment on an empty line1
               :  a comment on an empty line2
          ré   :  comment2  : with inner colons :: :: !
@@ -212,7 +230,7 @@ testParseMonoVoiceWithComments = do
     |]
     `shouldBe` expected
 
-  [notes|     :  commentOnTheFirstLine
+  [voice|     :  commentOnTheFirstLine
               :  a comment on an empty line0
          do   :  comment1  : with inner colons :: :: !
               :  a comment on an empty line1
@@ -223,33 +241,126 @@ testParseMonoVoiceWithComments = do
     |]
     `shouldBe` expected
 
-{- TODO
+
 testParsePolyVoice :: IO ()
 testParsePolyVoice = do
-  let i = bellInstrument
 
-  testParseMonoVoiceWithComments
+  [voices||] `shouldBe`
+    ([] :: [[VoiceInstruction]])
 
-  [poly|do|] `shouldBe`
+  [voices|do|] `shouldBe`
     [[Note Do noOctave]]
 
-  [poly|
+  [voices|do
+    |] `shouldBe`
+    [[Note Do noOctave]]
+
+  [voices|
+  do|] `shouldBe`
+    [[Note Do noOctave]]
+
+  [voices|
+
+  do
+
+    |] `shouldBe`
+    [[Note Do noOctave]]
+
+  [voices|
   do ré|] `shouldBe`
     [[Note Do noOctave, Note Ré noOctave]]
 
-  [poly|
+  [voices|
   do
   ré|] `shouldBe`
     [[Note Do noOctave]
     ,[Note Ré noOctave]]
 
   -- using a blank line as separator
-  [poly|
+  [voices|
   do
 
   ré|] `shouldBe`
     [[Note Do noOctave, Note Ré noOctave]]
--}
+
+  [voices|
+  do
+
+
+
+  ré|] `shouldBe`
+    [[Note Do noOctave, Note Ré noOctave]]
+
+  [voices|
+
+
+
+  do
+
+
+
+  ré
+
+
+  |] `shouldBe`
+    [[Note Do noOctave, Note Ré noOctave]]
+
+  -- pad lines that are shorter
+  [voices|
+  do mi
+  ré|] `shouldBe`
+    [[Note Do noOctave, Note Mi noOctave]
+    ,[Note Ré noOctave, Rest]]
+
+  [voices|
+  do mi sol
+  ré|] `shouldBe`
+    [[Note Do noOctave, Note Mi noOctave, Note Sol noOctave]
+    ,[Note Ré noOctave, Rest, Rest]]
+
+  [voices|
+  do mi
+  ré
+
+  fa sol la|] `shouldBe`
+    [[Note Do noOctave, Note Mi noOctave, Note Fa noOctave, Note Sol noOctave, Note La noOctave]
+    ,[Note Ré noOctave, Rest, Rest, Rest, Rest]]
+
+  [voices|
+  fa sol la
+
+  do mi
+  ré|] `shouldBe`
+    [[Note Fa noOctave, Note Sol noOctave, Note La noOctave, Note Do noOctave, Note Mi noOctave]
+    ,[Rest, Rest, Rest, Note Ré noOctave, Rest]]
+
+  [voices|
+
+  : This describes the piece.
+
+  fa sol la
+
+  do mi
+  ré|] `shouldBe`
+    [[Note Fa noOctave, Note Sol noOctave, Note La noOctave, Note Do noOctave, Note Mi noOctave]
+    ,[Rest, Rest, Rest, Note Ré noOctave, Rest]]
+
+  [voices|
+  fa sol la : comment1
+
+  do mi
+  ré|] `shouldBe`
+    [[Note Fa noOctave, Note Sol noOctave, Note La noOctave, Note Do noOctave, Note Mi noOctave]
+    ,[Rest, Rest, Rest, Note Ré noOctave, Rest]]
+
+  [voices|
+  fa sol la
+  : comment1
+
+  do mi
+  ré|] `shouldBe`
+    [[Note Fa noOctave, Note Sol noOctave, Note La noOctave, Note Do noOctave, Note Mi noOctave]
+    ,[Rest, Rest, Rest, Note Ré noOctave, Rest]]
 
 shouldBe :: (Show a, Eq a) => a -> a -> IO ()
 shouldBe actual expected =

@@ -44,7 +44,7 @@ library
     extra-lib-dirs:    /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A
 
   -- removing -DNDEBUG activates assertions in c/c++ sources.
-  cc-options:          -std=c++17 -DNDEBUG -D_USE_MATH_DEFINES -Os -ffast-math -fno-rtti -static-libstdc++
+  cc-options:          -std=c++17 -DNDEBUG -D_USE_MATH_DEFINES -Os -ffast-math -fno-rtti
   if os(linux)
     cc-options:        -fpermissive
   if os(windows)

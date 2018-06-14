@@ -24,17 +24,27 @@ module Imj.Music.Play
       , play
       -- * Utilities
       , playAtTempo
+      , playVoicesAtTempo
       , allMusic
       ) where
 
 import           Imj.Prelude
 import           Control.Concurrent(threadDelay)
+import           Data.List(foldl')
 import           Data.Maybe(catMaybes, maybeToList)
 import qualified Data.Vector as V
 import           Foreign.C
 
 import           Imj.Audio
 import           Imj.Music.Types
+
+playVoicesAtTempo :: Float
+            -- ^ Beats per minute
+            -> Instrument
+            -> [[VoiceInstruction]]
+            -> IO ()
+playVoicesAtTempo tempo i =
+  playMusic tempo . foldl' (zipWith (++)) (repeat []) . map (allMusic i)
 
 -- | Plays a series of 'VoiceInstruction' at a constant tempo, using an 'Instrument'.
 playAtTempo :: Float
@@ -43,7 +53,14 @@ playAtTempo :: Float
             -> [VoiceInstruction]
             -> IO ()
 playAtTempo tempo i =
-  go . allMusic i
+  playMusic tempo . allMusic i
+
+playMusic :: Float
+            -- ^ Beats per minute
+            -> [[MusicalEvent]]
+            -> IO ()
+playMusic tempo m =
+  go m
  where
   go [] = return()
   go (n:ns) = do

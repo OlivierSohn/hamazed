@@ -49,7 +49,7 @@ primaryScore = mkScore organicInstrument
   firstVoice =
     concatMap ((++) begin) variations
    where
-    begin = [notes|
+    begin = [voice|
       do . .
       . . sol
       ré - -
@@ -60,18 +60,18 @@ primaryScore = mkScore organicInstrument
       |]
 
     variations =
-      [ [notes|vsol . .|]
-      , [notes|vsol vla vsi|]
-      , [notes|vsol . .|]
-      , [notes|ré ré ré|]
-      , [notes|vsol . .|]
-      , [notes|vsol vsi ré|]
-      , [notes|vsol . .|]
-      , [notes|ré sol vsol|]
+      [ [voice|vsol . .|]
+      , [voice|vsol vla vsi|]
+      , [voice|vsol . .|]
+      , [voice|ré ré ré|]
+      , [voice|vsol . .|]
+      , [voice|vsol vsi ré|]
+      , [voice|vsol . .|]
+      , [voice|ré sol vsol|]
       ]
 
   secondVoice =
-    [notes|
+    [voice|
     . . sol
     . . .
     . . sol
@@ -83,7 +83,7 @@ primaryScore = mkScore organicInstrument
     |]
 
   thirdVoice =
-    [notes|
+    [voice|
     . . .
     mib . .
     . . .
@@ -102,7 +102,7 @@ secondaryScore =
     ]
  where
 
-  firstVoice = [notes|
+  firstVoice = [voice|
     do . . .
     vsi . . .
     do . . .
@@ -138,7 +138,7 @@ secondaryScore =
     ré . . .
   |]
 
-  secondVoice = [notes|
+  secondVoice = [voice|
     sol - - -
     . . sol -
     lab - sol -
@@ -180,9 +180,9 @@ tertiaryScore =
     [ firstVoice ++ secondVoice
     , concat (replicate (length firstVoice) silence) ++ firstVoice']
  where
-   silence = [notes|.|]
+   silence = [voice|.|]
 
-   firstVoice = [notes|
+   firstVoice = [voice|
      do ré mib fa
      sol . do ré
      mib fa sol .
@@ -203,7 +203,7 @@ tertiaryScore =
      |]
 
 
-   firstVoice' = [notes|
+   firstVoice' = [voice|
      do ré mib fa
      sol . do .
      mib . sol .
@@ -223,7 +223,7 @@ tertiaryScore =
      vsol . . .
      |]
 
-   secondVoice = [notes|
+   secondVoice = [voice|
      mib fa sol lab
      sol . sol lab
      sol fa sol .
@@ -255,14 +255,14 @@ quatScore =
 
   voice1 = firstVoice ++ firstVoice ++ firstVoice2
 
-  firstVoice = [notes|
+  firstVoice = [voice|
   ^do . ^sol
   ^ré . .
   ^mib ^ré ^do
   ^ré . .
   |]
 
-  firstVoice2 = [notes|
+  firstVoice2 = [voice|
   ^fa ^mib ^ré
   ^mib ^ré ^do
   ^fa ^mib ^ré
@@ -273,7 +273,7 @@ quatScore =
   ^ré . .
   |]
 
-  bass1 = [notes|
+  bass1 = [voice|
   mib . .
   fa . .
   do ré mib
@@ -292,7 +292,7 @@ quatScore =
   sol . .
   |]
 
-  bass2 = [notes|
+  bass2 = [voice|
   lab . .
   sol . .
   solb . .
@@ -312,7 +312,7 @@ quatScore =
   |]
 
 
-  bass3 = [notes|
+  bass3 = [voice|
   . . .
   . . .
   lab . .
@@ -341,15 +341,15 @@ quintScore =
     ]
  where
 
-  b1 = [notes|mib . .|]
-  b2 = [notes|lab . .|]
-  v1 = [notes|^do . .|]
+  b1 = [voice|mib . .|]
+  b2 = [voice|lab . .|]
+  v1 = [voice|^do . .|]
 
-  b1' = [notes|mib . .|]
-  b2' = [notes|sol . .|]
-  v1' = [notes|^do . .|]
+  b1' = [voice|mib . .|]
+  b2' = [voice|sol . .|]
+  v1' = [voice|^do . .|]
 
-  v2 = [notes|
+  v2 = [voice|
     ^do . . . . . . . .
     . ^ré ^mib ^fa . . ^mib . .
     ^ré . . . . . . . .
@@ -371,13 +371,13 @@ sextScore =
     , take (length v2) $ cycle (acc n3)
     ]
  where
-  v1 = [notes|
+  v1 = [voice|
       . . vmi . vsol . vsi . ré - - do# . vla . vsi
       . . vmi . vsol . vsi . mi . ré . do# - - -
       . . mi . sol . mi . ré - - dod . vla . vsi
       . . vmi . vsol . vsi . vla . vsol . vmi - - -
    |]
-  v2 = [notes|
+  v2 = [voice|
       . . . . . . . . . . . . . . . .
       . . . . . . . . . . . . . . . .
       . . . . . . . . . . . . . . . .
@@ -396,7 +396,7 @@ sextScore =
       . . la . si si . mi sol sol . . . . . .
    |]
 
-  skip1 = [notes|
+  skip1 = [voice|
         . . . . . . . . . . . . . . . .
         . . . . . . . . . . . . . . . .
         . . . . . . . . . . . . . . . .
@@ -408,7 +408,7 @@ sextScore =
         |]
 
   v3 =
-    [notes|
+    [voice|
     . ré mi sol mi ré sol . . . . . . . . .
     . . . . . . . . . . . . . . . .
     . ré mi ré . . . . . mi ré sol . . . .
@@ -419,12 +419,12 @@ sextScore =
     . . . . . . . . . . . . . . .
     |]
 
-  n1 = [notes|si|]
-  n2 = [notes|^ré|]
-  n3 = [notes|^mi|]
+  n1 = [voice|si|]
+  n2 = [voice|^ré|]
+  n3 = [voice|^mi|]
 
   acc x =
-     [notes|
+     [voice|
      . . . . . . . . . . . . . . . .
      . . . . . . . . . . . . . . . .
      . . . . . . . . . . . . . . . .
@@ -432,9 +432,9 @@ sextScore =
      ++ acc' x
      ++ acc' x
 
-  acc' x = [notes|
-     . . . . . . . .      .|]      ++ x ++ [notes|.      .           . . . .
-     . . . . . . . .|] ++ x ++ [notes|-           .|] ++ x ++ [notes|. . . .|] -- it would be nice to have a live coding app to try these things
+  acc' x = [voice|
+     . . . . . . . .      .|]      ++ x ++ [voice|.      .           . . . .
+     . . . . . . . .|] ++ x ++ [voice|-           .|] ++ x ++ [voice|. . . .|] -- it would be nice to have a live coding app to try these things
 
 sevthScore :: Score
 sevthScore =
@@ -446,33 +446,33 @@ sevthScore =
     , silence ++ v5
     ]
  where
-   v1 = [notes|
+   v1 = [voice|
    vsol do mib . . ré mib . . . . .
    vfa vsib ré . . mib ré . . . . .
    |]
 
-   v2 = [notes|
+   v2 = [voice|
    . . . . . . vlab . . . . .
    . . . . . . vla . . . . .
    |]
 
 
-   v3 = [notes|
+   v3 = [voice|
    . . . . . . vsib . . . . .
    . . . . . . vsi . . . . .
    |]
 
-   v4 = [notes|
+   v4 = [voice|
    . . . . . . sol . ré mib do .
    . . . . . . ré . mib . fa .
    |]
 
-   v5 = [notes|
+   v5 = [voice|
    . . . . . . . . . . . .
    . . . . . . vsi . do . ré .
    |]
 
-   silence = [notes|
+   silence = [voice|
    . . . . . . . . . . . .
    . . . . . . . . . . . .
    |]
@@ -488,14 +488,14 @@ heighthScore = mkScore organicInstrument
 
  where
 
-  melody = [notes|
+  melody = [voice|
     si . . sol . . mi .
     . . sol . la . si .
     ^do . . fad . . ré .
     . . fad . sol . la .
     |]
 
-  bass = [notes|
+  bass = [voice|
     mi . . . . . . .
     . . . . . . . .
     ré . . . . . . .
@@ -506,7 +506,7 @@ heighthScore = mkScore organicInstrument
     mi . . . . . . .
     |]
 
-  silence = [notes|
+  silence = [voice|
     . . . . . . . .
     . . . . . . . .
     . . . . . . . .
@@ -516,7 +516,7 @@ heighthScore = mkScore organicInstrument
     . . . . . . . .
     . . . . . . . .
     |]
-  upperVoice = [notes|
+  upperVoice = [voice|
     ^mi . . ^mi . . ^sol ^sol
     . . ^mi . . si . .
     ^fad . . ^fad . . . .
@@ -527,7 +527,7 @@ heighthScore = mkScore organicInstrument
     . . . . . . . .
     |]
 
-  upperVoice2 = [notes|
+  upperVoice2 = [voice|
     ^si . . ^si . . . .
     . . . . . . . .
     . . . . . . . .
@@ -549,27 +549,27 @@ ninthScore = mkScore shortInstrument
 
  where
 
-  melody = [notes|
+  melody = [voice|
     la . . . . . ^do ^ré ^mi . la .
     lab . . . . . ^mib ^mi ^mib ^mi ^mib ^mi
     sol . . . . . ^do ^ré ^mi . sol .
     fad . . . . . ^mi ^mib ^ré ^réb ^do si
     |]
 
-  bass1 = [notes|
+  bass1 = [voice|
     do . . . . . . . . . . .
     vsi . . . . . . . . . . .
     vsib . . . . . . . . . . .
     vla . . . . . . . . . . .
   |]
 
-  bass2 = [notes|
+  bass2 = [voice|
     mi . . . . . . . . . . .
     mi . . . . . . . . . . .
     ré . . . . . . . . . . .
     ré . . . . . . . . . . .
   |]
-  bass3 = [notes|
+  bass3 = [voice|
     . . mi . . . . . . . . .
   |]
 
@@ -582,12 +582,12 @@ tenthScore = mkScore
 
  where
 
-  melody = [notes|
+  melody = [voice|
     ^do si la . la si ^do ^ré ^mi . . .
     ^ré ^do si . . . ^do si la . . .
     |]
 
-  bass = [notes|
+  bass = [voice|
     . . vla do mi vla
     do mi vsol do mi vsol
     do mi vfa vla do vfa
@@ -608,7 +608,7 @@ eleventhScore = mkScore
 
  where
 
-  melody = [notes|
+  melody = [voice|
     ^do ^réb ^do ^réb ^do .
     ^do ^réb ^do ^réb ^do .
     ^do ^réb ^do ^réb ^do ^réb
@@ -627,7 +627,7 @@ eleventhScore = mkScore
     ^do . . . . .
   |]
 
-  melody2 = [notes|
+  melody2 = [voice|
     . . . . . .
     . . . . . .
     ^mi ^fa ^mi ^fa ^mi ^fa
@@ -646,7 +646,7 @@ eleventhScore = mkScore
     ^mi . . . . .
   |]
 
-  bass = [notes|
+  bass = [voice|
     do . sol . sib .
     do . fa . lab .
     do . mi . sol .
@@ -676,31 +676,31 @@ twelvthScore = Score
 
  where
 
-  melody = [notes|
+  melody = [voice|
     do ré fa sol - - - -
     do ré ré - - - - -
   |]
 
-  bass1 = [notes|
+  bass1 = [voice|
     . . vfa - - - - -
     . . vmi - - - - -
   |]
 
-  bass2 = [notes|
+  bass2 = [voice|
     . . vla - - - - -
     . . vsol - - - - -
   |]
 
-  voice = [notes|
+  voice = [voice|
     . . . . ^mi - ^do -
     - - - - - - - -
   |]
 
-  voice2 = [notes|
+  voice2 = [voice|
     . . ^mi - - - - -
     - - - - - - - -
   |]
 
 alarm :: [VoiceInstruction]
 alarm =
-  [notes|do ^do|]
+  [voice|do ^do|]

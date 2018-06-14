@@ -12,10 +12,7 @@ import           Imj.Prelude
 import           Data.List hiding(transpose, intersperse, intercalate)
 
 import           Imj.Game.Hamazed.Level
-import           Imj.Music.Alter
-import           Imj.Music.Compose
-import           Imj.Music.Instruments
-import           Imj.Music.Types
+import           Imj.Music
 
 scoreForLevel :: LevelSpec -> Score
 scoreForLevel (LevelSpec n _) =
@@ -670,7 +667,7 @@ twelvthScore = Score
   [ mkVoice stringsInstrument $ concat $ replicate 8 melody
   , mkVoice stringsInstrument $ concat $ replicate 8 bass1
   , mkVoice stringsInstrument $ concat $ replicate 8 bass2
-  , mkVoice shortInstrument $ concat (replicate 4 $ mute melody) ++ concat (replicate 4 voice)
+  , mkVoice shortInstrument $ concat (replicate 4 $ mute melody) ++ concat (replicate 4 voice1)
   , mkVoice longInstrument $ concat (replicate 4 $ mute melody) ++ concat (replicate 4 voice2)
   ]
 
@@ -691,7 +688,7 @@ twelvthScore = Score
     . . vsol - - - - -
   |]
 
-  voice = [voice|
+  voice1 = [voice|
     . . . . ^mi - ^do -
     - - - - - - - -
   |]

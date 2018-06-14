@@ -16,6 +16,11 @@ cabal-version:       >=1.10
 
 Tested-With: GHC == 8.0.2, GHC == 8.2.2
 
+Flag Debug
+    Description: Enable assertions and audio debug logs
+    Manual: True
+    Default: False
+
 library
   hs-source-dirs:      src
   other-modules:
@@ -43,8 +48,10 @@ library
     -- This path is valid on OSX 10.13.3:
     extra-lib-dirs:    /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A
 
-  -- removing -DNDEBUG activates assertions in c/c++ sources.
-  cc-options:          -std=c++17 -DNDEBUG -D_USE_MATH_DEFINES -Os -ffast-math -fno-rtti
+  cc-options:          -std=c++17 -D_USE_MATH_DEFINES -Os -ffast-math
+  if(!flag(Debug))
+    -- we need rtti only in debug mode
+    cc-options:        -DNDEBUG -fno-rtti
   if os(linux)
     cc-options:        -fpermissive
   if os(windows)

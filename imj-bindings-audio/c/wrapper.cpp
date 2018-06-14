@@ -104,18 +104,24 @@ extern "C" {
     std::cout << "sizeof NoXFadeChans " << sizeof(NoXFadeChans) << std::endl;
   }
 
-  bool initializeAudio () {
+  /*
+  Pass 0 to disable latency setting
+  */
+  bool initializeAudio (int latencyMillis) {
     using namespace std;
     using namespace imajuscule;
     using namespace imajuscule::audio;
 #ifndef NDEBUG
     cout << "Warning : C++ sources of imj-bindings-audio were built without NDEBUG" << endl;
 #endif
+
+    if(latencyMillis > 0) {
+      setPortaudioLatencyMillis(latencyMillis);
+    }
+
     disableDenormals();
 
     //testFreeList();
-
-    setPortaudioEnvVars();
 
     // add a single Xfade channel (needed because soundengine and channel don't support envelopes entirely)
     static constexpr auto n_max_orchestrator_per_channel = 1;

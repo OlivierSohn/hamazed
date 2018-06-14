@@ -73,7 +73,11 @@ foreign import ccall "effectOn" effectOn :: CInt -> CShort -> CFloat -> IO ()
 foreign import ccall "effectOff" effectOff :: CShort -> IO ()
 
 -- | Should be called prior to using any other function (see 'withAudio')
-foreign import ccall "initializeAudio" initializeAudio :: IO Bool
+foreign import ccall "initializeAudio" initializeAudio :: Int
+                                                       -- ^ Latency, in milliseconds. If the value is strictly positive,
+                                                       -- the environment variable PA_MIN_LATENCY_MSEC will be set accordingly.
+                                                       -- Pass 0 or a negative value to not set this variable. See <http://www.portaudio.com/docs/latency.html the doc on this subject>.
+                                                       -> IO Bool
 
 -- | Fades-out all audio quikcly (within 'maxShutdownDurationMicros') and closes
 -- any open audio channel.
@@ -127,9 +131,11 @@ midiNoteOffAHDSR t (AHDSR a h d r ai di ri s) i   =
 midiNoteOnAHDSR  t (AHDSR a h d r ai di ri s) i v =
   midiNoteOnAHDSR_  t (fromIntegral a) (fromIntegral $ itpToInt ai) (fromIntegral h) (fromIntegral d) (fromIntegral $ itpToInt di) (realToFrac s) (fromIntegral r) (fromIntegral $ itpToInt ri) i v
 
+
 -- | Initializes audio, runs the action, shutdowns audio gracefully and waits
 -- until audio is shutdown completely before returning.
-usingAudio :: MonadUnliftIO m => m a -> m a
+usingAudio :: MonadUnliftIO m
+           => m a -> m a
 usingAudio act =
 
   bracket bra ket $ \initialized ->
@@ -141,7 +147,7 @@ usingAudio act =
 
  where
 
-  bra = liftIO initializeAudio
+  bra = liftIO $ initializeAudio (-1) -- using the default latency
 
   ket _ = liftIO $ do
     stopAudioGracefully

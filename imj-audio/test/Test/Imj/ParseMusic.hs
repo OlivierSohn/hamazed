@@ -6,10 +6,7 @@ module Test.Imj.ParseMusic
           , testParsePolyVoice
           ) where
 
-import           Imj.Music.Types
-import           Imj.Music.Compose
-import           Imj.Music.Instruments
-import           Imj.Music.Play
+import           Imj.Audio
 
 testParseMonoVoice :: IO ()
 testParseMonoVoice = do

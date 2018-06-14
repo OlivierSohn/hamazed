@@ -11,8 +11,8 @@ import           Imj.Prelude
 
 import           Data.List hiding(transpose, intersperse, intercalate)
 
+import           Imj.Audio
 import           Imj.Game.Hamazed.Level
-import           Imj.Music
 
 scoreForLevel :: LevelSpec -> Score
 scoreForLevel (LevelSpec n _) =

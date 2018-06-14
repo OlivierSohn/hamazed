@@ -43,6 +43,7 @@ import           Numeric(showFFloat)
 import           System.IO(withFile, IOMode(..))
 import           System.Directory(doesFileExist)
 
+import           Imj.Audio
 import           Imj.Categorized
 import           Imj.ClientView.Types
 import           Imj.Event
@@ -69,8 +70,6 @@ import           Imj.Graphics.Text.Render
 import           Imj.Graphics.UI.RectContainer
 import qualified Imj.Graphics.UI.Choice as UI
 import           Imj.Music.Types
-import           Imj.Music.Analyze
-import           Imj.Music.Instruments
 import           Imj.Music.PressedKeys
 import           Imj.Music.Record
 import           Imj.Server.Class hiding(Do)

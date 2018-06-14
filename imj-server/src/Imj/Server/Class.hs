@@ -65,7 +65,7 @@ import           Imj.Categorized
 import           Imj.ClientView.Internal.Types
 import           Imj.Graphics.Class.UIInstructions
 import           Imj.Graphics.Color.Types
-import           Imj.Music.Types hiding(Do)
+import           Imj.Music.Types
 import           Imj.Server.Internal.Types
 
 import           Imj.Network

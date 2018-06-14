@@ -1,3 +1,4 @@
+- pass a private type to 
 
 - make a player app where a melody is played and we can interactively change the instrument used to play it.
 

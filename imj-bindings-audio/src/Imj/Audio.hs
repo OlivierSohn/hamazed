@@ -1,58 +1,85 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 
 {- |
-      This module lets you play polyphonic, poly-instrumental music and sounds,
-      in real time.
 
-      Behind the scenes, it uses
-      <https://github.com/OlivierSohn/cpp.audio/tree/master/include a custom C++ audio engine> through
-      <https://github.com/OlivierSohn/hamazed/tree/master/imj-bindings-audio these bindings>.
+== Instrument
 
-      The produced audio signal will be written to your audio system through the
-      cross-platform (Windows, OSX, Unix) <http://www.portaudio.com/ portaudio API>.
+In this documentation, an /instrument/ is a /combination/ of parameters passed to
+'midiNoteOn', 'midiNoteOff', 'midiNoteOnAHDSR' and 'midiNoteOffAHDSR'.
 
-      * C++ objects representing instruments are automatically recycled,
-      hence the RAM usage is proportional to the number of /active/ instruments at any given time.
+== Overview
 
-      * The real-time audio thread is /not/ managed by the GHC runtime, so there will be
-      /no/ audio pauses during GHC garbage collection.
+The functions exported by this module let you play polyphonic, poly-instrumental music and sounds,
+in real time.
 
-      * In the C++ audio engine, we control thread priorities so that when taking the
-      global audio lock, the thread that takes it has the realtime priority, to avoid priority inversion
-      when the realtime audio thread waits for the lock. This means that on linux,
-      you should ideally 'sudo' the command starting the program, so that
-      the program has the necessary privileges to configure thread priorities.
-      If you don't, a warning message will be logged in the console, and the program will run,
-      but with less guarantees about audio "smoothness" because we can potentially have priority
-      inversion effect.
+These functions can be called /concurrently/ from /any/ Haskell thread (bounded or not).
 
-      * In theory (it has not beed much tested yet) it should be safe to call
-      functions in a concurent / multithreaded context, because the library
-      underneath uses locks to protect accesses to shared data.
-      * There is no restriction on the kind of thread (bounded / unbounded) you can call these functions from.
+'usingAudio' initializes the audio environment that will be used to:
+
+* play notes with a simple instrument ('midiNoteOn', 'midiNoteOff')
+* play notes with an envelope-based instrument ('midiNoteOnAHDSR', 'midiNoteOffAHDSR')
+* play a time-varying sound based on filtered white noise ('effectOn', 'effectOff')
+
+All these functions should only be called from within an action run in a 'usingAudio'.
+
+== C++ Audio engine
+
+Behind the scenes,
+<https://github.com/OlivierSohn/cpp.audio/tree/master/include this C++ audio engine>
+is used, through
+<https://github.com/OlivierSohn/hamazed/tree/master/imj-bindings-audio these bindings>.
+
+The <http://www.portaudio.com/ portaudio> c library is used to talk to your audio system.
+
+=== Memory usage
+
+The RAM usage is proportional to the number of /active/ instruments at any given time.
+
+To prevent memory fragmentation, we /recycle/ C++ objects associated to instruments.
+
+=== Audio thread isolation
+
+The real-time audio thread is /not/ managed by the GHC runtime, so there is
+/no/ audio pause during GHC garbage collection.
+
+=== Concurrency
+
+Deadlocks are avoided in the audio engine by acquiring locks according to the same global order,
+everywhere in the code.
+
+=== Tackling priority inversion
+
+The audio engine uses the
+<https://en.wikipedia.org/wiki/Priority_ceiling_protocol Immediate Ceiling Priority Protocol>
+to avoid
+<https://en.wikipedia.org/wiki/Priority_inversion priority inversion>.
+
+On linux, controling the thread priorities can be done only if the user running the program
+<http://pubs.opengroup.org/onlinepubs/009696899/functions/pthread_getschedparam.html has sufficient privileges>
+, hence it is preferable if you can run the program with @sudo@.
+If not, a warning message will be logged in the console, and the program will run,
+but with less guarantees about audio "smoothness" because we can potentially see
+<https://en.wikipedia.org/wiki/Priority_inversion priority inversion effects>.
 
 -}
 
 module Imj.Audio
-      ( -- * Output audio
-      {- | 'usingAudio' initializes the audio environment that will be used to:
-
-      * play notes with a simple instrument ('midiNoteOn', 'midiNoteOff')
-      * play notes with an envelope-based instrument ('midiNoteOnAHDSR', 'midiNoteOffAHDSR')
-      * play a time-varying sound based on filtered white noise ('effectOn', 'effectOff')
-       -}
+      (
+        -- * Bracketted audio initialization
         usingAudio
+        -- * Playing an instrument
       , midiNoteOn
       , midiNoteOff
       , midiNoteOnAHDSR
       , midiNoteOffAHDSR
+        -- * Playing an effect
       , effectOn
       , effectOff
       -- * Analyze envelopes
       -- | 'analyzeAHDSREnvelope' gives you the exact shape of the envelope
       -- of an instrument. It can be usefull to give a visual feedback to users.
       , analyzeAHDSREnvelope
-      -- * reexports
+      -- * Reexports
       , module Imj.Music.CTypes
       , CInt, CShort, CFloat
       ) where
@@ -132,10 +159,13 @@ midiNoteOnAHDSR  t (AHDSR a h d r ai di ri s) i v =
   midiNoteOnAHDSR_  t (fromIntegral a) (fromIntegral $ itpToInt ai) (fromIntegral h) (fromIntegral d) (fromIntegral $ itpToInt di) (realToFrac s) (fromIntegral r) (fromIntegral $ itpToInt ri) i v
 
 
--- | Initializes audio, runs the action, shutdowns audio gracefully and waits
--- until audio is shutdown completely before returning.
+-- | Initializes audio, runs the action, shutdowns audio (gracefully, with cross-fades) and returns.
+--
 usingAudio :: MonadUnliftIO m
-           => m a -> m a
+           => m a
+           -- ^ The action to run.
+           -- This action should contain no call to 'usingAudio'.
+           -> m a
 usingAudio act =
 
   bracket bra ket $ \initialized ->

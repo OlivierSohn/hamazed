@@ -232,6 +232,23 @@ testParsePolyVoice = do
 
   [poly|do|] `shouldBe`
     [[Note Do noOctave]]
+
+  [poly|
+  do ré|] `shouldBe`
+    [[Note Do noOctave, Note Ré noOctave]]
+
+  [poly|
+  do
+  ré|] `shouldBe`
+    [[Note Do noOctave]
+    ,[Note Ré noOctave]]
+
+  -- using a blank line as separator
+  [poly|
+  do
+
+  ré|] `shouldBe`
+    [[Note Do noOctave, Note Ré noOctave]]
 -}
 
 shouldBe :: (Show a, Eq a) => a -> a -> IO ()

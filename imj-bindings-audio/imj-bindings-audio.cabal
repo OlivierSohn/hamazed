@@ -30,8 +30,14 @@ library
                      , vector >= 0.12.0.1 && < 0.13
   default-language:    Haskell2010
 
+
   extra-libraries:     stdc++
-                     , portaudio
+
+  if os(linux) || os(freebsd) || os(darwin)
+    pkgconfig-depends: portaudio-2.0
+  else
+    extra-libraries:   portaudio
+
   if os(darwin)
     extra-libraries:   vDSP
     -- This path is valid on OSX 10.13.3:

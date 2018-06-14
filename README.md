@@ -40,8 +40,8 @@ is needed to build.
 
 List of packages, inverse-topologically sorted wrt dependencies, with keywords / short description for each of them:
 
-- [imj-bindings-audio]
-  - Bindings to a C++14 audio engine. The C++ sources are located in [submodules](/imj-bindings-audio/c).
+- [imj-audio]
+  - Bindings to a C++14 audio engine. The C++ sources are located in [submodules](/imj-audio/c).
 - [imj-music](/imj-music)
   - Polyphonic music scores creation and playback.
 - [imj-prelude](/imj-prelude)
@@ -105,7 +105,7 @@ After checking out the repo, run `git submodule init && git submodule update` to
 ## Install dependencies (C libraries)
 
 - [ftgl] is needed by [imj-base] to render fonts with OpenGL.
-- [portaudio 19] is needed by [imj-bindings-audio] for audio I/O.
+- [portaudio 19] is needed by [imj-audio] for audio I/O.
 - [libpq] and [postgresql] are needed by a dependency of [imj-serve-highscores].
 
 To install them:
@@ -190,7 +190,7 @@ Every game made with [imj-game] can have the server send midi-like
 note on / note off events to game clients, allowing to perfectly synchronize the music with the game.
 
 The music won't pause during garbage collection because we use
-[a custom-made audio engine](/imj-bindings-audio) whose audio thread is
+[a custom-made audio engine](/imj-audio) whose audio thread is
 not managed by the GHC runtime.
 
 ## Rendering
@@ -204,7 +204,7 @@ The [fonts](/imj-base/fonts) and font size for rendering can be modified at run 
 [ftgl]: http://ftgl.sourceforge.net/docs/html/
 [Heroku]: https://www.heroku.com/
 [imj-base]: /imj-base
-[imj-bindings-audio]: /imj-bindings-audio
+[imj-audio]: /imj-audio
 [imj-game]: /imj-game
 [imj-game-hamazed]: /imj-game-hamazed
 [imj-game-synths]: /imj-game-synths

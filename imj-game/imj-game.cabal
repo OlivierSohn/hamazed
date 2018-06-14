@@ -56,7 +56,7 @@ library
                      , deepseq ==1.4.*
                      , GLFW-b ==3.2.*
                      , imj-base ==0.1.*
-                     , imj-bindings-audio ==0.1.*
+                     , imj-audio ==0.1.*
                      , imj-music ==0.1.*
                      , imj-particlesystem ==0.1.*
                      , imj-prelude ==0.1.*

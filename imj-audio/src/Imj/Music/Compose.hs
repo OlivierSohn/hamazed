@@ -55,7 +55,7 @@ import           Text.Parsec((<|>), parse, char, noneOf, spaces, eof, many, many
 import           Text.Parsec.Text(Parser)
 import           Text.Parsec.Pos(newPos)
 
-import           Imj.Music.Types
+import           Imj.Music.CTypes
 
 
 monophonicSymbol :: Parser (Either () VoiceInstruction)

@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-{-| Some instruments that can be used as a starting point.
--}
+-- | Some instruments developped for
+-- <https://github.com/OlivierSohn/hamazed/tree/master/imj-game-hamazed Hamazed>.
 
 module Imj.Music.Instruments
       ( simpleInstrument
@@ -16,7 +16,7 @@ module Imj.Music.Instruments
       ) where
 
 import           Imj.Prelude
-import           Imj.Music.Types
+import           Imj.Music.CTypes
 
 
 simpleInstrument, bellInstrument, organicInstrument, shortInstrument, testInstrument, stringsInstrument :: Instrument

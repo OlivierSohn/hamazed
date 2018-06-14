@@ -1,9 +1,9 @@
-name:                imj-bindings-audio
+name:                imj-audio
 version:             0.1.0.3
 Category:            Audio
 Synopsis:            Bindings to a C++ audio engine.
 Description:         Bindings to a C++ audio engine allowing to play music in real time.
-homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-bindings-audio//README.md
+homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-audio//README.md
 bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
 license:             BSD3
 license-file:        LICENSE
@@ -28,8 +28,24 @@ library
                      , c/extras.cpp
                      , c/wrapper.cpp
   exposed-modules:     Imj.Audio
+                     , Imj.Audio.Bindings
+                     , Imj.Audio.Wrapper
+                     , Imj.Music.Alter
+                     , Imj.Music.Compose
+                     , Imj.Music.CTypes
+                     , Imj.Music.Instruments
+                     , Imj.Music.Play
+                     , Imj.Music.Score
   build-depends:       base >= 4.9 && < 4.12
-                     , imj-bindings-audio-types ==0.1.*
+                     , binary == 0.8.*
+                     , containers ==0.5.*
+                     , deepseq ==1.4.*
+                     , imj-prelude ==0.1.*
+                     , imj-time ==0.1.*
+                     , parsec ==3.1.*
+                     , strict-concurrency ==0.2.*
+                     , template-haskell >=2.12 && < 2.14
+                     , text >=1.2.3 && < 1.3
                      , unliftio ==0.2.*
                      , unliftio-core ==0.1.*
                      , vector >= 0.12.0.1 && < 0.13
@@ -58,8 +74,15 @@ library
     cc-options:        -D_UNICODE -DUNICODE
     -- TODO we may need -municode at link time.
 
+executable imj-audio-exe
+  hs-source-dirs:      example
+  main-is:             Main.hs
+  build-depends:       base >= 4.9 && < 4.12
+                     , imj-audio
+                     , imj-prelude ==0.1.*
+  default-language:    Haskell2010
 
 source-repository head
   type:     git
   location: https://github.com/OlivierSohn/hamazed/
-  subdir:   imj-bindings-audio
+  subdir:   imj-audio

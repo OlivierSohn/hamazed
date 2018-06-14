@@ -10,6 +10,7 @@ module Imj.Music.PressedKeys
 import qualified Data.Map.Strict as Map
 
 import           Imj.Music.Types
+import           Imj.Music.CTypes
 
 addNote :: InstrumentNote -> PressedKeys -> (Int, PressedKeys)
 addNote n (PressedKeys s) = (1, PressedKeys $ Map.insertWith (+) n 1 s)

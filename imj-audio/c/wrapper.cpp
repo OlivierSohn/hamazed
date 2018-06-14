@@ -112,7 +112,7 @@ extern "C" {
     using namespace imajuscule;
     using namespace imajuscule::audio;
 #ifndef NDEBUG
-    cout << "Warning : C++ sources of imj-bindings-audio were built without NDEBUG" << endl;
+    cout << "Warning : C++ sources of imj-audio were built without NDEBUG" << endl;
 #endif
 
     if(latencyMillis > 0) {

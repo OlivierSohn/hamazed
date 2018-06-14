@@ -33,16 +33,17 @@ import           Control.Concurrent(threadDelay)
 import           Data.List(foldl')
 import           Data.Maybe(catMaybes, maybeToList)
 import qualified Data.Vector as V
-import           Foreign.C
 
-import           Imj.Audio
-import           Imj.Music.Types
+import           Imj.Audio.Wrapper
+import           Imj.Music.Score
+import           Imj.Music.CTypes
+
 
 playVoicesAtTempo :: Float
-            -- ^ Beats per minute
-            -> Instrument
-            -> [[VoiceInstruction]]
-            -> IO ()
+                  -- ^ Beats per minute
+                  -> Instrument
+                  -> [[VoiceInstruction]]
+                  -> IO ()
 playVoicesAtTempo tempo i =
   playMusic tempo . foldl' (zipWith (++)) (repeat []) . map (allMusic i)
 
@@ -70,6 +71,13 @@ playMusic tempo m =
 
   pause = round $ 1000*1000*60/tempo
 
+allMusic :: Instrument -> [VoiceInstruction] -> [[MusicalEvent]]
+allMusic i x =
+  snd $ stepNVoiceAndStop (sizeVoice s) s
+ where
+  s = mkVoice i x
+
+
 -- TODO use ids for notes (one id per voice would be enough), to support this case well,
 -- where voice1 and voice2 are assigned to the same instrument:
 -- voice1: do - - - -
@@ -96,13 +104,6 @@ stopScore (Score l) = (s,m)
   nv = map stopVoice l
   s = Score $ map fst nv
   m = concatMap snd nv
-
--- | Function used mainly for testing purposes.
-allMusic :: Instrument -> [VoiceInstruction] -> [[MusicalEvent]]
-allMusic i x =
-  snd $ stepNVoiceAndStop (sizeVoice s) s
- where
-  s = mkVoice i x
 
 sizeVoice :: Voice -> Int
 sizeVoice (Voice _ _ v _) = V.length v
@@ -172,19 +173,3 @@ stopVoice (Voice _ cur l i) =
     Rest -> Nothing
     Note n o -> Just $ StopNote $ InstrumentNote n o i
     Extend -> error "logic") cur
-
--- | Plays a 'MusicalEvent'
-play :: MusicalEvent -> IO ()
-play (StartNote n@(InstrumentNote _ _ i) (NoteVelocity v)) = case i of
-  SineSynthAHDSR e ahdsr -> midiNoteOnAHDSR (fromIntegral $ fromEnum e) ahdsr pitch vel
-  SineSynth ect -> midiNoteOn (fromIntegral $ unEnvelopeCharacteristicTime ect) pitch vel
-  Wind k -> effectOn (fromIntegral k) pitch vel
- where
-  (MidiPitch pitch) = instrumentNoteToMidiPitch n
-  vel = CFloat v
-play (StopNote n@(InstrumentNote _ _ i)) = case i of
-  SineSynthAHDSR e ahdsr -> midiNoteOffAHDSR (fromIntegral $ fromEnum e) ahdsr pitch
-  SineSynth ect -> midiNoteOff (fromIntegral $ unEnvelopeCharacteristicTime ect) pitch
-  Wind _ -> effectOff pitch
- where
-  (MidiPitch pitch) = instrumentNoteToMidiPitch n

@@ -80,6 +80,7 @@ test_script:
 - stack --resolver nightly-2018-06-07 exec -- gcc --version
 - echo "" | stack --resolver nightly-2018-06-07 --no-terminal --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs C:\stack\portaudio\include\ build imj-music --pedantic --jobs 1
 - echo "" | stack --resolver nightly-2018-06-07 --no-terminal --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --pedantic --jobs 1
+- echo "" | stack --resolver nightly-2018-06-07 --no-terminal --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs C:\stack\portaudio\include\ test imj-audio --pedantic --jobs 1
 ############################################
 
 

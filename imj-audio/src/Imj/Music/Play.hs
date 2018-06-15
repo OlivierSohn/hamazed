@@ -20,11 +20,13 @@ use 'playAtTempo', 'playVoicesAtTempo'
 
 module Imj.Music.Play
       (
-      -- * Play VoiceInstruction(s) all at once, with known tempo
-        playAtTempo
-      , playVoicesAtTempo
       -- * Play MusicalEvent
-      , play
+        play
+      -- * Conversion
+      , allMusic
+      -- * Play VoiceInstruction(s) all at once, with known tempo
+      , playAtTempo
+      , playVoicesAtTempo
       -- * Create MusicalEvent(s) for a time quantum
       -- ** From a Voice
       , stepVoice
@@ -34,8 +36,6 @@ module Imj.Music.Play
       -- ** From a Score
       , stepScore
       , stopScore
-      -- * Utilities
-      , allMusic
       ) where
 
 import           Imj.Prelude

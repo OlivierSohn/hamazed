@@ -1,4 +1,4 @@
-{-# LANGUAGE QuasiQuotes #-}
+
 {-# LANGUAGE LambdaCase #-}
 
 module Main where

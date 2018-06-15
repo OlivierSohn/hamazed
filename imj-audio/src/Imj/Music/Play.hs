@@ -7,24 +7,34 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
-{-| The step*** functions return a list of 'MusicalEvent' which in turn can be
-played using 'play'.
+{-
+When the note-on, note-off events come from the user, in real-time, use the 'play' function.
+
+When the music events are known in advance, but you want ot control the pace at which
+the music will be executed, use the notion of 'Score' with 'stepScore', 'stopScore'
+or the notion of 'Voice' with 'stepVoice', 'stopVoice'.
+
+When the music events are known in advance, and you want to play them at a fixed tempo,
+use 'playAtTempo', 'playVoicesAtTempo'
 -}
 
 module Imj.Music.Play
-      ( -- * Step a Score
-        stepScore
-      , stopScore
-      -- * Step a Voice
+      (
+      -- * Play VoiceInstruction(s) all at once, with known tempo
+        playAtTempo
+      , playVoicesAtTempo
+      -- * Play MusicalEvent
+      , play
+      -- * Create MusicalEvent(s) for a time quantum
+      -- ** From a Voice
       , stepVoice
       , stopVoice
       , stepNVoice
       , stepNVoiceAndStop
-      -- * Play a MusicalEvent
-      , play
+      -- ** From a Score
+      , stepScore
+      , stopScore
       -- * Utilities
-      , playAtTempo
-      , playVoicesAtTempo
       , allMusic
       ) where
 
@@ -37,7 +47,6 @@ import qualified Data.Vector as V
 import           Imj.Audio.Wrapper
 import           Imj.Music.Score
 import           Imj.Music.CTypes
-
 
 playVoicesAtTempo :: Float
                   -- ^ Beats per minute
@@ -108,26 +117,7 @@ stopScore (Score l) = (s,m)
 sizeVoice :: Voice -> Int
 sizeVoice (Voice _ _ v _) = V.length v
 
--- | Like 'stepNVoice' but also uses 'stopVoice' to finalize the music.
-stepNVoiceAndStop :: Int -> Voice -> (Voice, [[MusicalEvent]])
-stepNVoiceAndStop n s =
-  (s'', reverse $ lastMusic:music)
- where
-  (s', music) = stepNVoiceReversed n s
-  (s'', lastMusic) = stopVoice s'
-
-stepNVoiceReversed :: Int -> Voice -> (Voice, [[MusicalEvent]])
-stepNVoiceReversed n score
-  | n < 0 = (score,[])
-  | otherwise = go n score []
- where
-  go 0 s l = (s, l)
-  go i s l = let (s',m) = stepVoice s in go (i-1) s' $ m:l
-
-stepNVoice :: Int -> Voice -> (Voice, [[MusicalEvent]])
-stepNVoice n score = let (s,l) = stepNVoiceReversed n score in (s,reverse l)
-
--- | Steps a 'Voice' forward (by a single time quantum),
+-- | Steps a 'Voice' forward by a single time quantum,
 -- returns the list of 'MusicalEvent's that need to be played for this time quantum.
 stepVoice :: Voice
           -> (Voice, [MusicalEvent])
@@ -173,3 +163,26 @@ stopVoice (Voice _ cur l i) =
     Rest -> Nothing
     Note n o -> Just $ StopNote $ InstrumentNote n o i
     Extend -> error "logic") cur
+
+-- | Like 'stepNVoice' but also uses 'stopVoice' to finalize the music.
+stepNVoiceAndStop :: Int -> Voice -> (Voice, [[MusicalEvent]])
+stepNVoiceAndStop n s =
+  (s'', reverse $ lastMusic:music)
+ where
+  (s', music) = stepNVoiceReversed n s
+  (s'', lastMusic) = stopVoice s'
+
+stepNVoiceReversed :: Int -> Voice -> (Voice, [[MusicalEvent]])
+stepNVoiceReversed n score
+  | n < 0 = (score,[])
+  | otherwise = go n score []
+ where
+  go 0 s l = (s, l)
+  go i s l = let (s',m) = stepVoice s in go (i-1) s' $ m:l
+
+-- | Steps a 'Voice' forward by several time quantume
+stepNVoice :: Int
+           -- ^ How many time quantums to step.
+           -> Voice
+           -> (Voice, [[MusicalEvent]])
+stepNVoice n score = let (s,l) = stepNVoiceReversed n score in (s,reverse l)

@@ -2,9 +2,11 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE QuasiQuotes #-}
 
+{-| These musics were written exclusively using 'voice' because
+'voices' was not available at that time. -}
+
 module Imj.Game.Hamazed.Music
   ( scoreForLevel
-  , alarm
   ) where
 
 import           Imj.Prelude
@@ -697,7 +699,3 @@ twelvthScore = Score
     . . ^mi - - - - -
     - - - - - - - -
   |]
-
-alarm :: [VoiceInstruction]
-alarm =
-  [voice|do ^do|]

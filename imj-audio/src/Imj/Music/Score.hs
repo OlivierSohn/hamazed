@@ -7,8 +7,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 
 module Imj.Music.Score
-      (
-        Score(..)
+      ( Score(..)
       , mkScore
       , Voice(..)
       , mkVoice
@@ -33,7 +32,7 @@ mkScore i s = Score $ map (mkVoice i) s
 -- and the state of the voice being played ('InstructionIdx' and current 'VoiceInstruction')
 data Voice = Voice {
     _nextIdx :: !InstructionIdx
-    -- Index (in 'voiceInstructions') of the 'VoiceInstruction' thaht will be executed
+    -- Index (in 'voiceInstructions') of the 'VoiceInstruction' that will be executed
     -- during the next time quantum.
   , _curInstruction :: (Maybe VoiceInstruction)
   -- ^ Can never be 'Just' 'Extend' because when a 'Extend' symbol is encountered, we don't change this value.

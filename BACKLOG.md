@@ -1,5 +1,13 @@
 - a commented line should not count for a blank line in systems.
 
+- the audio latency should be user configurable.
+
+- write high level doc:
+
+when the music events come from the user, use the 'play' function.
+when the music events are known in advance, but not their timing, use ''
+when the music events are known in advance, and their timing too, use 'playAtTempo', 'playVoicesAtTempo'
+
 - swan lake act2 n.10 scene (moderato)
 http://www.kunstderfuge.com/tchaikovsky.htm
 

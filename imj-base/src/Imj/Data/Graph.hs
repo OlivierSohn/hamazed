@@ -478,7 +478,7 @@ graphFromSortedEdges sorted_edges
                                 mid = a + (b - a) `div` 2
 
 
--- | Same as 'graphFromEdges' except the keys are expected to be 'Integral'
+-- | Same as 'graphFromEdges' except that the keys are expected to be 'Integral'
 -- and consecutive.
 --
 -- Time complexity : O(E + (V*log V))
@@ -494,7 +494,7 @@ graphFromEdgesWithConsecutiveKeys
   = graphFromEdgesWithConsecutiveAscKeys . sortBy (\(_,k1,_) (_,k2,_) -> compare k1 k2)
 
 
--- | Same as 'graphFromEdges' except the keys are expected to be 'Integral'
+-- | Same as 'graphFromEdges' except that the keys are expected to be 'Integral'
 -- consecutive and strictly ascending.
 --
 -- Time complexity : O(V+E)

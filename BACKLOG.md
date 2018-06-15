@@ -1,4 +1,9 @@
-- pass a private type to 
+- a commented line should not count for a blank line in systems.
+
+- swan lake act2 n.10 scene (moderato)
+http://www.kunstderfuge.com/tchaikovsky.htm
+
+read midi file, play it with simple instruments
 
 - make a player app where a melody is played and we can interactively change the instrument used to play it.
 

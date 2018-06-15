@@ -39,6 +39,7 @@ we can use 'map (transposeSymbol 4)' on the result, where 4 is the number of sem
 module Imj.Music.Compose
       ( voice
       , voices
+      , concatSystems
       ) where
 
 import           Imj.Prelude hiding ((<|>))

@@ -2,13 +2,51 @@
 {-# LANGUAGE LambdaCase #-}
 
 module Imj.Audio.Wrapper
-      ( -- * Audio context handling
-        usingAudio
-        -- * Play music
+      ( -- * Using the audio engine
+      {-|
+<https://github.com/OlivierSohn/cpp.audio/tree/master/include This C++ audio engine>
+is used, through
+<https://github.com/OlivierSohn/hamazed/tree/master/imj-audio these bindings>, and
+the <http://www.portaudio.com/ portaudio> c library is used to talk to your audio system.
+
+=== Memory usage
+
+The RAM usage is proportional to the number of /active/ instruments at any given time.
+
+To prevent memory fragmentation, we /recycle/ C++ objects associated to instruments.
+
+=== Audio thread isolation
+
+The real-time audio thread is /not/ managed by the GHC runtime, so there is
+/no/ audio pause during GHC garbage collection.
+
+=== Concurrency
+
+Deadlocks are avoided in the audio engine by acquiring locks according to the same global order,
+everywhere in the code.
+
+=== Tackling priority inversion
+
+The audio engine uses the
+<https://en.wikipedia.org/wiki/Priority_ceiling_protocol Immediate Ceiling Priority Protocol>
+to avoid
+<https://en.wikipedia.org/wiki/Priority_inversion priority inversion>.
+
+On linux, controling the thread priorities can be done only if the user running the program
+<http://pubs.opengroup.org/onlinepubs/009696899/functions/pthread_getschedparam.html has sufficient privileges>
+, hence it is preferable if you can run the program with @sudo@.
+If not, a warning message will be logged in the console, and the program will run,
+but with less guarantees about audio "smoothness" because we can potentially see
+<https://en.wikipedia.org/wiki/Priority_inversion priority inversion effects>.
+
+      -}
+      usingAudio
+        -- * Playing music
       , play
       , MusicalEvent(..)
-      -- * Analysis
+      -- * Analysing envelopes
       , envelopeShape
+
       ) where
 
 import           Control.Concurrent(threadDelay)
@@ -47,7 +85,11 @@ usingAudio act =
 
  where
 
-  bra = liftIO $ initializeAudio (-1) -- using the default latency
+  bra = liftIO $ do
+    res <- initializeAudio (-1) -- using the default latency
+    threadDelay 1000000 -- wait some time (on my osx system, this time is necessary
+                        -- to be able to play sound)
+    return res
 
   ket _ = liftIO $ do
     stopAudioGracefully

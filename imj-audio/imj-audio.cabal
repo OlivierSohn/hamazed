@@ -32,6 +32,8 @@ library
                      , Imj.Audio.Wrapper
                      , Imj.Music.Alter
                      , Imj.Music.Compose
+                     , Imj.Music.Compositions.Tchaikowski
+                     , Imj.Music.Compositions.Vivaldi
                      , Imj.Music.CTypes
                      , Imj.Music.Instruments
                      , Imj.Music.Play

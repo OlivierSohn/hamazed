@@ -180,7 +180,7 @@ asOccurences l = go l []
         thisOccurences =  ValueOccurences (1 + length sameAfter) e
     in go different $ thisOccurences : occurences
 
--- | Same as 'mkSumsStrict' except the ascending input can contain duplicate elements,
+-- | Same as 'mkSumsStrict' except that the ascending input can contain duplicate elements,
 -- and the output is a 'StrictNTree' of ascending lists.
 --
 -- It is also 4x slower than 'mkSumsStrict' / 'mkSumsStrict2' which do not offer
@@ -211,7 +211,7 @@ mkSumsStrictN2 allNumbers total =
       oneBranch (Combination values value) =
         go rest (target - value) $ values : curNums
 
--- | Same as 'mkSumsStrictN' except the output is a list of lists.
+-- | Same as 'mkSumsStrictN' except that the output is a list of lists.
 mkSumsN :: [Int] -> Int -> [[Int]]
 mkSumsN allNumbers total =
   go (map combinations $ reverse $ asOccurences allNumbers) total []

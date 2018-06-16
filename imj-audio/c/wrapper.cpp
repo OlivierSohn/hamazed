@@ -149,10 +149,13 @@ extern "C" {
       return false;
     }
 
-    getAudioContext().Init(minLatencySeconds);
-
     if(imajuscule::thread::priorityIsReadOnly()) {
+        // triple the min latency to try avoiding underruns due to priority inversion:
+        getAudioContext().Init(3*minLatencySeconds);
         cout << endl;
+        cout << "Min latency has been tripled to account for priority inversion." << endl;
+        cout << endl;
+
         cout << "Warning :" << endl;
         cout << "  The audio engine needs to be able to dynamically change a thread priority" << endl;
         cout << "  to avoid priority inversion when holding the audio lock." << endl;
@@ -161,6 +164,10 @@ extern "C" {
         cout << "  run the command again using 'sudo' : root privileges are required on Linux" << endl;
         cout << "  to use 'pthread_setschedparam'." << endl;
         cout << endl;
+
+    }
+    else {
+        getAudioContext().Init(minLatencySeconds);
     }
 
     return true;

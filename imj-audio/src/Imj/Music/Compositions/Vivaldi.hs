@@ -7,7 +7,6 @@ module Imj.Music.Compositions.Vivaldi
       ) where
 
 import           Imj.Prelude
-import           Data.List(replicate, concat)
 
 import           Imj.Music.CTypes
 import           Imj.Music.Alter
@@ -19,7 +18,7 @@ vivaldiFourSeasonsSpring = (bpm,part)
  where
   bpm = 350
 
-  part = map (concat . replicate 4) $ map (map (transposeSymbol 4)) $ [voices|
+  part = map (map (transposeSymbol 4)) $ [voices|
     do -
     vsol -
 
@@ -52,7 +51,7 @@ vivaldiFourSeasonsSummerPresto = (bpm,part)
  where
   bpm = 2500
 
-  part = map (concat . replicate 4) $ map (map (transposeSymbol 7)) $ [voices|
+  part = map (map (transposeSymbol 7)) $ [voices|
     do - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - .
 
     vsib - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - .

@@ -1,8 +1,26 @@
-- verify if envelope work well, e.g when the envelopped is started when
-the buffer has started to be consumed:
+  -- this example produces, in debug and with Soundflower which has a 1.4ms default latency :
+  --    with no latency : overflow flag: 0 0 4 0 0 (at the end of the first loop)
+  --      - which means we take too long to compute (to fix it we should be lock-free?)
+  --      - the overflow goes away with 0.002s minLatency
 
-I think we have an offset problem. The channel was used for xfading,
-so the channel had precise timing, but the audioelement not (I think).
+-- to be lock free, we would need lock free queues for:
+-- computes, orchestrators
+-- https://github.com/cameron314/readerwriterqueue/blob/master/readerwriterqueue.h
+
+-- or we need to remove the computes vector, by putting the compute lambda in the channel.
+
+
+- when the key release event is received, we still have to wait for
+the next compute for the release to take effect.
+
+To avoid this lag, we could perform the compute on "just the buffer we need now",
+in the audio callback. (we need to pass "nComputedFrames" to the computes lambdas)
+
+hence, consummed_frames can be removed from the class, and we start at the 0 position on each new callback call.
+and this would simplify the code when inserting a compute, because we would not have to catch up.
+
+To optimize performance, we can chose min latencies such that a multiple of 16
+frames is asked at every callback.
 
 - a commented line should not count for a blank line in systems.
 

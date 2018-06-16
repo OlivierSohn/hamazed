@@ -66,7 +66,8 @@ import           Imj.Audio.Bindings
 -- | Initializes the audio context, runs the action, shutdowns the audio context by
 -- driving the audio signal smoothly to zero, and returns when there is no more audio played.
 --
--- The latency of the audio stream will be minimal. To set the minimum latency, see 'usingAudioWithMinLatency'.
+-- The audio stream will have a minimum latency of 0.008 seconds.
+-- If you want to set this value, see 'usingAudioWithMinLatency'.
 --
 -- Because of the unicity of the audio context,
 -- at most one call to 'usingAudio' or 'usingAudioWithMinLatency' should be active in the program at any time.
@@ -77,12 +78,26 @@ usingAudio :: MonadUnliftIO m
            -- ^ The action to run.
            -- This action should contain no call to 'usingAudio'.
            -> m a
-usingAudio = usingAudioWithMinLatency 0.0
+usingAudio = usingAudioWithMinLatency 0.008
 
--- | Same as 'usingAudio' except the minimum audio latency can be set.
+-- | Same as 'usingAudio' except that the /minimum/ audio latency can be set.
+--
+-- The audio latency defines the duration between when a function is called to play a note
+-- and when the actual sound is heard.
+--
+-- In the audio engine, we don't time-stamp note-on and note-off events, instead, we handle them
+-- as soon as we can, provided that we could take the global audio lock.
+-- Hence, notes whose time-span between note-on and the corresponding note-off is smaller
+-- than @2*the latency@ may be skipped (i.e not generate any audible sound) because the
+-- two events will be fused together.
 usingAudioWithMinLatency :: MonadUnliftIO m
                          => Float
                          -- ^ The minimum latency, in seconds.
+                         --
+                         -- Depending on your system's capacity, using a too small value
+                         -- may generate audio glitches.
+                         --
+                         -- When in doubt, use 'usingAudio' which provide a sensible default value.
                          -> m a
                          -- ^ The action to run.
                          -- This action should contain no call to 'usingAudio'.

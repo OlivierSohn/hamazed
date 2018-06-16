@@ -21,7 +21,7 @@ tchaikowskiSwanLake = (bpm, part)
   part = map (map (transposeSymbol 5)) $
     concatSystems $
       [[voices|vsol . . . vdo . . .|]
-      ,map (concat . replicate 4) [voices|
+      ,map (concat . replicate 2) [voices|
     mib  . . . mib . . . mib  . . . mib - - - - - ré mib fa . . . mib . . . ré . . .
     vsol . . . vdo . . . vsol . . . vdo . . . vsol . . . vdo . . . vsol . . . vdo . . .
 

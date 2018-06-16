@@ -1,3 +1,9 @@
+- verify if envelope work well, e.g when the envelopped is started when
+the buffer has started to be consumed:
+
+I think we have an offset problem. The channel was used for xfading,
+so the channel had precise timing, but the audioelement not (I think).
+
 - a commented line should not count for a blank line in systems.
 
 - make the audio latency user configurable.

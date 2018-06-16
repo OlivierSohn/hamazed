@@ -40,7 +40,8 @@ but with less guarantees about audio "smoothness" because we can potentially see
 <https://en.wikipedia.org/wiki/Priority_inversion priority inversion effects>.
 
       -}
-      usingAudio
+        usingAudio
+      , usingAudioWithMinLatency
         -- * Playing music
       , play
       , MusicalEvent(..)
@@ -65,8 +66,10 @@ import           Imj.Audio.Bindings
 -- | Initializes the audio context, runs the action, shutdowns the audio context by
 -- driving the audio signal smoothly to zero, and returns when there is no more audio played.
 --
+-- The latency of the audio stream will be minimal. To set the minimum latency, see 'usingAudioWithMinLatency'.
+--
 -- Because of the unicity of the audio context,
--- at most one call to 'usingAudio' should be active in the program at any time.
+-- at most one call to 'usingAudio' or 'usingAudioWithMinLatency' should be active in the program at any time.
 --
 -- All functions calling 'play' should be called from within the action run by 'usingAudio'.
 usingAudio :: MonadUnliftIO m
@@ -74,8 +77,17 @@ usingAudio :: MonadUnliftIO m
            -- ^ The action to run.
            -- This action should contain no call to 'usingAudio'.
            -> m a
-usingAudio act =
+usingAudio = usingAudioWithMinLatency 0.0
 
+-- | Same as 'usingAudio' except the minimum audio latency can be set.
+usingAudioWithMinLatency :: MonadUnliftIO m
+                         => Float
+                         -- ^ The minimum latency, in seconds.
+                         -> m a
+                         -- ^ The action to run.
+                         -- This action should contain no call to 'usingAudio'.
+                         -> m a
+usingAudioWithMinLatency minLatency act =
   bracket bra ket $ \initialized ->
     if initialized
       then
@@ -86,7 +98,9 @@ usingAudio act =
  where
 
   bra = liftIO $ do
-    res <- initializeAudio (-1) -- using the default latency
+    res <- initializeAudio
+      (-1)  -- using the default latency
+      minLatency
     threadDelay 1000000 -- wait some time (on my osx system, this time is necessary
                         -- to be able to play sound)
     return res

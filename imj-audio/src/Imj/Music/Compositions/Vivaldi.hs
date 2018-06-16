@@ -171,7 +171,7 @@ vivaldiFourSeasonsSummerPresto = (bpm,part)
     ré - - . fa# - - . ré - - . fa# - - . ré - - . fa# - - . ré - - . fa# - - . ré - - . fa# - - . ré - - . fa# - - .
     vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . .
 
-    sol - . . vsol - . . vla - . . vsib - . . do - . . ré - . . mib - . . fa# - . . sol - . . ré - . . mib - . . fa# - . .
+    sol - - . vsol - . . vla - . . vsib - . . do - . . ré - . . mib - . . fa# - . . sol - . . ré - . . mib - . . fa# - . .
     vsol - - .
 
     sol - . . la - . . sib - . . ^do - . . ^ré - . . sol - . . la - . . sib - . . ^do - . . ^ré - . . ^mi - . . ^fa# - . .

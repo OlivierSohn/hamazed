@@ -34,6 +34,9 @@ foreign import ccall "initializeAudio" initializeAudio :: Int
                                                        -- ^ Latency, in milliseconds. If the value is strictly positive,
                                                        -- the environment variable PA_MIN_LATENCY_MSEC will be set accordingly.
                                                        -- Pass 0 or a negative value to not set this variable. See <http://www.portaudio.com/docs/latency.html the doc on this subject>.
+                                                       -> Float
+                                                       -- ^ Minimum latency, in seconds. This value will be used to configure the
+                                                       -- audio output strem.
                                                        -> IO Bool
 
 -- | Fades-out all audio quikcly (within 'maxShutdownDurationMicros') and closes

@@ -105,9 +105,14 @@ extern "C" {
   }
 
   /*
-  Pass 0 to disable latency setting
+  @param latencyMillis :
+    Sets a portaudio-related environment variable if strictly positive.
+    Pass 0 to not set the environment variable.
+  @param minLatencySeconds :
+    The minimum portaudio latency, in seconds.
+    Pass 0.f to use the smallest latency possible.
   */
-  bool initializeAudio (int latencyMillis) {
+  bool initializeAudio (int latencyMillis, float minLatencySeconds) {
     using namespace std;
     using namespace imajuscule;
     using namespace imajuscule::audio;
@@ -144,7 +149,7 @@ extern "C" {
       return false;
     }
 
-    getAudioContext().Init();
+    getAudioContext().Init(minLatencySeconds);
 
     if(imajuscule::thread::priorityIsReadOnly()) {
         cout << endl;

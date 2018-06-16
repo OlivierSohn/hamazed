@@ -1,8 +1,6 @@
 # What is it?
 
-A library to create music scores and play them.
-
-Depends on [imj-audio](/imj-audio).
+Haskell bindings to a C++ audio engine
 
 # Supported platforms
 

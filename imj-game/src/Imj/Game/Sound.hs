@@ -7,8 +7,7 @@ module Imj.Game.Sound
 import           Imj.Prelude
 import           Control.Concurrent(threadDelay, forkIO)
 
-import           Imj.Music.Types
-import           Imj.Music.Play
+import           Imj.Audio
 
 laserProgram :: Int
 laserProgram = 11

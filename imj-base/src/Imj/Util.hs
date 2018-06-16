@@ -79,7 +79,7 @@ mapRange l1 h1 l2 h2 v1
   denom = h1 - l1
   normalized = (v1 - l1) / denom
 
--- | same as 'mapRange' except the denomiator is not checked for 0 before dividing.
+-- | same as 'mapRange' except that the denomiator is not checked for 0 before dividing.
 unsafeMapRange :: (Fractional a)
          => a
          -- ^ low 1

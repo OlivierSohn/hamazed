@@ -26,6 +26,7 @@ executable imj-game-synths-exe
                      , deepseq ==1.4.*
                      , directory ==1.3.*
                      , GLFW-b ==3.2.*
+                     , imj-audio ==0.1.*
                      , imj-base ==0.1.*
                      , imj-game ==0.1.*
                      , imj-music ==0.1.*

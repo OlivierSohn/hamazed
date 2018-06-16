@@ -43,6 +43,7 @@ import           Numeric(showFFloat)
 import           System.IO(withFile, IOMode(..))
 import           System.Directory(doesFileExist)
 
+import           Imj.Audio
 import           Imj.Categorized
 import           Imj.ClientView.Types
 import           Imj.Event
@@ -69,8 +70,6 @@ import           Imj.Graphics.Text.Render
 import           Imj.Graphics.UI.RectContainer
 import qualified Imj.Graphics.UI.Choice as UI
 import           Imj.Music.Types
-import           Imj.Music.Analyze
-import           Imj.Music.Instruments
 import           Imj.Music.PressedKeys
 import           Imj.Music.Record
 import           Imj.Server.Class hiding(Do)
@@ -214,7 +213,7 @@ initialGame :: IO SynthsGame
 initialGame = do
   i <- loadInstrument
   let initialViewMode = LogView
-  p <- flip EnvelopePlot initialViewMode . toParts initialViewMode <$> envelopeToVectors i
+  p <- flip EnvelopePlot initialViewMode . toParts initialViewMode <$> envelopeShape i
   return $ SynthsGame mempty mempty mempty i p 0
 
 data SynthsMode =
@@ -444,8 +443,8 @@ instance GameLogic SynthsGame where
         case e of
           ChangeInstrument i -> do
             liftIO $ saveInstrument i
-            Just . toParts viewmode <$> liftIO (envelopeToVectors i)
-          ToggleEnvelopeViewMode -> Just . toParts (toggleView viewmode) <$> liftIO (envelopeToVectors instr)
+            Just . toParts viewmode <$> liftIO (envelopeShape i)
+          ToggleEnvelopeViewMode -> Just . toParts (toggleView viewmode) <$> liftIO (envelopeShape instr)
           _ -> return Nothing
     getIGame >>= maybe (liftIO initialGame) return >>= \g@(SynthsGame _ _ pressed _ _ _) -> withAnim $ putIGame $ case e of
       ChangeInstrument i -> g {

@@ -19,7 +19,8 @@ import           Imj.Prelude
 import qualified Data.Vector as V
 
 import qualified Data.List as List
-import           Imj.Music.Types
+import           Imj.Music.CTypes
+import           Imj.Music.Score
 
 -- | Returns a list of the same size as the input, with only 'Rest' elements in it.
 mute :: [VoiceInstruction] -> [VoiceInstruction]

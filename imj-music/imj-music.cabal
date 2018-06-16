@@ -19,20 +19,15 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Imj.Music.Alter
-                     , Imj.Music.Analyze
-                     , Imj.Music.Compose
-                     , Imj.Music.Instruments
+  exposed-modules:     Imj.Music
                      , Imj.Music.PressedKeys
-                     , Imj.Music.Play
                      , Imj.Music.Record
                      , Imj.Music.Types
   build-depends:       base >= 4.9 && < 4.12
                      , binary == 0.8.*
                      , containers ==0.5.*
                      , deepseq ==1.4.*
-                     , imj-bindings-audio ==0.1.*
-                     , imj-bindings-audio-types ==0.1.*
+                     , imj-audio ==0.1.*
                      , imj-prelude ==0.1.*
                      , imj-time ==0.1.*
                      , parsec ==3.1.*
@@ -40,17 +35,6 @@ library
                      , template-haskell >=2.12 && < 2.14
                      , text >=1.2.3 && < 1.3
                      , vector >= 0.12.0.1 && < 0.13
-  default-language:    Haskell2010
-
-
-
-test-suite imj-music-test
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      test
-  other-modules:       Test.Imj.ParseMusic
-  main-is:             Spec.hs
-  build-depends:       base >= 4.9 && < 4.12
-                     , imj-music
   default-language:    Haskell2010
 
 source-repository head

@@ -8,24 +8,19 @@
 #cache:
 #- "c:\\sr" # stack root, short paths == fewer problems
 
-#TODO retry with the msys2 of stack, the particular error I was trying to fix was because a header is missing on Windows,
-# not because of missing c++17 features.
-
 build: off
 
 environment:
   matrix:
       - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
-        COMPILER: cl.exe
         APPVEYOR_SAVE_CACHE_ON_ERROR: false
-        MSYS2_ARCH: i686
-        MSYSTEM: MINGW32
   global:
     STACK_ROOT: "c:\\sr"
 
 
+# 32-bit GHC has a bug which makes the build crash hence we use the 64-bit version.
 before_build:
-  - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x86
+  - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
   - cd %APPVEYOR_BUILD_FOLDER%
 
 
@@ -37,19 +32,19 @@ build_script:
   - cd ..
   - mkdir portaudio-build
   - cd portaudio-build
-  - cmake ../portaudio -DCMAKE_BUILD_TYPE=RELEASE
+  # TODO should we pass -Ax64 ? see https://gitlab.kitware.com/cmake/cmake/issues/17451
+  - cmake ../portaudio -DCMAKE_BUILD_TYPE=RELEASE -G "Visual Studio 14 2015" -T host=x64 -Ax64
   - msbuild portaudio.sln /property:Configuration=Release
   - cd ..
 # rename lib and dll
-  - cp C:\stack\portaudio-build\Release\portaudio_x86.dll C:\stack\portaudio-build\Release\portaudio.dll
-  - cp C:\stack\portaudio-build\Release\portaudio_x86.lib C:\stack\portaudio-build\Release\portaudio.lib
+  - cp C:\stack\portaudio-build\Release\portaudio_x64.dll C:\stack\portaudio-build\Release\portaudio.dll
+  - cp C:\stack\portaudio-build\Release\portaudio_x64.lib C:\stack\portaudio-build\Release\portaudio.lib
   - dir C:\stack\portaudio-build\Release\
 
 before_test:
 # http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
 - set PATH=C:\Program Files\Git\mingw64\bin;%PATH%
-
-- curl -sS -ostack.zip -L --insecure https://get.haskellstack.org/stable/windows-i386.zip
+- curl -sS -ostack.zip -L --insecure https://get.haskellstack.org/stable/windows-x86_64.zip
 - 7z x stack.zip stack.exe
 
 clone_folder: "c:\\stack"
@@ -57,18 +52,53 @@ clone_folder: "c:\\stack"
 
 test_script:
 - git submodule update --init --recursive
-- set PATH=C:\msys64\MINGW32\bin;C:\msys64\usr\bin;%PATH%
-- bash -lc "pacman --noconfirm --sync --refresh --refresh pacman"
-- bash -lc "pacman --noconfirm --sync --refresh --refresh --sysupgrade --sysupgrade"
-- bash -lc "pacman -S --noconfirm --needed base-devel mingw-w64-i686-toolchain mingw-w64-x86_64-toolchain git subversion mercurial mingw-w64-i686-cmake mingw-w64-x86_64-cmake"
-## This shows the version of gcc I want to use:
-- c:\msys64\MINGW32\bin\gcc --version
 
-- stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW32\bin\gcc setup > nul
-- stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW32\bin\gcc exec -- gcc --version
-- echo "" | stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW32\bin\gcc --no-terminal --extra-lib-dirs c:\msys64\MINGW32\lib\ --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs c:\msys64\MINGW32\include\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music
-# --jobs 1
+############################################
+# (ghc 8.2.2) doesn't work:
+#   While building custom Setup.hs for package unliftio-core-0.1.1.0 using:
+#      C:\sr\setup-exe-cache\x86_64-windows\Cabal-simple_Z6RU0evB_2.0.1.0_ghc-8.2.2.exe --builddir=.stack-work\dist\5c8418a7 build --ghc-options " -ddump-hi -ddump-to-file"
+#    Process exited with code: ExitFailure 1
+#    Logs have been written to: C:\stack\.stack-work\logs\unliftio-core-0.1.1.0.log
+#    Configuring unliftio-core-0.1.1.0...
+#    Preprocessing library for unliftio-core-0.1.1.0..
+#    Building library for unliftio-core-0.1.1.0..
+#    realgcc.exe: fatal error: no input files
+#    compilation terminated.
+#    `gcc.exe' failed in phase `C pre-processor'. (Exit code: 1)
+#- stack setup > nul
+#- stack exec -- gcc --version
+#- echo "" | stack --no-terminal --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --jobs 1
+############################################
 
-#- stack --with-gcc=c:\msys64\MINGW32\bin\gcc setup > nul
-#- stack --with-gcc=c:\msys64\MINGW32\bin\gcc exec -- gcc --version
-#- echo "" | stack --with-gcc=c:\msys64\MINGW32\bin\gcc --no-terminal --extra-lib-dirs c:\msys64\MINGW32\lib\ --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs c:\msys64\MINGW32\include\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --jobs 1
+
+############################################
+# (ghc8.4.3) doesn't work:
+# C:\stack\.stack-work\install\0584b48a\lib\x86_64-windows-ghc-8.4.3\imj-audio-0.1.0.3-GoO9TPfT7rT85xDuk6adsC\HSimj-bindings-audio-0.1.0.3-GoO9TPfT7rT85xDuk6adsC.o:
+# unknown symbol
+# `_ZN10imajuscule5audio12playOneThingINS0_5voice5Impl_ILi2ELNS0_15SoundEngineModeE3ELb1ESt6vectorIfSaIfEENS0_13EventIteratorINS0_10IEventListEEENS0_11NoteOnEventENS0_12NoteOffEventENS0_11ProcessDataENS2_8ImplBaseILS4_3ES7_SD_NS0_4ImplILi29ES7_S5_IfNS_16AlignedAllocatorIfLNS_9AlignmentE64EEEELi16ESD_EEEENS0_8ImplCRTPILi2ELNS_11XfadePolicyE1ENS0_15MonoNoteChannelINS2_14EngineAndRampsINS0_11SoundEngineILS4_3ENS_6LoggerENS_12audioelement3MixIJNSS_10FilterAlgoINSS_22soundBufferWrapperAlgoILNS_5Sound4TypeE2EEELNS_10FilterTypeE1ELi0EEENSS_9FreqCtrl_INSS_9BandAlgo_INSS_4CtrlINSS_8SlowIterINSS_7AbsIterINS_10BufferIterILSX_2EEEEEEEEENSS_13BandPassAlgo_ISY_Li0EEEEEJNS0_19SoundEngineFreqCtrlIS19_EEEEENS11_INS12_IS1A_NSS_15BandRejectAlgo_ISY_Li0EEEEEJS1F_EEENSS_14VolumeAdjustedINSS_14OscillatorAlgoIfLNSS_16eNormalizePolicyE0EEEEEEEEEEEEEELb1ESA_SB_SC_SL_Li8EEEEENS_14outputDataBaseILNS_14AudioOutPolicyE1ENS0_20ChannelsVecAggregateILi2ELS1X_1EEEEENS0_8ChannelsILi2ELSN_1ELNS_12MaxQueueSizeE0ELS1X_1EEE`
+- stack --resolver nightly-2018-06-07 setup > nul
+- stack --resolver nightly-2018-06-07 exec -- gcc --version
+- echo "" | stack --resolver nightly-2018-06-07 --no-terminal --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs C:\stack\portaudio\include\ build imj-music --pedantic --jobs 1
+- echo "" | stack --resolver nightly-2018-06-07 --no-terminal --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --pedantic --jobs 1
+- echo "" | stack --resolver nightly-2018-06-07 --no-terminal --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs C:\stack\portaudio\include\ test imj-audio --pedantic --jobs 1
+############################################
+
+
+############################################
+# (ghc8.4.3 / other msys) doesn't work:
+# C:\stack\.stack-work\install\0584b48a\lib\x86_64-windows-ghc-8.4.3\imj-audio-0.1.0.3-GoO9TPfT7rT85xDuk6adsC\HSimj-bindings-audio-0.1.0.3-GoO9TPfT7rT85xDuk6adsC.o:
+# unknown symbol
+# `_ZN10imajuscule5audio12playOneThingINS0_5voice5Impl_ILi2ELNS0_15SoundEngineModeE3ELb1ESt6vectorIfSaIfEENS0_13EventIteratorINS0_10IEventListEEENS0_11NoteOnEventENS0_12NoteOffEventENS0_11ProcessDataENS2_8ImplBaseILS4_3ES7_SD_NS0_4ImplILi29ES7_S5_IfNS_16AlignedAllocatorIfLNS_9AlignmentE64EEEELi16ESD_EEEENS0_8ImplCRTPILi2ELNS_11XfadePolicyE1ENS0_15MonoNoteChannelINS2_14EngineAndRampsINS0_11SoundEngineILS4_3ENS_6LoggerENS_12audioelement3MixIJNSS_10FilterAlgoINSS_22soundBufferWrapperAlgoILNS_5Sound4TypeE2EEELNS_10FilterTypeE1ELi0EEENSS_9FreqCtrl_INSS_9BandAlgo_INSS_4CtrlINSS_8SlowIterINSS_7AbsIterINS_10BufferIterILSX_2EEEEEEEEENSS_13BandPassAlgo_ISY_Li0EEEEEJNS0_19SoundEngineFreqCtrlIS19_EEEEENS11_INS12_IS1A_NSS_15BandRejectAlgo_ISY_Li0EEEEEJS1F_EEENSS_14VolumeAdjustedINSS_14OscillatorAlgoIfLNSS_16eNormalizePolicyE0EEEEEEEEEEEEEELb1ESA_SB_SC_SL_Li8EEEEENS_14outputDataBaseILNS_14AudioOutPolicyE1ENS0_20ChannelsVecAggregateILi2ELS1X_1EEEEENS0_8ChannelsILi2ELSN_1ELNS_12MaxQueueSizeE0ELS1X_1EEE`
+#
+#- set PATH=C:\msys64\MINGW64\bin;C:\msys64\usr\bin;%PATH%
+#- bash -lc "pacman --noconfirm --sync --refresh --refresh pacman"
+#- bash -lc "pacman --noconfirm --sync --refresh --refresh --sysupgrade --sysupgrade"
+#- bash -lc "pacman -S --noconfirm --needed base-devel mingw-w64-i686-toolchain mingw-w64-x86_64-toolchain git subversion mercurial mingw-w64-i686-cmake mingw-w64-x86_64-cmake"
+
+# This shows the version of gcc I want to use:
+#- c:\msys64\MINGW64\bin\gcc --version
+
+#- stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW64\bin\gcc setup > nul
+#- stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW64\bin\gcc exec -- gcc --version
+#- echo "" | stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW64\bin\gcc --no-terminal --extra-lib-dirs c:\msys64\MINGW64\lib\ --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs c:\msys64\MINGW64\include\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --jobs 1
+############################################

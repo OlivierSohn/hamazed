@@ -1,9 +1,9 @@
-[submodule "imj-bindings-audio/c/cpp.os.logs"]
-	path = imj-bindings-audio/c/cpp.os.logs
-	url = https://github.com/OlivierSohn/cpp.os.log
-[submodule "imj-bindings-audio/c/cpp.algorithms"]
-	path = imj-bindings-audio/c/cpp.algorithms
-	url = https://github.com/OlivierSohn/cpp.algorithms
-[submodule "imj-bindings-audio/c/cpp.audio"]
-	path = imj-bindings-audio/c/cpp.audio
-	url = https://github.com/OlivierSohn/cpp.audio
+[submodule "imj-audio/c/cpp.audio"]
+	path = imj-audio/c/cpp.audio
+	url = https://github.com/OlivierSohn/cpp.audio.git
+[submodule "imj-audio/c/cpp.os.log"]
+	path = imj-audio/c/cpp.os.log
+	url = https://github.com/OlivierSohn/cpp.os.log.git
+[submodule "cpp.algorithms"]
+	path = imj-audio/c/cpp.algorithms
+	url = https://github.com/OlivierSohn/cpp.algorithms.git

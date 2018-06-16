@@ -1,20 +1,35 @@
-- windows compatibility
+  -- this example produces, in debug and with Soundflower which has a 1.4ms default latency :
+  --    with no latency : overflow flag: 0 0 4 0 0 (at the end of the first loop)
+  --      - which means we take too long to compute (to fix it we should be lock-free?)
+  --      - the overflow goes away with 0.002s minLatency
 
---with-gcc is not working? if gcc >=7 is used, if constexpr should be understood,
-but it's not...
+-- to be lock free, we would need lock free queues for:
+-- computes, orchestrators
+-- https://github.com/cameron314/readerwriterqueue/blob/master/readerwriterqueue.h
+
+-- or we need to remove the computes vector, by putting the compute lambda in the channel.
 
 
+- when the key release event is received, we still have to wait for
+the next compute for the release to take effect.
 
+To avoid this lag, we could perform the compute on "just the buffer we need now",
+in the audio callback. (we need to pass "nComputedFrames" to the computes lambdas)
 
-c:\msys64\%MSYSTEM%\bin\gcc --version
-gcc (Rev2, Built by MSYS2 project) 7.3.0
+hence, consummed_frames can be removed from the class, and we start at the 0 position on each new callback call.
+and this would simplify the code when inserting a compute, because we would not have to catch up.
 
-stack --skip-msys --with-gcc c:\msys64\%MSYSTEM%\bin\gcc exec -- gcc --version
-realgcc.exe (Rev2, Built by MSYS2 project) 6.2.0
+To optimize performance, we can chose min latencies such that a multiple of 16
+frames is asked at every callback.
 
-stack --skip-msys --with-gcc c:\msys64\%MSYSTEM%\bin\gcc --no-terminal --extra-lib-dirs c:\msys64\%MSYSTEM%\lib\ --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs c:\msys64\%MSYSTEM%\include\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --jobs 1
-#pragma message: compiled with gcc 6.2.0
+- a commented line should not count for a blank line in systems.
 
+- make the audio latency user configurable.
+
+- swan lake act2 n.10 scene (moderato)
+http://www.kunstderfuge.com/tchaikovsky.htm
+
+read midi file, play it with simple instruments
 
 - make a player app where a melody is played and we can interactively change the instrument used to play it.
 

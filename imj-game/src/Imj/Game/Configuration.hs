@@ -23,7 +23,6 @@ import           Imj.Arg.Class
 import           Imj.Audio
 import           Imj.Game.Audio.Class
 import           Imj.Game.Sound
-import           Imj.Music.Play
 
 data BackendType = BackendType {
     _fromCLI :: !Bool

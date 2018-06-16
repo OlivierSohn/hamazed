@@ -31,7 +31,7 @@ import qualified Data.Set as Set
 dedup :: (Ord a) => [a] -> [a]
 dedup = Set.toList . Set.fromList
 
--- | Same as 'dedup' except the input is expected to be ascending.
+-- | Same as 'dedup' except that the input is expected to be ascending.
 {-# INLINABLE dedupAsc #-}
 dedupAsc :: (Ord a) => [a] -> [a]
 dedupAsc = Set.toList . Set.fromAscList

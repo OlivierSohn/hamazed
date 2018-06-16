@@ -53,6 +53,7 @@ library
                      , binary ==0.8.*
                      , containers ==0.5.*
                      , deepseq ==1.4.*
+                     , imj-audio ==0.1.*
                      , imj-base ==0.1.*
                      , imj-game ==0.1.*
                      , http-client ==0.5.*

@@ -57,7 +57,6 @@ library
                      , imj-base ==0.1.*
                      , imj-game ==0.1.*
                      , http-client ==0.5.*
-                     , imj-music ==0.1.*
                      , imj-particlesystem ==0.1.*
                      , imj-prelude ==0.1.*
                      , imj-server ==0.1.*

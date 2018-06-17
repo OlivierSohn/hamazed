@@ -30,9 +30,7 @@ library
                      , imj-audio ==0.1.*
                      , imj-prelude ==0.1.*
                      , imj-time ==0.1.*
-                     , parsec ==3.1.*
                      , strict-concurrency ==0.2.*
-                     , template-haskell >=2.12 && < 2.14
                      , text >=1.2.3 && < 1.3
                      , vector >= 0.12.0.1 && < 0.13
   default-language:    Haskell2010

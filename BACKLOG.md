@@ -11,6 +11,8 @@ The 'stressTest' example produces, in debug and with Soundflower which has a 1.4
 
 -- or we need to remove the computes vector, by putting the compute lambda in the channel.
 
+- to pass the key pressed / keyreleased information without locking, we could:
+
 - find a way to Assert if we detect a memory allocation when we hold the audio lock:
 in debug, use a thread_local boolean saying if we hold a lock or not.
 

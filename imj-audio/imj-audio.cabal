@@ -21,10 +21,16 @@ Flag Debug
     Manual: True
     Default: False
 
+Flag MemLog
+    Description: Enable memory logs
+    Manual: True
+    Default: False
+
 library
   hs-source-dirs:      src
   other-modules:
   c-sources:           c/library.cpp
+                     , c/memory.cpp
                      , c/extras.cpp
                      , c/wrapper.cpp
   exposed-modules:     Imj.Audio
@@ -71,6 +77,8 @@ library
   if(!flag(Debug))
     -- we need rtti only in debug mode
     cc-options:        -DNDEBUG -fno-rtti
+  if(flag(MemLog))
+    cc-options:        -DIMJ_LOG_MEMORY
   if os(linux)
     cc-options:        -fpermissive
   if os(windows)

@@ -1,5 +1,6 @@
 #include "compiler.prepro.h"
 #include "cpp.audio/include/public.h"
+#include "memory.h"
 
 #ifdef __cplusplus
 
@@ -116,7 +117,7 @@ namespace imajuscule {
         *splitAt = split;
       }
       auto n_bytes = v.size()*sizeof(decltype(v[0]));
-      auto c_arr = malloc(n_bytes); // will be freed by haskell finalizer.
+      auto c_arr = imj_c_malloc(n_bytes); // will be freed by haskell finalizer.
       memcpy(c_arr, v.data(), n_bytes);
       return static_cast<float*>(c_arr);
     }
@@ -138,8 +139,6 @@ namespace imajuscule {
       AudioPlatform::PortAudio
       >;
 
-    using AudioFreeze = typename Ctxt::LockFromNRT;
-
     Ctxt & getAudioContext();
 
     XFadeChans & getXfadeChannels();
@@ -155,7 +154,7 @@ namespace imajuscule {
       using SynthT = Synth <
         Ctxt::nAudioOut
       , XfadePolicy::SkipXfade
-      , MonoNoteChannel<audioelement::Oscillator<Env>>
+      , audioelement::Oscillator<Env>
       , audioelement::HasNoteOff<Env>::value
       , EventIterator<IEventList>
       , NoteOnEvent
@@ -167,7 +166,7 @@ namespace imajuscule {
       using SynthT = Synth <
         Ctxt::nAudioOut
       , XfadePolicy::SkipXfade
-      , MonoNoteChannel<audioelement::VolumeAdjustedOscillator<Env>>
+      , audioelement::VolumeAdjustedOscillator<Env>
       , audioelement::HasNoteOff<Env>::value
       , EventIterator<IEventList>
       , NoteOnEvent
@@ -189,7 +188,7 @@ namespace imajuscule {
       }
 
       void finalize() {
-        obj.finalize(chans);
+        obj.finalize();
       }
 
       T obj;
@@ -383,7 +382,7 @@ namespace imajuscule {
         auto & cs = ch.getChannels().getChannelsNoXFade();
         std::unique_ptr<NoXFadeChans> p;
         {
-          AudioFreeze l(ch.get_lock());
+          Ctxt::LockFromNRT l(ch.get_lock());
           extractFromEnd(cs,o).swap(p);
         }
         // deallocation happens outside the audio lock scope.

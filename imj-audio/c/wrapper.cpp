@@ -14,7 +14,7 @@ extern "C" {
     using namespace imajuscule::audio::mySynth;
     using namespace imajuscule::audio;
     std::cout << "sizeof synth " << sizeof(SynthT<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>) << std::endl;
-    std::cout << "sizeof mnc " << sizeof(MonoNoteChannel<VolumeAdjustedOscillator<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>>) << std::endl;
+    std::cout << "sizeof mnc " << sizeof(MonoNoteChannel<VolumeAdjustedOscillator<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>, NoXFadeChans>) << std::endl;
     std::cout << "sizeof au " << sizeof(AEBuffer<float>) << std::endl;
     std::cout << "sizeof aub " << sizeof(AEBuffer<float>::buffer_placeholder_t) << std::endl;
     union {
@@ -136,7 +136,7 @@ extern "C" {
         std::numeric_limits<uint8_t>::max(),
         n_max_orchestrator_per_channel);
       {
-        AudioFreeze l(getAudioContext().getChannelHandler().get_lock());
+        NoXFadeChans::LockCtrlFromNRT l(getAudioContext().getChannelHandler().get_lock());
 
         getAudioContext().getChannelHandler().getChannels().getChannelsXFade().emplace_back(std::move(p));
         getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade().reserve(100);
@@ -183,7 +183,7 @@ extern "C" {
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;
 
-    windVoice().finalize(getXfadeChannels());
+    windVoice().finalize();
 
     Synths<SimpleLinearEnvelope<float>>::finalize();
     Synths<AHDSREnvelope<float, EnvelopeRelease::WaitForKeyRelease>>::finalize();
@@ -192,7 +192,7 @@ extern "C" {
     getAudioContext().TearDown();
 
     {
-      AudioFreeze l(getAudioContext().getChannelHandler().get_lock());
+      NoXFadeChans::LockCtrlFromNRT l(getAudioContext().getChannelHandler().get_lock());
 
       getAudioContext().getChannelHandler().getChannels().getChannelsXFade().clear();
       getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade().clear();

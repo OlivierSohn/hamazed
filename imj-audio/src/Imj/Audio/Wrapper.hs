@@ -177,7 +177,7 @@ analyzeAHDSREnvelope t (AHDSR a h d r ai di ri s) =
               ,(split,nElems-1)
               ]
     res <- mapM (uncurry $ takeBuffer buf) slices
-    c_free buf
+    imj_c_free buf
     return res
    where
     takeBuffer buf iStart iEnd = do
@@ -190,4 +190,4 @@ analyzeAHDSREnvelope t (AHDSR a h d r ai di ri s) =
       unsafeFreeze uv
 
 -- https://stackoverflow.com/questions/43372363/releasing-memory-allocated-by-c-runtime-from-haskell
-foreign import ccall "stdlib.h free" c_free :: Ptr CFloat -> IO ()
+foreign import ccall "imj_c_free" imj_c_free :: Ptr CFloat -> IO ()

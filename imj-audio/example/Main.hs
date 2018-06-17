@@ -13,14 +13,15 @@ import           Imj.Music.Compositions.Vivaldi
 
 
 main :: IO ()
-main = usingAudio $ do
-  uncurry (flip playVoicesAtTempo simpleInstrument) tchaikowskiSwanLake
+main = usingAudio -- WithMinLatency 0
+    $ do
+  --stressTest
+  --threadDelay 10000
+  uncurry (flip playVoicesAtTempo simpleInstrument) vivaldiFourSeasonsSummerPresto
   threadDelay 10000
   uncurry (flip playVoicesAtTempo simpleInstrument) vivaldiFourSeasonsSpring
   threadDelay 10000
-  uncurry (flip playVoicesAtTempo simpleInstrument) vivaldiFourSeasonsSummerPresto
-  threadDelay 10000
-  stressTest
+  uncurry (flip playVoicesAtTempo simpleInstrument) tchaikowskiSwanLake
   threadDelay 10000
 
 stressTest :: IO ()

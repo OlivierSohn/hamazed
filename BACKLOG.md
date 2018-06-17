@@ -1,7 +1,9 @@
-  -- this example produces, in debug and with Soundflower which has a 1.4ms default latency :
-  --    with no latency : overflow flag: 0 0 4 0 0 (at the end of the first loop)
-  --      - which means we take too long to compute (to fix it we should be lock-free?)
-  --      - the overflow goes away with 0.002s minLatency
+- Make the audioengine lock-free, to be able to reach lower latencies, and avoid
+the priority change overhead.
+
+The 'stressTest' example produces, in debug and with Soundflower which has a 1.4ms default latency :
+  overflow flag: 0 0 4 0 0 (we see this twice, once at the beginning, and once 1 second after the start)
+  the overflow goes away with 0.002s minLatency
 
 -- to be lock free, we would need lock free queues for:
 -- computes, orchestrators
@@ -9,6 +11,8 @@
 
 -- or we need to remove the computes vector, by putting the compute lambda in the channel.
 
+- find a way to Assert if we detect a memory allocation when we hold the audio lock:
+in debug, use a thread_local boolean saying if we hold a lock or not.
 
 - when the key release event is received, we still have to wait for
 the next compute for the release to take effect.

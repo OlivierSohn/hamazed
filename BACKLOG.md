@@ -1,3 +1,49 @@
+- make computes lock-free for multiple producers, single consumer:
+use a preallocated vector with only null functions.
+add a flag: empty / used
+the state cycle goes like this:
+
+empty null <- to add a lambda, a producer first atomically tries to change empty -> used...
+used  null    ... the successful producer sets the lambda
+used  f    <- to use a lambda, the (single) consumer checks if the flag is "used" and the lambda is there.
+              to remove the lambda, the (single) consumer modifies f -> null ...
+used  null       ... then used -> empty
+
+we avoid making the vector sparse, i.e the producers should start from the beginning of the vector
+  to see if they can insert a lambda.
+
+an atomic invariant is "upper bound of number of elements" (upper bound, meaning it should be decremented
+  only once the element is not there anymore, and it should be incremented before inserting the new element):
+  the consumer, before walking the vector, reads the invariant.
+    the number of elements tells how many, (at least) lambdas should be executed:
+      once the consumer has executed that many lambdas, it checks again for the invariant
+      (note that it has decremented it if needed when removing a lambda, and kept a local count of decrements)
+      if "new number of elements" - "local count decrements" == number of elements
+        we're done: no new element has been added.
+      else, n elements were added:
+        we just need to visit n more locations, and execute the lambda if it's here.
+        we don't re-check for added elements here, because we just want to make sure that we executed all
+        lambdas that were present /at the time we started to walk the vector/.
+  because it's an upper bound, in some rare cases the producer will walk the entire vector.
+
+
+TODO check if the buffer is active before doing the sum, so that we have
+correct attack computation when lockfree
+
+then, we will need lockfree on the selection of channel inside crtp:
+  instead of isEnvelopeFinished, use a compare and swap(finished2, reserved)  (maybe a tryReserve())
+    so that other threads cannot steal our ae. Then initialize the ae parameters, and set the state to keyPressed.
+    Then, add the compute to the list of computes.
+and instead of calling onKeyReleased() directly, raise a flag. (maybe tryKeyRelease(), note that it could fail if the key has already been released)
+  the transition key release flag -> onKeyReleased will be done in the compute thread.
+  DO NOT change the state directly when the key is released, because we could have a race
+  with the compute that also changes the state.
+
+to have accurate phase cancellation avoidance, we should do mkDeterministicPhase(o.elem.angle())
+in the compute, and pass the pointer to the matching audioelement to the used audioelement.
+Also in the compute, if the clock of the other audioelements says it has already computed,
+we should ask it to copmute its angle 16 iterations ago.
+
 - Make the audioengine lock-free, to be able to reach lower latencies, and avoid
 the priority change overhead.
 

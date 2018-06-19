@@ -1,39 +1,8 @@
-- make computes and orchestrators lock-free for multiple producers, single consumer:
-use a preallocated vector with only null functions.
-add an atomic flag: empty / transition / full
-the state cycle goes like this:
 
-(a single consumer is allowed to delete elements anywhere)
-
-[atomic flag] [content]
-empty         {}      to add a lambda, a producer first atomically tries to change empty -> transition...
-transition    {}      ... the successful producer sets the lambda (this operation is non atomic)
-transition    f       ... and then adjusts the flag
-full          f       to use a lambda, the single consumer checks if the flag is "full".
-                      to remove the lambda, the (single) consumer just adjusts the flag
-empty         f (note that f has not been destroyed)
-                        Or if the policy says to immediately destroy objects,
-                        unsets the lambda (this operation is not atomic)
-full          null    ... and then adjusts the flag
-empty         null    
-
-an atomic invariant is "upper bound of number of elements" (upper bound, meaning it should be decremented
-  only once the element is not there anymore, and it should be incremented before inserting the new element):
-  the consumer, before walking the vector, reads the invariant.
-    the number of elements tells how many, (at least) lambdas should be executed:
-      once the consumer has executed that many lambdas, it checks again for the invariant
-      (note that it has decremented it if needed when removing a lambda, and kept a local count of decrements)
-      if "new number of elements" - "local count decrements" == number of elements
-        we're done: no new element has been added.
-      else, n elements were added:
-        we just need to visit n more locations, and execute the lambda if it's here.
-        we don't re-check for added elements here, because we just want to make sure that we executed all
-        lambdas that were present /at the time we started to walk the vector/.
-  because it's an upper bound, in some rare cases the producer will walk the entire vector.
-
+-
 
 TODO check if the buffer is active before doing the sum, so that we have
-correct attack computation when lockfree
+correct attack computation when lockfree?
 
 then, we will need lockfree on the selection of channel inside crtp:
   instead of isEnvelopeFinished, use a compare and swap(finished2, reserved)  (maybe a tryReserve())
@@ -47,7 +16,8 @@ and instead of calling onKeyReleased() directly, raise a flag. (maybe tryKeyRele
 to have accurate phase cancellation avoidance, we should do mkDeterministicPhase(o.elem.angle())
 in the compute, and pass the pointer to the matching audioelement to the used audioelement.
 Also in the compute, if the clock of the other audioelements says it has already computed,
-we should ask it to copmute its angle 16 iterations ago.
+we should ask it to compute its angle 'nFrames' iterations ago, assuming it has been
+computed for the same number of frames as ourselves.
 
 - Make the audioengine lock-free, to be able to reach lower latencies, and avoid
 the priority change overhead.
@@ -55,14 +25,6 @@ the priority change overhead.
 The 'stressTest' example produces, in debug and with Soundflower which has a 1.4ms default latency :
   overflow flag: 0 0 4 0 0 (we see this twice, once at the beginning, and once 1 second after the start)
   the overflow goes away with 0.002s minLatency
-
--- to be lock free, we would need lock free queues for:
--- computes, orchestrators
--- https://github.com/cameron314/readerwriterqueue/blob/master/readerwriterqueue.h
-
--- or we need to remove the computes vector, by putting the compute lambda in the channel.
-
-- to pass the key pressed / keyreleased information without locking, we could:
 
 - find a way to Assert if we detect a memory allocation when we hold the audio lock:
 in debug, use a thread_local boolean saying if we hold a lock or not.

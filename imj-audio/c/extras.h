@@ -126,12 +126,12 @@ namespace imajuscule {
   }
 
   namespace audio {
-    using AllChans = ChannelsVecAggregate< 2, AudioOutPolicy::Master >;
+    using AllChans = ChannelsVecAggregate< 2, AudioOutPolicy::MasterGlobalLock >;
 
     using NoXFadeChans = typename AllChans::NoXFadeChans;
     using XFadeChans = typename AllChans::XFadeChans;
 
-    using ChannelHandler = outputDataBase< AudioOutPolicy::Master, AllChans >;
+    using ChannelHandler = outputDataBase< AudioOutPolicy::MasterGlobalLock, AllChans >;
 
     using Ctxt = AudioOutContext<
       ChannelHandler,

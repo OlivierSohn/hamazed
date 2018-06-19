@@ -19,8 +19,8 @@ Also in the compute, if the clock of the other audioelements says it has already
 we should ask it to compute its angle 'nFrames' iterations ago, assuming it has been
 computed for the same number of frames as ourselves.
 
-- Make the audioengine lock-free, to be able to reach lower latencies, and avoid
-the priority change overhead.
+- Make the audioengine optionally lock-free, to be able to reach lower latencies, and avoid
+the priority change overhead. it should be configurable using a template parameter.
 
 The 'stressTest' example produces, in debug and with Soundflower which has a 1.4ms default latency :
   overflow flag: 0 0 4 0 0 (we see this twice, once at the beginning, and once 1 second after the start)
@@ -29,21 +29,7 @@ The 'stressTest' example produces, in debug and with Soundflower which has a 1.4
 - find a way to Assert if we detect a memory allocation when we hold the audio lock:
 in debug, use a thread_local boolean saying if we hold a lock or not.
 
-- when the key release event is received, we still have to wait for
-the next compute for the release to take effect.
-
-To avoid this lag, we could perform the compute on "just the buffer we need now",
-in the audio callback. (we need to pass "nComputedFrames" to the computes lambdas)
-
-hence, consummed_frames can be removed from the class, and we start at the 0 position on each new callback call.
-and this would simplify the code when inserting a compute, because we would not have to catch up.
-
-To optimize performance, we can chose min latencies such that a multiple of 16
-frames is asked at every callback.
-
-- a commented line should not count for a blank line in systems.
-
-- make the audio latency user configurable.
+- music notation : a commented line should not count for a blank line in systems.
 
 - swan lake act2 n.10 scene (moderato)
 http://www.kunstderfuge.com/tchaikovsky.htm

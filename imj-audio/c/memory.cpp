@@ -9,7 +9,16 @@
 #ifdef IMJ_LOG_MEMORY
 void* operator new  ( std::size_t count ) {
   auto ptr = std::malloc(count);
-  printf("+++ %p, size = %zu\n",ptr, count);
+
+  // we keep track of recursion depth to call logStack only at the first level.
+  static int depth = 0;
+  ++depth;
+  if(1==depth) {
+    using namespace imajuscule;
+    LG(INFO,"+++ %p, size = %zu\n",ptr, count);
+    //logStack();
+  }
+  --depth;
   return ptr;
 }
 #endif

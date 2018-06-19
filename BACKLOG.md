@@ -1,16 +1,21 @@
-- make computes lock-free for multiple producers, single consumer:
+- make computes and orchestrators lock-free for multiple producers, single consumer:
 use a preallocated vector with only null functions.
-add a flag: empty / used
+add an atomic flag: empty / transition / full
 the state cycle goes like this:
 
-empty null <- to add a lambda, a producer first atomically tries to change empty -> used...
-used  null    ... the successful producer sets the lambda
-used  f    <- to use a lambda, the (single) consumer checks if the flag is "used" and the lambda is there.
-              to remove the lambda, the (single) consumer modifies f -> null ...
-used  null       ... then used -> empty
+(a single consumer is allowed to delete elements anywhere)
 
-we avoid making the vector sparse, i.e the producers should start from the beginning of the vector
-  to see if they can insert a lambda.
+[atomic flag] [content]
+empty         {}      to add a lambda, a producer first atomically tries to change empty -> transition...
+transition    {}      ... the successful producer sets the lambda (this operation is non atomic)
+transition    f       ... and then adjusts the flag
+full          f       to use a lambda, the single consumer checks if the flag is "full".
+                      to remove the lambda, the (single) consumer just adjusts the flag
+empty         f (note that f has not been destroyed)
+                        Or if the policy says to immediately destroy objects,
+                        unsets the lambda (this operation is not atomic)
+full          null    ... and then adjusts the flag
+empty         null    
 
 an atomic invariant is "upper bound of number of elements" (upper bound, meaning it should be decremented
   only once the element is not there anymore, and it should be incremented before inserting the new element):

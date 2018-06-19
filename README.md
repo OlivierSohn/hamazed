@@ -41,7 +41,7 @@ is needed to build.
 List of packages, inverse-topologically sorted wrt dependencies, with keywords / short description for each of them:
 
 - [imj-audio]
-  - Bindings to a C++14 audio engine. The C++ sources are located in [submodules](/imj-audio/c).
+  - Bindings to a C++17 audio engine. The C++ sources are located in [submodules](/imj-audio/c).
 - [imj-music](/imj-music)
   - Polyphonic music scores creation and playback.
 - [imj-prelude](/imj-prelude)
@@ -136,7 +136,7 @@ sudo apt-get install libpq-dev
 stack build --pedantic
 ```
 
-A recent enough C compiler should be used by GHC, so as to be able to build C++14.
+A recent enough C compiler should be used by GHC, so as to be able to build C++17.
 
 # Run the games in single-player mode
 

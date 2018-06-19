@@ -32,7 +32,7 @@ addons:
     - libftgl-dev
     - libgmp-dev
     - portaudio19-dev
-    # g++ versions before 7 won't work, as some needed C++14 features are not implemented.
+    # g++ versions before 7 won't work, as some needed C++17 features are not implemented.
     - g++-7
     - libstdc++-7-dev
 

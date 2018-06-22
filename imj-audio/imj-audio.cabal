@@ -72,7 +72,6 @@ library
     extra-lib-dirs:    /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A
 
   cc-options:          -std=c++17 -D_USE_MATH_DEFINES -Os -ffast-math
-  ghc-options:         -optc-std=c++17
   if(!flag(Debug))
     -- we need rtti only in debug mode
     cc-options:        -DNDEBUG -fno-rtti

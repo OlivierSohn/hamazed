@@ -76,11 +76,11 @@ test_script:
 # C:\stack\.stack-work\install\0584b48a\lib\x86_64-windows-ghc-8.4.3\imj-audio-0.1.0.3-GoO9TPfT7rT85xDuk6adsC\HSimj-bindings-audio-0.1.0.3-GoO9TPfT7rT85xDuk6adsC.o:
 # unknown symbol
 # `_ZN10imajuscule5audio12playOneThingINS0_5voice5Impl_ILi2ELNS0_15SoundEngineModeE3ELb1ESt6vectorIfSaIfEENS0_13EventIteratorINS0_10IEventListEEENS0_11NoteOnEventENS0_12NoteOffEventENS0_11ProcessDataENS2_8ImplBaseILS4_3ES7_SD_NS0_4ImplILi29ES7_S5_IfNS_16AlignedAllocatorIfLNS_9AlignmentE64EEEELi16ESD_EEEENS0_8ImplCRTPILi2ELNS_11XfadePolicyE1ENS0_15MonoNoteChannelINS2_14EngineAndRampsINS0_11SoundEngineILS4_3ENS_6LoggerENS_12audioelement3MixIJNSS_10FilterAlgoINSS_22soundBufferWrapperAlgoILNS_5Sound4TypeE2EEELNS_10FilterTypeE1ELi0EEENSS_9FreqCtrl_INSS_9BandAlgo_INSS_4CtrlINSS_8SlowIterINSS_7AbsIterINS_10BufferIterILSX_2EEEEEEEEENSS_13BandPassAlgo_ISY_Li0EEEEEJNS0_19SoundEngineFreqCtrlIS19_EEEEENS11_INS12_IS1A_NSS_15BandRejectAlgo_ISY_Li0EEEEEJS1F_EEENSS_14VolumeAdjustedINSS_14OscillatorAlgoIfLNSS_16eNormalizePolicyE0EEEEEEEEEEEEEELb1ESA_SB_SC_SL_Li8EEEEENS_14outputDataBaseILNS_14AudioOutPolicyE1ENS0_20ChannelsVecAggregateILi2ELS1X_1EEEEENS0_8ChannelsILi2ELSN_1ELNS_12MaxQueueSizeE0ELS1X_1EEE`
-- stack --resolver nightly-2018-06-07 setup > nul
-- stack --resolver nightly-2018-06-07 exec -- gcc --version
-- echo "" | stack --resolver nightly-2018-06-07 --no-terminal --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs C:\stack\portaudio\include\ build imj-music --pedantic --jobs 1
-- echo "" | stack --resolver nightly-2018-06-07 --no-terminal --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --pedantic --jobs 1
-- echo "" | stack --resolver nightly-2018-06-07 --no-terminal --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs C:\stack\portaudio\include\ test imj-audio --pedantic --jobs 1
+# - stack --resolver nightly-2018-06-07 setup > nul
+# - stack --resolver nightly-2018-06-07 exec -- gcc --version
+# - echo "" | stack --resolver nightly-2018-06-07 --no-terminal --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs C:\stack\portaudio\include\ build imj-music --pedantic --jobs 1
+# - echo "" | stack --resolver nightly-2018-06-07 --no-terminal --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --pedantic --jobs 1
+# - echo "" | stack --resolver nightly-2018-06-07 --no-terminal --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs C:\stack\portaudio\include\ test imj-audio --pedantic --jobs 1
 ############################################
 
 
@@ -90,15 +90,15 @@ test_script:
 # unknown symbol
 # `_ZN10imajuscule5audio12playOneThingINS0_5voice5Impl_ILi2ELNS0_15SoundEngineModeE3ELb1ESt6vectorIfSaIfEENS0_13EventIteratorINS0_10IEventListEEENS0_11NoteOnEventENS0_12NoteOffEventENS0_11ProcessDataENS2_8ImplBaseILS4_3ES7_SD_NS0_4ImplILi29ES7_S5_IfNS_16AlignedAllocatorIfLNS_9AlignmentE64EEEELi16ESD_EEEENS0_8ImplCRTPILi2ELNS_11XfadePolicyE1ENS0_15MonoNoteChannelINS2_14EngineAndRampsINS0_11SoundEngineILS4_3ENS_6LoggerENS_12audioelement3MixIJNSS_10FilterAlgoINSS_22soundBufferWrapperAlgoILNS_5Sound4TypeE2EEELNS_10FilterTypeE1ELi0EEENSS_9FreqCtrl_INSS_9BandAlgo_INSS_4CtrlINSS_8SlowIterINSS_7AbsIterINS_10BufferIterILSX_2EEEEEEEEENSS_13BandPassAlgo_ISY_Li0EEEEEJNS0_19SoundEngineFreqCtrlIS19_EEEEENS11_INS12_IS1A_NSS_15BandRejectAlgo_ISY_Li0EEEEEJS1F_EEENSS_14VolumeAdjustedINSS_14OscillatorAlgoIfLNSS_16eNormalizePolicyE0EEEEEEEEEEEEEELb1ESA_SB_SC_SL_Li8EEEEENS_14outputDataBaseILNS_14AudioOutPolicyE1ENS0_20ChannelsVecAggregateILi2ELS1X_1EEEEENS0_8ChannelsILi2ELSN_1ELNS_12MaxQueueSizeE0ELS1X_1EEE`
 #
-#- set PATH=C:\msys64\MINGW64\bin;C:\msys64\usr\bin;%PATH%
-#- bash -lc "pacman --noconfirm --sync --refresh --refresh pacman"
-#- bash -lc "pacman --noconfirm --sync --refresh --refresh --sysupgrade --sysupgrade"
-#- bash -lc "pacman -S --noconfirm --needed base-devel mingw-w64-i686-toolchain mingw-w64-x86_64-toolchain git subversion mercurial mingw-w64-i686-cmake mingw-w64-x86_64-cmake"
+- set PATH=C:\msys64\MINGW64\bin;C:\msys64\usr\bin;%PATH%
+- bash -lc "pacman --noconfirm --sync --refresh --refresh pacman"
+- bash -lc "pacman --noconfirm --sync --refresh --refresh --sysupgrade --sysupgrade"
+- bash -lc "pacman -S --noconfirm --needed base-devel mingw-w64-i686-toolchain mingw-w64-x86_64-toolchain git subversion mercurial mingw-w64-i686-cmake mingw-w64-x86_64-cmake"
 
 # This shows the version of gcc I want to use:
-#- c:\msys64\MINGW64\bin\gcc --version
+- c:\msys64\MINGW64\bin\gcc --version
 
-#- stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW64\bin\gcc setup > nul
-#- stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW64\bin\gcc exec -- gcc --version
-#- echo "" | stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW64\bin\gcc --no-terminal --extra-lib-dirs c:\msys64\MINGW64\lib\ --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs c:\msys64\MINGW64\include\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --jobs 1
+- stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW64\bin\gcc setup > nul
+- stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW64\bin\gcc exec -- gcc --version
+- echo "" | stack --resolver nightly-2018-06-07 --skip-msys --with-gcc=c:\msys64\MINGW64\bin\gcc --no-terminal --extra-lib-dirs c:\msys64\MINGW64\lib\ --extra-lib-dirs C:\stack\portaudio-build\Release\ --extra-include-dirs c:\msys64\MINGW64\include\ --extra-include-dirs C:\stack\portaudio\include\ test imj-music --jobs 1
 ############################################

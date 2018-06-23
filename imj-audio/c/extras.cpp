@@ -5,11 +5,12 @@
 namespace imajuscule {
   namespace audioelement {
     float* analyzeEnvelopeGraph(envelType t, AHDSR p, int* nElems, int*splitAt) {
+      static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
       switch(t) {
         case AHDSR_ReleaseAfterDecay:
-          return envelopeGraph<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>(p, nElems, splitAt);
+          return envelopeGraph<AHDSREnvelope<A, float, EnvelopeRelease::ReleaseAfterDecay>>(p, nElems, splitAt);
         case AHDSR_WaitForKeyRelease:
-          return envelopeGraph<AHDSREnvelope<float, EnvelopeRelease::WaitForKeyRelease>>(p, nElems, splitAt);
+          return envelopeGraph<AHDSREnvelope<A, float, EnvelopeRelease::WaitForKeyRelease>>(p, nElems, splitAt);
         default:
           return {};
       }
@@ -18,7 +19,7 @@ namespace imajuscule {
   namespace audio {
 
     Ctxt & getAudioContext() {
-      static Ctxt c { GlobalAudioLock<AudioOutPolicy::MasterGlobalLock>::get() };
+      static Ctxt c;
       return c;
     }
 
@@ -31,7 +32,7 @@ namespace imajuscule {
       e.type = Event::kNoteOnEvent;
       e.noteOn.pitch = pitch;
       e.noteOn.velocity = velocity;
-      e.noteOn.channel=0; // unused
+      e.noteOn.channel= 0; // unused
       e.noteOn.tuning = 0;
       e.noteOn.noteId = -1;
       e.noteOn.length = std::numeric_limits<decltype(e.noteOn.length)>::max();
@@ -54,7 +55,7 @@ namespace imajuscule {
         static constexpr auto n_mnc = VoiceWindImpl::n_channels;
         using mnc_buffer = VoiceWindImpl::MonoNoteChannel::buffer_t;
         static std::array<mnc_buffer, n_mnc> buffers;
-        static VoiceWindImpl v(std::make_from_tuple<VoiceWindImpl>(buffers));
+        static VoiceWindImpl v(buffers);
         return v;
     }
 
@@ -65,12 +66,13 @@ namespace imajuscule {
 
     void midiEventAHDSR(envelType t, AHDSR p, audio::Event n) {
       using namespace audio;
+      static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
       switch(t) {
         case AHDSR_ReleaseAfterDecay:
-          midiEvent<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>(p, n);
+          midiEvent<AHDSREnvelope<A, float, EnvelopeRelease::ReleaseAfterDecay>>(p, n);
           break;
         case AHDSR_WaitForKeyRelease:
-          midiEvent<AHDSREnvelope<float, EnvelopeRelease::WaitForKeyRelease>>(p, n);
+          midiEvent<AHDSREnvelope<A, float, EnvelopeRelease::WaitForKeyRelease>>(p, n);
           break;
         default:
           break;

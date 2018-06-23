@@ -5,7 +5,7 @@
 
 extern "C" {
 
-  void testFreeList() {
+/*  void testFreeList() {
     using FL = imajuscule::FreeList<int64_t, 4096/sizeof(int64_t)>;
     FL l;
     l.Take();
@@ -102,7 +102,7 @@ extern "C" {
     std::cout << "sizeof ii2 " << sizeof(ii2) << std::endl;
 
     std::cout << "sizeof NoXFadeChans " << sizeof(NoXFadeChans) << std::endl;
-  }
+  }*/
 
   /*
   @param latencyMillis :
@@ -185,9 +185,11 @@ extern "C" {
 
     windVoice().finalize();
 
-    Synths<SimpleLinearEnvelope<float>>::finalize();
-    Synths<AHDSREnvelope<float, EnvelopeRelease::WaitForKeyRelease>>::finalize();
-    Synths<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>::finalize();
+    static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
+
+    Synths<SimpleLinearEnvelope<A, float>>::finalize();
+    Synths<AHDSREnvelope<A, float, EnvelopeRelease::WaitForKeyRelease>>::finalize();
+    Synths<AHDSREnvelope<A, float, EnvelopeRelease::ReleaseAfterDecay>>::finalize();
 
     getAudioContext().TearDown();
 
@@ -200,14 +202,18 @@ extern "C" {
   }
 
   void midiNoteOn(int envelCharacTime, int16_t pitch, float velocity) {
+    using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;
-    midiEvent<SimpleLinearEnvelope<float>>(envelCharacTime, mkNoteOn(pitch,velocity));
+    static constexpr auto A = getAtomicity<Ctxt::policy>();
+    midiEvent<SimpleLinearEnvelope<A, float>>(envelCharacTime, mkNoteOn(pitch,velocity));
   }
   void midiNoteOff(int envelCharacTime, int16_t pitch) {
+    using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;
-    midiEvent<SimpleLinearEnvelope<float>>(envelCharacTime, mkNoteOff(pitch));
+    static constexpr auto A = getAtomicity<Ctxt::policy>();
+    midiEvent<SimpleLinearEnvelope<A, float>>(envelCharacTime, mkNoteOff(pitch));
   }
 
   void midiNoteOnAHDSR_(envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int16_t pitch, float velocity) {

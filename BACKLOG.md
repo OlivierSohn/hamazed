@@ -1,23 +1,8 @@
+- If in all cases, the compute / orchestrators are registered by the oneshot, then we don't need
+atomicity in the compute / orchestrators because all operations come from
+the same thread.
 
--
-
-TODO check if the buffer is active before doing the sum, so that we have
-correct attack computation when lockfree?
-
-then, we will need lockfree on the selection of channel inside crtp:
-  instead of isEnvelopeFinished, use a compare and swap(finished2, reserved)  (maybe a tryReserve())
-    so that other threads cannot steal our ae. Then initialize the ae parameters, and set the state to keyPressed.
-    Then, add the compute to the list of computes.
-and instead of calling onKeyReleased() directly, raise a flag. (maybe tryKeyRelease(), note that it could fail if the key has already been released)
-  the transition key release flag -> onKeyReleased will be done in the compute thread.
-  DO NOT change the state directly when the key is released, because we could have a race
-  with the compute that also changes the state.
-
-to have accurate phase cancellation avoidance, we should do mkDeterministicPhase(o.elem.angle())
-in the compute, and pass the pointer to the matching audioelement to the used audioelement.
-Also in the compute, if the clock of the other audioelements says it has already computed,
-we should ask it to compute its angle 'nFrames' iterations ago, assuming it has been
-computed for the same number of frames as ourselves.
+The computes registered by the soundengine (from the orchestrator) are all in the rt thread.
 
 - Make the audioengine optionally lock-free, to be able to reach lower latencies, and avoid
 the priority change overhead. it should be configurable using a template parameter.

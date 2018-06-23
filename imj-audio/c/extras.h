@@ -34,43 +34,43 @@ namespace imajuscule {
     template<typename S>
     struct HasNoteOff;
 
-    template<typename T>
-    struct ClampParam<SimpleLinearEnvelope<T>> {
+    template<Atomicity A, typename T>
+    struct ClampParam<SimpleLinearEnvelope<A, T>> {
       static auto clamp(int envelCharacTime) {
         return std::max(envelCharacTime, 100);
       }
     };
 
-    template<typename T, EnvelopeRelease Rel>
-    struct ClampParam<AHDSREnvelope<T, Rel>> {
+    template<Atomicity A, typename T, EnvelopeRelease Rel>
+    struct ClampParam<AHDSREnvelope<A, T, Rel>> {
       static auto clamp(AHDSR const & env) {
         return env; // TODO clamp according to AHDSREnvelope
       }
     };
 
-    template<typename T>
-    struct SetParam<SimpleLinearEnvelope<T>> {
-      template<typename A>
-      static void set(int dt, A & a) {
-        a.forEachElems([dt](auto & e) { e.algo.editEnveloppe().setEnvelopeCharacTime(dt); });
+    template<Atomicity A, typename T>
+    struct SetParam<SimpleLinearEnvelope<A, T>> {
+      template<typename B>
+      static void set(int dt, B & b) {
+        b.forEachElems([dt](auto & e) { e.algo.editEnveloppe().setEnvelopeCharacTime(dt); });
       }
     };
 
-    template<typename T, EnvelopeRelease Rel>
-    struct SetParam<AHDSREnvelope<T, Rel>> {
-      template<typename A>
-      static void set(AHDSR const & env, A & a) {
-        a.forEachElems([&env](auto & e) { e.algo.editEnveloppe().setAHDSR(env); });
+    template<Atomicity A, typename T, EnvelopeRelease Rel>
+    struct SetParam<AHDSREnvelope<A, T, Rel>> {
+      template<typename B>
+      static void set(AHDSR const & env, B & b) {
+        b.forEachElems([&env](auto & e) { e.algo.editEnveloppe().setAHDSR(env); });
       }
     };
 
-    template<typename T>
-    struct HasNoteOff<SimpleLinearEnvelope<T>> {
+    template<Atomicity A, typename T>
+    struct HasNoteOff<SimpleLinearEnvelope<A, T>> {
       static constexpr bool value = true;
     };
 
-    template<typename T, EnvelopeRelease Rel>
-    struct HasNoteOff<AHDSREnvelope<T, Rel>> {
+    template<Atomicity A, typename T, EnvelopeRelease Rel>
+    struct HasNoteOff<AHDSREnvelope<A, T, Rel>> {
       static constexpr bool value = Rel == EnvelopeRelease::WaitForKeyRelease;
     };
 
@@ -86,7 +86,7 @@ namespace imajuscule {
 
       std::vector<float> v, v2;
       v.reserve(10000);
-      for(int i=0; e.getState() != EnvelopeState::EnvelopeDone1; ++i) {
+      for(int i=0; e.getRelaxedState() != EnvelopeState::EnvelopeDone1; ++i) {
         e.step();
         v.push_back(e.value());
         if(!e.afterAttackBeforeSustain()) {
@@ -98,7 +98,7 @@ namespace imajuscule {
           break;
         }
       }
-      while(e.getState() != EnvelopeState::EnvelopeDone1) {
+      while(e.getRelaxedState() != EnvelopeState::EnvelopeDone1) {
         e.step();
         v.push_back(e.value());
       }
@@ -126,12 +126,13 @@ namespace imajuscule {
   }
 
   namespace audio {
-    using AllChans = ChannelsVecAggregate< 2, AudioOutPolicy::MasterGlobalLock >;
+    static constexpr auto audioEnginePolicy = AudioOutPolicy::MasterGlobalLock;
+    using AllChans = ChannelsVecAggregate< 2, audioEnginePolicy >;
 
     using NoXFadeChans = typename AllChans::NoXFadeChans;
     using XFadeChans = typename AllChans::XFadeChans;
 
-    using ChannelHandler = outputDataBase< AudioOutPolicy::MasterGlobalLock, AllChans >;
+    using ChannelHandler = outputDataBase< AllChans >;
 
     using Ctxt = AudioOutContext<
       ChannelHandler,
@@ -152,7 +153,8 @@ namespace imajuscule {
     namespace sine {
       template <typename Env>
       using SynthT = Synth <
-        Ctxt::nAudioOut
+        Ctxt::policy
+      , Ctxt::nAudioOut
       , XfadePolicy::SkipXfade
       , audioelement::Oscillator<Env>
       , audioelement::HasNoteOff<Env>::value
@@ -164,7 +166,8 @@ namespace imajuscule {
     namespace vasine {
       template <typename Env>
       using SynthT = Synth <
-        Ctxt::nAudioOut
+        Ctxt::policy
+      , Ctxt::nAudioOut
       , XfadePolicy::SkipXfade
       , audioelement::VolumeAdjustedOscillator<Env>
       , audioelement::HasNoteOff<Env>::value
@@ -177,7 +180,7 @@ namespace imajuscule {
 
     template<typename T>
     struct withChannels {
-      withChannels(NoXFadeChans & chans) : chans(chans), obj(std::make_from_tuple<T>(buffers)) {}
+      withChannels(NoXFadeChans & chans) : chans(chans), obj(buffers) {}
       ~withChannels() {
         std::lock_guard<std::mutex> l(isUsed); // see 'Using'
       }
@@ -394,7 +397,7 @@ namespace imajuscule {
       Synths<Env>::get(env).o.onEvent2(e, getAudioContext().getChannelHandler());
     }
 
-    using VoiceWindImpl = Voice<2, audio::SoundEngineMode::WIND, true>;
+    using VoiceWindImpl = Voice<Ctxt::policy, Ctxt::nAudioOut, audio::SoundEngineMode::WIND, true>;
 
     VoiceWindImpl & windVoice();
 

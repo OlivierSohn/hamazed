@@ -1,14 +1,12 @@
-- If in all cases, the compute / orchestrators are registered by the oneshot, then we don't need
-atomicity in the compute / orchestrators because all operations come from
+
+- the compute / orchestrators are registered by the realtime thread, or under lock,
+so we don't need atomicity in the compute / orchestrators because all operations come from
 the same thread.
 
-The computes registered by the soundengine (from the orchestrator) are all in the rt thread.
-The computes registered by crtp are from the oneShot, in the RT thread.
+- Verify that std::function created / deleted by the real-time thread won't
+dynamically allocate. (preferably in a portable way)
 
--
-The 'stressTest' example produces, in debug and with Soundflower which has a 1.4ms default latency :
-  overflow flag: 0 0 4 0 0 (we see this twice, once at the beginning, and once 1 second after the start)
-  the overflow goes away with 0.002s minLatency
+g++ allocates for > 16 bytes : 2 x 64bit pointers is the limit...
 
 - find a way to Assert if we detect a memory allocation when we hold the audio lock:
 in debug, use a thread_local boolean saying if we hold a lock or not.

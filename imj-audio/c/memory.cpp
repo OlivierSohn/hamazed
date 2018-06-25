@@ -6,24 +6,28 @@
 
 #ifdef __cplusplus
 
-#ifdef IMJ_LOG_MEMORY
-void* operator new  ( std::size_t count ) {
-  auto ptr = std::malloc(count);
-
-  // we keep track of recursion depth to call logStack only at the first level.
+#  ifdef IMJ_LOG_MEMORY
+template <typename Log>
+void mayLog(Log l) {
   static int depth = 0;
   ++depth;
   if(1==depth) {
-    using namespace imajuscule;
-    LG(INFO,"+++ %p, size = %zu\n",ptr, count);
-    //logStack();
+    l();
+    // uncomment to see where the allocation / deallocation comes from.
+    //imajuscule::logStack();
+  }
+  else {
+    // don't log allocations / deallocations due to the memory log itself.
   }
   --depth;
+}
+void* operator new  ( std::size_t count ) {
+  auto ptr = std::malloc(count);
+
+  mayLog([&](){ printf("+++ %p, size = %zu\n",ptr, count); });
+
   return ptr;
 }
-#endif
-
-#ifdef IMJ_LOG_MEMORY
 void* operator new  ( std::size_t count, std::align_val_t al) {
 
   // not available on osx:
@@ -34,43 +38,39 @@ void* operator new  ( std::size_t count, std::align_val_t al) {
       ptr = nullptr;
   }
 
-  printf("+++ %p, size = %zu, alignment = %lu\n",ptr, count, al);
+  mayLog([&](){ printf("+++ %p, size = %zu, alignment = %lu\n",ptr, count, al); });
+
   return ptr;
 }
-#endif
-
-
-#ifdef IMJ_LOG_MEMORY
 void operator delete(void* ptr) noexcept
 {
-    printf("--- %p\n", ptr);
-    std::free(ptr);
-}
-#endif
+  mayLog([&](){ printf("--- %p\n", ptr); });
 
-#ifdef IMJ_LOG_MEMORY
+  std::free(ptr);
+}
 void operator delete(void* ptr, std::align_val_t al) noexcept
 {
-    printf("--- %p, alignment %lu\n", ptr, al);
-    std::free(ptr);
-}
-#endif
+  mayLog([&](){ printf("--- %p, alignment %lu\n", ptr, al); });
 
-#endif
+  std::free(ptr);
+}
+#  endif // IMJ_LOG_MEMORY
+
+#endif // __cplusplus
 
 extern "C" {
 
   void * imj_c_malloc(size_t count) {
       auto ptr = malloc(count);
 #ifdef IMJ_LOG_MEMORY
-      printf("+++ %p, size = %zu\n",ptr, count);
+      mayLog([&](){ printf("c +++ %p, size = %zu\n",ptr, count); });
 #endif
       return ptr;
   }
 
   void imj_c_free(void*ptr) {
 #ifdef IMJ_LOG_MEMORY
-      printf("--- %p\n", ptr);
+      mayLog([&](){ printf("c --- %p\n", ptr); });
 #endif
       free(ptr);
   }

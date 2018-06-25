@@ -130,24 +130,17 @@ extern "C" {
 
     // add a single Xfade channel (needed because soundengine and channel don't support envelopes entirely)
     static constexpr auto n_max_orchestrator_per_channel = 1;
-    {
-      auto p = std::make_unique<XFadeChans>(
-        getAudioContext().getChannelHandler().get_lock_policy(),
-        std::numeric_limits<uint8_t>::max(),
-        n_max_orchestrator_per_channel);
-      {
-        NoXFadeChans::LockCtrlFromNRT l(getAudioContext().getChannelHandler().get_lock());
-
-        getAudioContext().getChannelHandler().getChannels().getChannelsXFade().emplace_back(std::move(p));
-        getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade().reserve(100);
-      }
-    }
+    auto [xfadeChan, _] = getAudioContext().getChannelHandler().getChannels().getChannelsXFade().emplace_front(
+      getAudioContext().getChannelHandler().get_lock_policy(),
+      std::numeric_limits<uint8_t>::max(),
+      n_max_orchestrator_per_channel);
 
     windVoice().initializeSlow();
-    if(!windVoice().initialize(getXfadeChannels())) {
+    if(!windVoice().initialize(xfadeChan)) {
       LG(ERR,"windVoice().initialize failed");
       return false;
     }
+    getXfadeChannels() = &xfadeChan;
 
     if(imajuscule::thread::priorityIsReadOnly()) {
         // triple the min latency to try avoiding underruns due to priority inversion:
@@ -193,12 +186,8 @@ extern "C" {
 
     getAudioContext().TearDown();
 
-    {
-      NoXFadeChans::LockCtrlFromNRT l(getAudioContext().getChannelHandler().get_lock());
-
-      getAudioContext().getChannelHandler().getChannels().getChannelsXFade().clear();
-      getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade().clear();
-    }
+    getAudioContext().getChannelHandler().getChannels().getChannelsXFade().clear();
+    getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade().clear();
   }
 
   void midiNoteOn(int envelCharacTime, int16_t pitch, float velocity) {
@@ -244,12 +233,12 @@ extern "C" {
   void effectOn(int program, int16_t pitch, float velocity) {
     using namespace imajuscule::audio;
     auto voicing = Voicing(program,pitch,velocity,0.f,true,0);
-    playOneThing(windVoice(),getAudioContext().getChannelHandler(),getXfadeChannels(),voicing);
+    playOneThing(windVoice(),getAudioContext().getChannelHandler(),*getXfadeChannels(),voicing);
   }
 
   void effectOff(int16_t pitch) {
     using namespace imajuscule::audio;
-    stopPlaying(windVoice(),getAudioContext().getChannelHandler(),getXfadeChannels(),pitch);
+    stopPlaying(windVoice(),getAudioContext().getChannelHandler(),*getXfadeChannels(),pitch);
   }
 }
 

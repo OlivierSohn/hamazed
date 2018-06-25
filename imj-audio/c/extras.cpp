@@ -23,9 +23,11 @@ namespace imajuscule {
       return c;
     }
 
-    XFadeChans & getXfadeChannels() {
-      return **(getAudioContext().getChannelHandler().getChannels().getChannelsXFade().begin());
+    XFadeChans *& getXfadeChannels() {
+      static XFadeChans * p = nullptr;
+      return p;
     }
+
 
     Event mkNoteOn(int pitch, float velocity) {
       Event e;

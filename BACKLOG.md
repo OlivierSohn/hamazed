@@ -3,10 +3,9 @@ atomicity in the compute / orchestrators because all operations come from
 the same thread.
 
 The computes registered by the soundengine (from the orchestrator) are all in the rt thread.
+The computes registered by crtp are from the oneShot, in the RT thread.
 
-- Make the audioengine optionally lock-free, to be able to reach lower latencies, and avoid
-the priority change overhead. it should be configurable using a template parameter.
-
+-
 The 'stressTest' example produces, in debug and with Soundflower which has a 1.4ms default latency :
   overflow flag: 0 0 4 0 0 (we see this twice, once at the beginning, and once 1 second after the start)
   the overflow goes away with 0.002s minLatency

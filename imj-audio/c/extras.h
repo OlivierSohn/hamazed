@@ -126,7 +126,13 @@ namespace imajuscule {
   }
 
   namespace audio {
-    static constexpr auto audioEnginePolicy = AudioOutPolicy::MasterGlobalLock;
+
+    // The lockfree mode reduces the likelyhood of audio glitches:
+    static constexpr auto audioEnginePolicy = AudioOutPolicy::MasterLockFree;
+    // However, if you believe using a global lock would fit your use-case better,
+    //   use this instead:
+    //static constexpr auto audioEnginePolicy = AudioOutPolicy::MasterGlobalLock;
+
     using AllChans = ChannelsVecAggregate< 2, audioEnginePolicy >;
 
     using NoXFadeChans = typename AllChans::NoXFadeChans;
@@ -142,7 +148,7 @@ namespace imajuscule {
 
     Ctxt & getAudioContext();
 
-    XFadeChans & getXfadeChannels();
+    XFadeChans *& getXfadeChannels();
 
     Event mkNoteOn(int pitch, float velocity);
 
@@ -276,7 +282,8 @@ namespace imajuscule {
           if(auto * p = recycleInstrument(synths, envelParam)) {
             return Using(std::move(l), *p);
           }
-          auto p = std::make_unique<withChannels<T>>(addNoXfadeChannels(T::n_channels));
+          auto [c,remover] = addNoXfadeChannels(T::n_channels);
+          auto p = std::make_unique<withChannels<T>>(c);
           SetParam<Envel>::set(envelParam, p->obj);
           if(!p->obj.initialize(p->chans)) {
             auto oneSynth = synths.begin();
@@ -284,7 +291,7 @@ namespace imajuscule {
               LG(ERR, "a preexisting synth is returned");
               // The channels have the same lifecycle as the instrument, the instrument will be destroyed
               //  so we remove the associated channels:
-              removeRecentNoXFadeChannels(&p->chans);
+              remover.flagForRemoval();
               return Using(std::move(l), *(oneSynth->second.get()));
             }
             LG(ERR, "an uninitialized synth is returned");
@@ -334,7 +341,7 @@ namespace imajuscule {
             // - we have 0 orchestrator and 0 computes
             // - no note is being started, hence we won't increase the number of orchestrators or computes.
             // Hence, all enveloppes should be finished : if one is not finished, it will not have a chance to ever finish.
-            Assert(o.obj.areEnvelopeFinished() && "inconsistent envelopes");
+            Assert(o.obj.areEnvelopesFinished() && "inconsistent envelopes");
 
             // this code uses c++17 features not present in clang yet, so it's replaced by the code after.
             /*
@@ -359,36 +366,12 @@ namespace imajuscule {
         return nullptr;
       }
 
-      static auto & addNoXfadeChannels(int nVoices) {
+      static auto addNoXfadeChannels(int nVoices) {
         static constexpr auto n_max_orchestrator_per_channel = 0; // we don't use orchestrators
-        auto p = std::make_unique<NoXFadeChans>(
-          getAudioContext().getChannelHandler().get_lock_policy(),
-          std::min(nVoices, static_cast<int>(std::numeric_limits<uint8_t>::max())),
-          n_max_orchestrator_per_channel);
-        auto & res = *p;
-        {
-          auto & ch = getAudioContext().getChannelHandler();
-          auto & cs = ch.getChannels().getChannelsNoXFade();
-          auto w = mkVectorWrapper(cs);
-          {
-            NoXFadeChans::LockCtrlFromNRT l(ch.get_lock());
-            reserveAndLock(1,w,l);
-            cs.emplace_back(std::move(p));
-            l.unlock();
-          }
-        }
-        return res;
-      }
-
-      static void removeRecentNoXFadeChannels(NoXFadeChans * o) {
-        auto & ch = getAudioContext().getChannelHandler();
-        auto & cs = ch.getChannels().getChannelsNoXFade();
-        std::unique_ptr<NoXFadeChans> p;
-        {
-          Ctxt::LockFromNRT l(ch.get_lock());
-          extractFromEnd(cs,o).swap(p);
-        }
-        // deallocation happens outside the audio lock scope.
+        return getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade().emplace_front(
+            getAudioContext().getChannelHandler().get_lock_policy(),
+            std::min(nVoices, static_cast<int>(std::numeric_limits<uint8_t>::max())),
+            n_max_orchestrator_per_channel);
       }
     };
 

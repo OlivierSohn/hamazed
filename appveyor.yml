@@ -17,6 +17,10 @@ environment:
   global:
     STACK_ROOT: "c:\\sr"
 
+matrix:
+  allow_failures:
+    # we don't support windows officially:
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
 
 # 32-bit GHC has a bug which makes the build crash hence we use the 64-bit version.
 before_build:

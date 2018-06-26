@@ -2,9 +2,11 @@
 
   // TODO capture less
 
+- consider putting extras in cpp.audio
+
 - find a way to Assert if we detect a memory allocation when we hold the audio lock:
 in debug, with master lock, use a thread_local boolean saying if we hold a lock or not.
-in lockfree, keep track of the realtime thread id 
+in lockfree, keep track of the realtime thread id
 
 - music notation : a commented line should not count for a blank line in systems.
 

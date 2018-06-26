@@ -9,22 +9,28 @@
 #  ifdef IMJ_LOG_MEMORY
 template <typename Log>
 void mayLog(Log l) {
-  static int depth = 0;
-  ++depth;
-  if(1==depth) {
-    l();
-    // uncomment to see where the allocation / deallocation comes from.
-    //imajuscule::logStack();
+  using namespace imajuscule;
+  if(!shouldLogMemory()) {
+    return;
   }
-  else {
-    // don't log allocations / deallocations due to the memory log itself.
+  ScopedNoMemoryLogs s; // do not log the memory allocated / deallocated for the log itself.
+
+  if(threadNature() == ThreadNature::RealTime_OS) {
+    printf("** dynamic memory allocated / deallocated in a realtime thread, outside program reach:\n");
   }
-  --depth;
+  else if(threadNature() == ThreadNature::RealTime_Program) {
+    printf("******* Warning: dynamic memory allocated / deallocated in a realtime thread: *********\n");
+    logStack();
+  }
+  l();
+  if(threadNature() == ThreadNature::RealTime_Program) {
+    printf("******* ******* ********\n");
+  }
 }
 void* operator new  ( std::size_t count ) {
   auto ptr = std::malloc(count);
 
-  mayLog([&](){ printf("+++ %p, size = %zu\n",ptr, count); });
+  mayLog([=](){ printf("+++ %p, size = %zu\n",ptr, count); });
 
   return ptr;
 }
@@ -38,19 +44,21 @@ void* operator new  ( std::size_t count, std::align_val_t al) {
       ptr = nullptr;
   }
 
-  mayLog([&](){ printf("+++ %p, size = %zu, alignment = %lu\n",ptr, count, al); });
+  int c = count;
+  int ali = static_cast<std::underlying_type_t<decltype(al)>>(al);
+  mayLog([ptr, c, ali](){ printf("+++ %p, size = %d, alignment = %d\n",ptr, c, ali); });
 
   return ptr;
 }
 void operator delete(void* ptr) noexcept
 {
-  mayLog([&](){ printf("--- %p\n", ptr); });
+  mayLog([=](){ printf("--- %p\n", ptr); });
 
   std::free(ptr);
 }
 void operator delete(void* ptr, std::align_val_t al) noexcept
 {
-  mayLog([&](){ printf("--- %p, alignment %lu\n", ptr, al); });
+  mayLog([=](){ printf("--- %p, alignment %lu\n", ptr, al); });
 
   std::free(ptr);
 }
@@ -63,14 +71,14 @@ extern "C" {
   void * imj_c_malloc(size_t count) {
       auto ptr = malloc(count);
 #ifdef IMJ_LOG_MEMORY
-      mayLog([&](){ printf("c +++ %p, size = %zu\n",ptr, count); });
+      mayLog([=](){ printf("c +++ %p, size = %zu\n",ptr, count); });
 #endif
       return ptr;
   }
 
   void imj_c_free(void*ptr) {
 #ifdef IMJ_LOG_MEMORY
-      mayLog([&](){ printf("c --- %p\n", ptr); });
+      mayLog([=](){ printf("c --- %p\n", ptr); });
 #endif
       free(ptr);
   }

@@ -190,7 +190,7 @@ Every game made with [imj-game] can have the server send midi-like
 note on / note off events to game clients, allowing to perfectly synchronize the music with the game.
 
 The music won't pause during garbage collection because we use
-[a custom-made audio engine](/imj-audio) whose audio thread is
+[an audio engine](/imj-audio) whose audio thread is
 not managed by the GHC runtime.
 
 ## Rendering

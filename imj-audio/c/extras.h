@@ -4,14 +4,13 @@
 
 #ifdef __cplusplus
 
-extern "C" {
-  enum envelType {
+namespace imajuscule {
+
+  enum class envelType {
       AHDSR_WaitForKeyRelease
     , AHDSR_ReleaseAfterDecay
   };
-}
 
-namespace imajuscule {
   namespace audioelement {
     template <typename Envel>
     using VolumeAdjustedOscillator =

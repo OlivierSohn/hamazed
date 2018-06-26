@@ -186,7 +186,7 @@ extern "C" {
     midiEvent<SimpleLinearEnvelope<A, float>>(envelCharacTime, mkNoteOff(pitch));
   }
 
-  void midiNoteOnAHDSR_(envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int16_t pitch, float velocity) {
+  void midiNoteOnAHDSR_(imajuscule::envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int16_t pitch, float velocity) {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;
@@ -194,7 +194,7 @@ extern "C" {
     auto n = mkNoteOn(pitch,velocity);
     midiEventAHDSR(t, p, n);
   }
-  void midiNoteOffAHDSR_(envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int16_t pitch) {
+  void midiNoteOffAHDSR_(imajuscule::envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int16_t pitch) {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;
@@ -203,7 +203,7 @@ extern "C" {
     midiEventAHDSR(t, p, n);
   }
 
-  float* analyzeAHDSREnvelope_(envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int*nElems, int*splitAt) {
+  float* analyzeAHDSREnvelope_(imajuscule::envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int*nElems, int*splitAt) {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;

@@ -7,9 +7,9 @@ namespace imajuscule {
     float* analyzeEnvelopeGraph(envelType t, AHDSR p, int* nElems, int*splitAt) {
       static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
       switch(t) {
-        case AHDSR_ReleaseAfterDecay:
+        case envelType::AHDSR_ReleaseAfterDecay:
           return envelopeGraph<AHDSREnvelope<A, float, EnvelopeRelease::ReleaseAfterDecay>>(p, nElems, splitAt);
-        case AHDSR_WaitForKeyRelease:
+        case envelType::AHDSR_WaitForKeyRelease:
           return envelopeGraph<AHDSREnvelope<A, float, EnvelopeRelease::WaitForKeyRelease>>(p, nElems, splitAt);
         default:
           return {};
@@ -70,10 +70,10 @@ namespace imajuscule {
       using namespace audio;
       static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
       switch(t) {
-        case AHDSR_ReleaseAfterDecay:
+        case envelType::AHDSR_ReleaseAfterDecay:
           midiEvent<AHDSREnvelope<A, float, EnvelopeRelease::ReleaseAfterDecay>>(p, n);
           break;
-        case AHDSR_WaitForKeyRelease:
+        case envelType::AHDSR_WaitForKeyRelease:
           midiEvent<AHDSREnvelope<A, float, EnvelopeRelease::WaitForKeyRelease>>(p, n);
           break;
         default:

@@ -133,12 +133,19 @@ itpToInt = \case
 
 data EasedInterpolation =
     Ord2
+    -- ^ Quadratic easing.
   | Ord3
+    -- ^ Cubic easing.
   | Ord4
+    -- ^ Quartic easing.
   | Ord5
+    -- ^ Quintic easing.
   | Sine
+    -- ^ Sine easing.
   | Exp
+    -- ^ Exponential easing.
   | Circ
+    -- ^ Cirular easing (using square root).
   deriving(Generic, Ord, Eq, Data)
 instance Binary EasedInterpolation
 instance NFData EasedInterpolation

@@ -2,8 +2,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Music.Compositions.Tchaikowski
-      ( tchaikowskiSwanLake
+module Imj.Music.Compositions.Tchaikovski
+      ( tchaikovskiSwanLake
       ) where
 
 import           Imj.Prelude
@@ -13,9 +13,11 @@ import           Imj.Music.CTypes
 import           Imj.Music.Alter
 import           Imj.Music.Compose
 
--- | Based on a piece of Pyotr Ilyich Tchaikowski's Swan Lake.
-tchaikowskiSwanLake :: (Float, [[VoiceInstruction]])
-tchaikowskiSwanLake = (bpm, part)
+-- | The beginning of
+-- <https://www.youtube.com/watch?v=f9NnI3u9ppY&index=4&list=RDRPdelxGwnnI Act 1 Scene 2, dance of the cygnets>,
+-- of Pyotr Ilyich Tchaikovski's Swan Lake.
+tchaikovskiSwanLake :: (Float, [[VoiceInstruction]])
+tchaikovskiSwanLake = (bpm, part)
  where
   bpm = 700
   part = map (map (transposeSymbol 5)) $

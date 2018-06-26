@@ -12,7 +12,9 @@ import           Imj.Music.CTypes
 import           Imj.Music.Alter
 import           Imj.Music.Compose
 
--- | Based on the beginning of Antonio Vivaldi's Four Seasons, Spring.
+-- | The beginning of
+-- <https://www.youtube.com/watch?v=-SUvnM3nqfU Presto>,
+-- from Antonio Vivaldi's Four Seasons / Summer.
 vivaldiFourSeasonsSpring :: (Float,[[VoiceInstruction]])
 vivaldiFourSeasonsSpring = (bpm,part)
  where

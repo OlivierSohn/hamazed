@@ -8,7 +8,7 @@ module Main where
 import           Control.Concurrent(threadDelay)
 
 import           Imj.Audio
-import           Imj.Music.Compositions.Tchaikowski
+import           Imj.Music.Compositions.Tchaikovski
 import           Imj.Music.Compositions.Vivaldi
 
 
@@ -21,7 +21,7 @@ main = usingAudio -- WithMinLatency 0
   threadDelay 10000
   uncurry (flip playVoicesAtTempo simpleInstrument) vivaldiFourSeasonsSpring
   threadDelay 10000
-  uncurry (flip playVoicesAtTempo simpleInstrument) tchaikowskiSwanLake
+  uncurry (flip playVoicesAtTempo simpleInstrument) tchaikovskiSwanLake
   threadDelay 10000
 
 stressTest :: IO ()

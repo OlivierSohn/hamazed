@@ -1,8 +1,8 @@
 name:                imj-audio
 version:             0.1.0.3
 Category:            Audio
-Synopsis:            Bindings to a C++ audio engine.
-Description:         Bindings to a C++ audio engine allowing to play music in real time.
+Synopsis:            Bindings to a C++ lockfree audio engine.
+Description:         Bindings to a C++ lockfree audio engine allowing to play music in real time.
 homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-audio//README.md
 bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
 license:             BSD3
@@ -14,7 +14,7 @@ build-type:          Simple
 extra-source-files:  README.md CHANGELOG.md
 cabal-version:       >=1.10
 
-Tested-With: GHC == 8.0.2, GHC == 8.2.2
+Tested-With: GHC == 8.2.2, GHC == 8.4.3
 
 -------------- Flags -----------------------------------------------------------
 --

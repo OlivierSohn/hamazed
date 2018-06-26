@@ -1,15 +1,10 @@
+- those locations should be fixed in Grid3d:
 
-- the compute / orchestrators are registered by the realtime thread, or under lock,
-so we don't need atomicity in the compute / orchestrators because all operations come from
-the same thread.
-
-- Verify that std::function created / deleted by the real-time thread won't
-dynamically allocate. (preferably in a portable way)
-
-g++ allocates for > 16 bytes : 2 x 64bit pointers is the limit...
+  // TODO capture less
 
 - find a way to Assert if we detect a memory allocation when we hold the audio lock:
-in debug, use a thread_local boolean saying if we hold a lock or not.
+in debug, with master lock, use a thread_local boolean saying if we hold a lock or not.
+in lockfree, keep track of the realtime thread id 
 
 - music notation : a commented line should not count for a blank line in systems.
 

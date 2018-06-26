@@ -142,26 +142,7 @@ extern "C" {
     }
     getXfadeChannels() = &xfadeChan;
 
-    if(imajuscule::thread::priorityIsReadOnly()) {
-        // triple the min latency to try avoiding underruns due to priority inversion:
-        getAudioContext().Init(3*minLatencySeconds);
-        cout << endl;
-        cout << "Min latency has been tripled to account for priority inversion." << endl;
-        cout << endl;
-
-        cout << "Warning :" << endl;
-        cout << "  The audio engine needs to be able to dynamically change a thread priority" << endl;
-        cout << "  to avoid priority inversion when holding the audio lock." << endl;
-        cout << "  We detected that your system doesn't allow setting thread priorities, hence" << endl;
-        cout << "  you may occasionally hear some audio clics/cracks. To fix this, you can" << endl;
-        cout << "  run the command again using 'sudo' : root privileges are required on Linux" << endl;
-        cout << "  to use 'pthread_setschedparam'." << endl;
-        cout << endl;
-
-    }
-    else {
-        getAudioContext().Init(minLatencySeconds);
-    }
+    getAudioContext().Init(minLatencySeconds);
 
     return true;
   }

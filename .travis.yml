@@ -13,7 +13,7 @@ osx_image: xcode9.3
 
 env:
   - RESOLVER="lts-11.9"           # ghc 8.2.2
-  - RESOLVER="nightly-2018-06-07" # ghc 8.4.3
+  - RESOLVER="nightly-2018-06-26" # ghc 8.4.3
   - RESOLVER="nightly"
 
 matrix:

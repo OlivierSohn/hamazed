@@ -20,24 +20,16 @@ To prevent memory fragmentation, we /recycle/ C++ objects associated to instrume
 The real-time audio thread is /not/ managed by the GHC runtime, so there is
 /no/ audio pause during GHC garbage collection.
 
-=== Concurrency
+=== Implementation details
 
-Deadlocks are avoided in the audio engine by acquiring locks according to the same global order,
-everywhere in the code.
+Internally, the audio engine uses lockfree datastructures,
+so that the audio realtime thread can run lockfree.
 
-=== Tackling priority inversion
-
-The audio engine uses the
-<https://en.wikipedia.org/wiki/Priority_ceiling_protocol Immediate Ceiling Priority Protocol>
-to avoid
-<https://en.wikipedia.org/wiki/Priority_inversion priority inversion>.
-
-On linux, controling the thread priorities can be done only if the user running the program
-<http://pubs.opengroup.org/onlinepubs/009696899/functions/pthread_getschedparam.html has sufficient privileges>
-, hence it is preferable if you can run the program with @sudo@.
-If not, a warning message will be logged in the console, and the program will run,
-but with less guarantees about audio "smoothness" because we can potentially see
-<https://en.wikipedia.org/wiki/Priority_inversion priority inversion effects>.
+A thin C++ layer on top of the audio-engine defines the
+notion of instruments and uses locks to protect concurrent accesses to
+instruments containers. These locks are acquired
+according to the same global order, everywhere in the code, so as to
+ensure that no deadlock will ever occur.
 
       -}
         usingAudio
@@ -45,7 +37,7 @@ but with less guarantees about audio "smoothness" because we can potentially see
         -- * Playing music
       , play
       , MusicalEvent(..)
-      -- * Analysing envelopes
+      -- * Analyzing envelopes
       , envelopeShape
 
       ) where
@@ -66,17 +58,15 @@ import           Imj.Audio.Bindings
 -- | Initializes the audio context, runs the action, shutdowns the audio context by
 -- driving the audio signal smoothly to zero, and returns when there is no more audio played.
 --
+-- Re-entrancy is not supported.
+--
 -- The audio stream will have a minimum latency of 0.008 seconds.
 -- If you want to set this value, see 'usingAudioWithMinLatency'.
---
--- Because of the unicity of the audio context,
--- at most one call to 'usingAudio' or 'usingAudioWithMinLatency' should be active in the program at any time.
 --
 -- All functions calling 'play' should be called from within the action run by 'usingAudio'.
 usingAudio :: MonadUnliftIO m
            => m a
            -- ^ The action to run.
-           -- This action should contain no call to 'usingAudio'.
            -> m a
 usingAudio = usingAudioWithMinLatency 0.008
 
@@ -85,22 +75,18 @@ usingAudio = usingAudioWithMinLatency 0.008
 -- The audio latency defines the duration between when a function is called to play a note
 -- and when the actual sound is heard.
 --
--- In the audio engine, we don't time-stamp note-on and note-off events, instead, we handle them
--- as soon as we can, provided that we could take the global audio lock.
--- Hence, notes whose time-span between note-on and the corresponding note-off is smaller
--- than @2*the latency@ may be skipped (i.e not generate any audible sound) because the
--- two events will be fused together.
+-- If the time-span between a note-on event and its corresponding note-off event
+-- is smaller than @the latency@, the note may be skipped (i.e not audible).
 usingAudioWithMinLatency :: MonadUnliftIO m
                          => Float
                          -- ^ The minimum latency, in seconds.
                          --
-                         -- Depending on your system's capacity, using a too small value
-                         -- may generate audio glitches.
+                         -- Depending on your system's characteristics and contention,
+                         -- using a too small value may generate audio glitches.
                          --
-                         -- When in doubt, use 'usingAudio' which provide a sensible default value.
+                         -- When in doubt, use 'usingAudio' which provide a safe default value.
                          -> m a
                          -- ^ The action to run.
-                         -- This action should contain no call to 'usingAudio'.
                          -> m a
 usingAudioWithMinLatency minLatency act =
   bracket bra ket $ \initialized ->

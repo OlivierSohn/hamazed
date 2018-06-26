@@ -1,3 +1,8 @@
+- what happens if we 'play' outside 'withAudio' ?
+
+- use a FreeList (atomic) for objects of the lock-free queue.
+This will remove the need for dynamic allocation when inserting in the queue.
+
 - those locations should be fixed in Grid3d:
 
   // TODO capture less

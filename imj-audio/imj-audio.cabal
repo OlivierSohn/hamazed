@@ -22,7 +22,7 @@ Flag Debug
     Default: False
 
 Flag MemLog
-    Description: Enable memory logs
+    Description: Enable memory allocation / deallocation logs
     Manual: True
     Default: False
 

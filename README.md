@@ -41,7 +41,8 @@ is needed to build.
 List of packages, inverse-topologically sorted wrt dependencies, with keywords / short description for each of them:
 
 - [imj-audio]
-  - Bindings to a C++17 audio engine. The C++ sources are located in [submodules](/imj-audio/c).
+  - Bindings to a C++17 lock-free audio engine.
+	- The C++ sources are located in [submodules](/imj-audio/c).
 - [imj-music](/imj-music)
   - Polyphonic music scores creation and playback.
 - [imj-prelude](/imj-prelude)
@@ -167,8 +168,7 @@ stack exec -- <game-executable> -n <herokuAppDomain> -p80
 # CI
 
 The [CI script](/.travis.yml) verifies that compilation and tests succeed with
-GHC versions 8.2.2 and 8.4.2.
-
+GHC versions 8.2.2 and 8.4.3.
 
 # Game engine highlights
 

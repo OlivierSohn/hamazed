@@ -120,6 +120,11 @@ extern "C" {
     cout << "Warning : C++ sources of imj-audio were built without NDEBUG" << endl;
 #endif
 
+#ifdef IMJ_AUDIO_MASTERGLOBALLOCK
+    cout << "Warning : C++ sources of imj-audio were built with IMJ_AUDIO_MASTERGLOBALLOCK. " <<
+    "This may lead to audio glitches under contention." << endl;  
+#endif
+
     if(latencyMillis > 0) {
       setPortaudioLatencyMillis(latencyMillis);
     }

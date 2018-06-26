@@ -126,11 +126,13 @@ namespace imajuscule {
 
   namespace audio {
 
-    // The lockfree mode reduces the likelyhood of audio glitches:
+#ifdef IMJ_AUDIO_MASTERGLOBALLOCK
+#pragma message "IMJ_AUDIO_MASTERGLOBALLOCK mode is not recommended, it will lead to audio glitches under contention."
+    static constexpr auto audioEnginePolicy = AudioOutPolicy::MasterGlobalLock;
+#else
+    // This lockfree mode is recommended, it reduces the likelyhood of audio glitches.
     static constexpr auto audioEnginePolicy = AudioOutPolicy::MasterLockFree;
-    // However, if you believe using a global lock would fit your use-case better,
-    //   use this instead:
-    //static constexpr auto audioEnginePolicy = AudioOutPolicy::MasterGlobalLock;
+#endif
 
     using AllChans = ChannelsVecAggregate< 2, audioEnginePolicy >;
 

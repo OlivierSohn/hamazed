@@ -16,15 +16,78 @@ cabal-version:       >=1.10
 
 Tested-With: GHC == 8.0.2, GHC == 8.2.2
 
-Flag Debug
-    Description: Enable assertions and audio debug logs
+-------------- Flags -----------------------------------------------------------
+--
+-- [Default values]
+--
+--    The default flag values will give you the best runtime performances.
+--
+-- [Benchmarks]
+--                                      "To lock, or not to lock."
+--
+--    Using 'imj-audio-exe', with the 'LogTime' flag set to 'True', you can verify
+--    that, under contention, the best value for the 'Lock' flag is 'False'.
+--
+--    The durations reported below were collected using 'imj-audio-exe',
+--    on a 2-core CPU '2,2 GHz Intel Core i7', with an audio-buffer length of
+--    8 milliseconds.
+--    Contention was simulated by running a parallel compilation on the side
+--    that continuously required 90% of cpu.
+--
+--   - when the 'Lock' flag is 'False':
+--      > average : 15 microseconds, max 80 microseconds
+--      there is no duration peak, the audio runs smoothly.
+--   - when the 'Lock' flag is 'True':
+--      > average : 15 microseconds, max 10000 microseconds
+--      there are occasionally long duration peaks like the one above,
+--      due to the priority inversion effect.
+--      Audio buffer overflows occur, with (very loud) audio cracks.
+
+Flag Lock
+    Description: When false (recommended), the audio engine callback doesn't use any lock,
+                 lock-free datastructures are used and audio runs smoothly, even under contention.
+                 When true (not recommended, very unsafe), the audio-engine callback uses a lock to protect
+                 access to non-lockfree datastructures. Under contention, priority inversion arise
+                 when a non-realtime thread owns this lock, leading to unwanted audio-buffer overflows
+                 generating (very loud) audio cracks.
     Manual: True
     Default: False
 
-Flag MemLog
-    Description: Enable memory allocation / deallocation logs
+Flag LogTime
+    Description: Enables logging of maximum and average duration of the audio callback, over 1000 runs.
+                [Warning] Logging always happens in the audio realtime thread.
     Manual: True
     Default: False
+
+Flag LogOverflows
+    Description: Enables logging of audio callback overflows.
+                [Warning] On overflow, logging happens in the audio realtime thread.
+    Manual: True
+    Default: False
+
+Flag LogMidi
+    Description: Enables logging of note on / note off midi events.
+                Logging will always happen outside the audio realtime thread.
+    Manual: True
+    Default: False
+
+Flag LogMem
+    Description: Enables logging of memory allocations and deallocations.
+                If the allocation or deallocation happens in the
+                audio realtime thread, in addition to the log,
+                a stack trace will be logged.
+                [Warning] Logging may happen in the audio realtime thread.
+    Manual: True
+    Default: False
+
+Flag Assertions
+    Description: Enables assertions verifying program consistency. If an assertion
+                 fails at runtime, a log will be written, with the accertion content,
+                 source file name and line number. Then, a stack trace will be written,
+                 and the program will crash.
+    Manual: True
+    Default: False
+--------------------------------------------------------------------------------
 
 library
   hs-source-dirs:      src
@@ -72,16 +135,24 @@ library
     extra-lib-dirs:    /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A
 
   cc-options:          -std=c++17 -D_USE_MATH_DEFINES -Os -ffast-math
-  if(!flag(Debug))
-    -- we need rtti only in debug mode
-    cc-options:        -DNDEBUG -fno-rtti
-  if(flag(MemLog))
-    cc-options:        -DIMJ_LOG_MEMORY
   if os(linux)
     cc-options:        -fpermissive
   if os(windows)
     cc-options:        -D_UNICODE -DUNICODE
-    -- TODO we may need -municode at link time.
+    -- TODO we may need -municode at link-time on windows.
+  if(!flag(Assertions))
+    -- we need rtti only in debug mode
+    cc-options:        -DNDEBUG -fno-rtti
+  if(flag(Lock))
+    cc-options:        -DIMJ_AUDIO_MASTERGLOBALLOCK
+  if(flag(LogTime))
+    cc-options:        -DIMJ_LOG_AUDIO_TIME
+  if(flag(LogOverflows))
+    cc-options:        -DIMJ_LOG_AUDIO_OVERFLOW
+  if(flag(LogMidi))
+    cc-options:        -DIMJ_LOG_MIDI
+  if(flag(LogMem))
+    cc-options:        -DIMJ_LOG_MEMORY
 
 executable imj-audio-exe
   hs-source-dirs:      example

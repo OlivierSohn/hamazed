@@ -165,11 +165,14 @@ maxShutdownDurationMicros = 1000*12
 -- If a 'StopNote' is played less than @audio latency@ milliseconds after
 -- its corresponding 'StartNote', the note won't be audible.
 --
--- This function is thread-safe and must be called from an action
+-- This function is thread-safe.
+--
+-- This function should be called from an action
 -- run with 'usingAudioOutput' or 'usingAudioOutputWithMinLatency'.
+-- If this is not the case, it hans no effect and returns 'False'.
 play :: MusicalEvent
      -> IO Bool
-     -- ^ 'True' if the call succeeds
+     -- ^ 'True' if the call succeeds.
 play (StartNote n@(InstrumentNote _ _ i) (NoteVelocity v)) = case i of
   SineSynthAHDSR e ahdsr -> midiNoteOnAHDSR (fromIntegral $ fromEnum e) ahdsr pitch vel
   SineSynth ect -> midiNoteOn (fromIntegral $ unEnvelopeCharacteristicTime ect) pitch vel

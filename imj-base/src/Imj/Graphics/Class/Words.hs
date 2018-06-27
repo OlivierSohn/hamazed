@@ -12,7 +12,7 @@ module Imj.Graphics.Class.Words
 
 import qualified Prelude(splitAt, length)
 
-import           Imj.Prelude
+import           Imj.Prelude hiding(empty)
 
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad( zipWithM_ )

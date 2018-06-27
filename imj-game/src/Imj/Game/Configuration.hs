@@ -47,11 +47,11 @@ instance Audio WithAudio where
     | otherwise = id
 
   triggerLaserSound (WithAudio useAudio)
-    | useAudio = liftIO laserSound
+    | useAudio = liftIO $ void $ laserSound
     | otherwise = return ()
 
   playMusic (WithAudio useAudio) mus
-    | useAudio = liftIO $ play mus
+    | useAudio = liftIO $ void $ play mus
     | otherwise = return ()
 
   -- WARNING when changing this, also change 'parseArg'

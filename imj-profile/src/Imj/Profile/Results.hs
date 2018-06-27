@@ -26,7 +26,7 @@ module Imj.Profile.Results
     , homogenousDist
     ) where
 
-import           Imj.Prelude hiding(div)
+import           Imj.Prelude hiding(div, empty)
 
 import           Data.Set(Set)
 import           Data.IntMap.Internal(IntMap(..), Key)

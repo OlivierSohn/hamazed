@@ -142,7 +142,7 @@ data SynthsGame = SynthsGame {
 instance UIInstructions SynthsGame where
   instructions color (SynthsGame _ _ _ instr _ idx) =
     case instr of
-      SineSynthAHDSR release (AHDSR a h d r ai di ri s) -> ahdsrInstructions
+      SineSynthAHDSR release (AHDSR'Envelope a h d r ai di ri s) -> ahdsrInstructions
 
        where
 
@@ -384,7 +384,7 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
 
     changeIntrumentValue instr idx inc =
       case instr of
-        SineSynthAHDSR release p@(AHDSR a h d r ai di ri s) -> case idx `mod` countEditables of
+        SineSynthAHDSR release p@(AHDSR'Envelope a h d r ai di ri s) -> case idx `mod` countEditables of
           0 -> SineSynthAHDSR (cycleReleaseMode release) p
           1 -> SineSynthAHDSR release p {ahdsrAttack = changeParam predefinedAttack a inc}
           2 -> SineSynthAHDSR release p {ahdsrAttackItp = changeParam predefinedAttackItp ai inc}

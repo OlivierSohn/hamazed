@@ -1,4 +1,4 @@
-- what happens if we 'play' outside 'withAudio' ?
+- if we 'play' outside 'withAudio', at some point it blocks, because the realtime queue gets full.
 
 - use a FreeList (atomic) for objects of the lock-free queue.
 This will remove the need for dynamic allocation when inserting in the queue.

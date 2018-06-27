@@ -8,14 +8,13 @@ module Imj.Music.Compositions.Vivaldi
 
 import           Imj.Prelude
 
-import           Imj.Music.CTypes
+import           Imj.Music.Instruction
 import           Imj.Music.Alter
 import           Imj.Music.Compose
 
--- | The beginning of
--- <https://www.youtube.com/watch?v=-SUvnM3nqfU Presto>,
--- from Antonio Vivaldi's Four Seasons / Summer.
-vivaldiFourSeasonsSpring :: (Float,[[VoiceInstruction]])
+-- | The beginning of <https://www.youtube.com/watch?v=e3nSvIiBNFo the 1st movement>
+-- from Antonio Vivaldi's Four Seasons / Spring.
+vivaldiFourSeasonsSpring :: (Float,[[Instruction]])
 vivaldiFourSeasonsSpring = (bpm,part)
  where
   bpm = 350
@@ -27,28 +26,29 @@ vivaldiFourSeasonsSpring = (bpm,part)
     mi . mi . mi  .  ré  do  sol - -   - -  . sol fa
     do . do . vsi do vsi vla vsi . .   . ré . mi  ré
 
-    mi . mi . mi . ré do sol ré sol - - mi sol fa
-    do . do . vsi do vsi vla vsi vsol vsi do ré . mi ré
+    mi . mi . mi  .  ré  do  sol ré   sol -  -  mi sol fa
+    do . do . vsi do vsi vla vsi vsol vsi do ré .  mi  ré
 
-    mi . fa sol fa .   mi .   ré   .   vsi  .   vsol .
+    mi . fa sol fa .   mi .   ré   .    vsi  .    vsol .
     do . ré mi  ré vsi do vla vsol vfa# vsol vfa# vsol .
 
-    do -
+    do   -
     vsol -
 
-    mi . mi . mi  .  ré  do  sol -   -  -  -  . sol fa
-    do . do . vsi do vsi vla vsi - do do ré . mi  ré
-    .  . .  . .   .  .   .   .   sol . sol .  ^do .
+    mi . mi . mi  .  ré  do  sol -   -  -   -  .   sol fa
+    do . do . vsi do vsi vla vsi -   do do  ré .   mi  ré
+    .  . .  . .   .  .   .   .   sol .  sol .  ^do .
 
     mi sol mi . mi  .  ré  do  sol la   sol -  -  la sol fa
     do .   do . vsi do vsi vla vsi vsol vsi do ré .  mi  ré
 
-    mi . fa sol fa .   mi .   ré   .   vsi  .   vsol .
+    mi . fa sol fa .   mi .   ré   .    vsi  .    vsol .
     do . ré mi  ré vsi do vla vsol vfa# vsol vfa# vsol .
   |]
 
--- | Adapted from <https://www.youtube.com/watch?v=2gPPES89yXQ this partition>
-vivaldiFourSeasonsSummerPresto :: (Float,[[VoiceInstruction]])
+-- | The beginning of <https://www.youtube.com/watch?v=124NoPUBDvA Presto>,
+-- from Antonio Vivaldi's Four Seasons / Summer.
+vivaldiFourSeasonsSummerPresto :: (Float,[[Instruction]])
 vivaldiFourSeasonsSummerPresto = (bpm,part)
  where
   bpm = 2500

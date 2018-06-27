@@ -14,9 +14,9 @@ module Imj.Music.Types
       -- | In my music notation system, an 'Instrument' partition is modeled as a list of
       -- /monophonic/ music voices with the same time granularity.
       --
-      -- A music voice is a list of 'VoiceInstruction's where the nth 'VoiceInstruction'
+      -- A music voice is a list of 'Instruction's where the nth 'Instruction'
       -- specifies what the voice should do during the nth time quantum.
-      , VoiceInstruction(..)
+      , Instruction(..)
         -- * Sequences of notes
       , AbsolutelyTimedMusicalEvent(..)
       , RelativelyTimedMusicalEvent(..)
@@ -28,12 +28,6 @@ module Imj.Music.Types
       , mkMusicLoop
         -- * Midi-like instructions
       , MusicalEvent(..)
-      -- * Reexport
-      , AHDSR(..)
-      , Interpolation(..), allInterpolations
-      , Ease(..)
-      , EasedInterpolation(..)
-      , CInt
       ) where
 
 import           Imj.Prelude
@@ -42,10 +36,10 @@ import           Control.DeepSeq (NFData(..))
 import           Control.Concurrent.MVar.Strict(MVar, newMVar)
 import           Data.Map.Internal(Map(..))
 import qualified Data.Vector as V
-import           Foreign.C
 import           GHC.Generics (Generic)
 
-import           Imj.Music.CTypes
+import           Imj.Music.Instruction
+import           Imj.Music.Instrument
 import           Imj.Timing
 
 -- | Represents the keys currently pressed on a keyboard-based music device.

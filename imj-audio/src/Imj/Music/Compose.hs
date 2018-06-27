@@ -7,34 +7,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
-{-| This module exports expression 'QuasiQuoter's to make music-writing more intuitive.
-
-The notations used in the 'QuasiQuoter's is a simplified version of a notation system I
-invented to write my own songs.
-
-In this notation system:
-
-* the melody is written using note names
-* @^@ and @v@ indicate octave shifts
-* @.@ indicates a pause
-* @-@ indicates that the previous note is extended
-
-For example, the begining of <https://www.youtube.com/watch?v=GRxofEmo3HA Four seasons, by Vivaldi>
-could be written like this, in C Major (Do Majeur):
-
-@
-[voice|
-  do .
-  mi . mi . mi . ré do sol - - - - . sol fa
-  mi . mi . mi . ré do sol - - - - . sol fa
-  mi . fa sol fa . mi . ré . vsi . vsol .
-|]
-
-To match the original tonality, which is E Major (Mi Majeur)
-according to <https://musopen.org/fr/music/14910-the-four-seasons-op-8/ the original partition>
-we can use 'map (transposeSymbol 4)' on the result, where 4 is the number of semitones between C (Sol) and E (Mi).
-@
--}
 
 module Imj.Music.Compose
       ( voice
@@ -42,7 +14,7 @@ module Imj.Music.Compose
       , concatSystems
       ) where
 
-import           Imj.Prelude hiding ((<|>))
+import           Imj.Prelude hiding ((<|>), many)
 
 import           Language.Haskell.TH
 import           Language.Haskell.TH.Quote
@@ -56,10 +28,10 @@ import           Text.Parsec((<|>), parse, char, noneOf, spaces, eof, many, many
 import           Text.Parsec.Text(Parser)
 import           Text.Parsec.Pos(newPos)
 
-import           Imj.Music.CTypes
+import           Imj.Music.Instruction
 
 
-monophonicSymbol :: Parser (Either () VoiceInstruction)
+monophonicSymbol :: Parser (Either () Instruction)
 monophonicSymbol =
   between
     spaces
@@ -76,7 +48,7 @@ monoLineComment = do
   _ <- char ':'
   skipMany $ noneOf ['\n','\r']
 
-symbol :: Parser VoiceInstruction
+symbol :: Parser Instruction
 symbol =
   choice
     [ rest
@@ -144,7 +116,7 @@ location' = aux <$> location
     aux :: Loc -> SourcePos
     aux loc = uncurry (newPos (loc_filename loc)) (loc_start loc)
 
-{- | Expression 'QuasiQuoter' producing a /monophonic/ voice, i.e. ['VoiceInstruction'],
+{- | Expression 'QuasiQuoter' producing a /monophonic/ voice, i.e. ['Instruction'],
 and supporting the following syntaxes:
 
 @
@@ -202,7 +174,7 @@ voice = QuasiQuoter {
     , quoteDec  = undefined
     }
 
-groupBySystem :: [[VoiceInstruction]] -> [[[VoiceInstruction]]]
+groupBySystem :: [[Instruction]] -> [[[Instruction]]]
 groupBySystem = reverse . go [] []
  where
   go allSystems [] [] = allSystems
@@ -211,7 +183,7 @@ groupBySystem = reverse . go [] []
   go allSystems curSystem ([]:is) = go (reverse curSystem : allSystems) [] is
   go allSystems curSystem (i@(_:_):is) = go allSystems (i : curSystem) is
 
-concatSystems :: [[[VoiceInstruction]]] -> [[VoiceInstruction]]
+concatSystems :: [[[Instruction]]] -> [[Instruction]]
 concatSystems = go 0 []
  where
   go _ acc [] = acc
@@ -233,7 +205,7 @@ concatSystems = go 0 []
 
 
 
-{- | Expression 'QuasiQuoter' producing /polyphonic/ voices, i.e. [['VoiceInstruction']],
+{- | Expression 'QuasiQuoter' producing /polyphonic/ voices, i.e. [['Instruction']],
 where the number of voices can vary over time.
 
 For example:

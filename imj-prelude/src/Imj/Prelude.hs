@@ -31,7 +31,7 @@ import           Prelude as Exported
 
 
 import           GHC.Generics as Exported(Generic)
-import           Control.Applicative as Exported((<|>), pure, (<*>), (*>), (<*))
+import           Control.Applicative as Exported(Alternative(..), (<|>), pure, (<*>), (*>), (<*))
 import           Control.Arrow as Exported((>>>))
 import           Control.Exception as Exported(assert)
 import           Control.DeepSeq as Exported(NFData(..), ($!!), deepseq, force)

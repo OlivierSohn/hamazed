@@ -97,14 +97,14 @@ library
                      , c/extras.cpp
                      , c/wrapper.cpp
   exposed-modules:     Imj.Audio
-                     , Imj.Audio.Bindings
-                     , Imj.Audio.Wrapper
+                     , Imj.Audio.Output
+                     , Imj.Audio.Envelope
                      , Imj.Music.Alter
                      , Imj.Music.Compose
                      , Imj.Music.Compositions.Tchaikovski
                      , Imj.Music.Compositions.Vivaldi
-                     , Imj.Music.CTypes
-                     , Imj.Music.Instruments
+                     , Imj.Music.Instruction
+                     , Imj.Music.Instrument
                      , Imj.Music.Play
                      , Imj.Music.Score
   build-depends:       base >= 4.9 && < 4.12
@@ -112,6 +112,7 @@ library
                      , containers ==0.5.*
                      , deepseq ==1.4.*
                      , imj-prelude ==0.1.*
+                     , imj-time ==0.1.*
                      , parsec ==3.1.*
                      , template-haskell >=2.12 && < 2.14
                      , text >=1.2.3 && < 1.3

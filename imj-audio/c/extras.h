@@ -1,3 +1,14 @@
+/*
+This thin C++ layer on top of the audio-engine defines the
+notion of instruments and uses locks to protect concurrent accesses to
+instruments containers. These locks are acquired
+according to the same global order, everywhere in the code, so as to
+ensure that no deadlock will ever occur.
+
+Note that these locks are not taken by the audio realtime thread,
+which remains lock-free unless IMJ_AUDIO_MASTERGLOBALLOCK is used.
+*/
+
 #include "compiler.prepro.h"
 #include "cpp.audio/include/public.h"
 #include "memory.h"
@@ -193,8 +204,8 @@ namespace imajuscule {
       }
 
       template<typename Out>
-      void onEvent2(Event e, Out & out) {
-        obj.onEvent2(e, out, chans);
+      auto onEvent2(Event e, Out & out) {
+        return obj.onEvent2(e, out, chans);
       }
 
       void finalize() {
@@ -377,8 +388,8 @@ namespace imajuscule {
     };
 
     template<typename Env>
-    void midiEvent(typename Env::Param const & env, Event e) {
-      Synths<Env>::get(env).o.onEvent2(e, getAudioContext().getChannelHandler());
+    onEventResult midiEvent(typename Env::Param const & env, Event e) {
+      return Synths<Env>::get(env).o.onEvent2(e, getAudioContext().getChannelHandler());
     }
 
     using VoiceWindImpl = Voice<Ctxt::policy, Ctxt::nAudioOut, audio::SoundEngineMode::WIND, true>;
@@ -389,9 +400,13 @@ namespace imajuscule {
 
   namespace audioelement {
 
-      void midiEventAHDSR(envelType t, AHDSR p, audio::Event n);
+    extern audio::onEventResult midiEventAHDSR(envelType t, AHDSR p, audio::Event n);
 
   } // NS audioelement
+
+  namespace audio {
+    extern bool convert(onEventResult e);
+  }
 
 }
 

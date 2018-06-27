@@ -105,14 +105,16 @@ extern "C" {
   }*/
 
   /*
-  @param latencyMillis :
-    Sets a portaudio-related environment variable if strictly positive.
-    Pass 0 to not set the environment variable.
   @param minLatencySeconds :
     The minimum portaudio latency, in seconds.
     Pass 0.f to use the smallest latency possible.
+  @param portaudioMinLatencyMillis :
+    If strictly positive, overrides the portaudio minimum latency by
+      setting an environment variable.
+
+    @returns true on success, false on error.
   */
-  bool initializeAudio (int latencyMillis, float minLatencySeconds) {
+  bool initializeAudioOutput (float minLatencySeconds, int portaudioMinLatencyMillis) {
     using namespace std;
     using namespace imajuscule;
     using namespace imajuscule::audio;
@@ -122,18 +124,20 @@ extern "C" {
 
 #ifdef IMJ_AUDIO_MASTERGLOBALLOCK
     cout << "Warning : C++ sources of imj-audio were built with IMJ_AUDIO_MASTERGLOBALLOCK. " <<
-    "This may lead to audio glitches under contention." << endl;  
+    "This may lead to audio glitches under contention." << endl;
 #endif
 
-    if(latencyMillis > 0) {
-      setPortaudioLatencyMillis(latencyMillis);
+    if(portaudioMinLatencyMillis > 0) {
+      if(!overridePortaudioMinLatencyMillis(portaudioMinLatencyMillis)) {
+        return false;
+      }
     }
 
     disableDenormals();
 
     //testFreeList();
 
-    // add a single Xfade channel (needed because soundengine and channel don't support envelopes entirely)
+    // add a single Xfade channel (for 'SoundEngine' and 'Channel' that don't support envelopes entirely)
     static constexpr auto n_max_orchestrator_per_channel = 1;
     auto [xfadeChan, _] = getAudioContext().getChannelHandler().getChannels().getChannelsXFade().emplace_front(
       getAudioContext().getChannelHandler().get_lock_policy(),
@@ -147,17 +151,15 @@ extern "C" {
     }
     getXfadeChannels() = &xfadeChan;
 
-    getAudioContext().Init(minLatencySeconds);
-
-    return true;
+    return getAudioContext().Init(minLatencySeconds);
   }
 
-  void stopAudioGracefully() {
+  void stopAudioOutputGracefully() {
     using namespace imajuscule::audio;
     getAudioContext().onApplicationShouldClose();
   }
 
-  void teardownAudio() {
+  void teardownAudioOutput() {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;
@@ -176,36 +178,48 @@ extern "C" {
     getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade().clear();
   }
 
-  void midiNoteOn(int envelCharacTime, int16_t pitch, float velocity) {
+  bool midiNoteOn(int envelCharacTime, int16_t pitch, float velocity) {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;
     static constexpr auto A = getAtomicity<Ctxt::policy>();
-    midiEvent<SimpleLinearEnvelope<A, float>>(envelCharacTime, mkNoteOn(pitch,velocity));
+    if(unlikely(!getAudioContext().Initialized())) {
+      return false;
+    }
+    return convert(midiEvent<SimpleLinearEnvelope<A, float>>(envelCharacTime, mkNoteOn(pitch,velocity)));
   }
-  void midiNoteOff(int envelCharacTime, int16_t pitch) {
+  bool midiNoteOff(int envelCharacTime, int16_t pitch) {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;
     static constexpr auto A = getAtomicity<Ctxt::policy>();
-    midiEvent<SimpleLinearEnvelope<A, float>>(envelCharacTime, mkNoteOff(pitch));
+    if(unlikely(!getAudioContext().Initialized())) {
+      return false;
+    }
+    return convert(midiEvent<SimpleLinearEnvelope<A, float>>(envelCharacTime, mkNoteOff(pitch)));
   }
 
-  void midiNoteOnAHDSR_(imajuscule::envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int16_t pitch, float velocity) {
+  bool midiNoteOnAHDSR_(imajuscule::envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int16_t pitch, float velocity) {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;
+    if(unlikely(!getAudioContext().Initialized())) {
+      return false;
+    }
     auto p = AHDSR{a,itp::toItp(ai),h,d,itp::toItp(di),r,itp::toItp(ri),s};
     auto n = mkNoteOn(pitch,velocity);
-    midiEventAHDSR(t, p, n);
+    return convert(midiEventAHDSR(t, p, n));
   }
-  void midiNoteOffAHDSR_(imajuscule::envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int16_t pitch) {
+  bool midiNoteOffAHDSR_(imajuscule::envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int16_t pitch) {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;
+    if(unlikely(!getAudioContext().Initialized())) {
+      return false;
+    }
     auto p = AHDSR{a,itp::toItp(ai),h,d,itp::toItp(di),r,itp::toItp(ri),s};
     auto n = mkNoteOff(pitch);
-    midiEventAHDSR(t, p, n);
+    return convert(midiEventAHDSR(t, p, n));
   }
 
   float* analyzeAHDSREnvelope_(imajuscule::envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int*nElems, int*splitAt) {
@@ -216,15 +230,21 @@ extern "C" {
     return analyzeEnvelopeGraph(t, p, nElems, splitAt);
   }
 
-  void effectOn(int program, int16_t pitch, float velocity) {
+  bool effectOn(int program, int16_t pitch, float velocity) {
     using namespace imajuscule::audio;
+    if(unlikely(!getAudioContext().Initialized())) {
+      return false;
+    }
     auto voicing = Voicing(program,pitch,velocity,0.f,true,0);
-    playOneThing(windVoice(),getAudioContext().getChannelHandler(),*getXfadeChannels(),voicing);
+    return convert(playOneThing(windVoice(),getAudioContext().getChannelHandler(),*getXfadeChannels(),voicing));
   }
 
-  void effectOff(int16_t pitch) {
+  bool effectOff(int16_t pitch) {
     using namespace imajuscule::audio;
-    stopPlaying(windVoice(),getAudioContext().getChannelHandler(),*getXfadeChannels(),pitch);
+    if(unlikely(!getAudioContext().Initialized())) {
+      return false;
+    }
+    return convert(stopPlaying(windVoice(),getAudioContext().getChannelHandler(),*getXfadeChannels(),pitch));
   }
 }
 

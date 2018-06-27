@@ -2,9 +2,9 @@
 
 module Imj.Music.Alter
       (
-      -- * Alter VoiceInstruction
+      -- * Alter Instruction
         transposeSymbol
-      -- * Combine [VoiceInstruction]
+      -- * Combine [Instruction]
       , interleaveSymbols
       -- * Alter Voice
       , mapVoice
@@ -19,32 +19,32 @@ import           Imj.Prelude
 import qualified Data.Vector as V
 
 import qualified Data.List as List
-import           Imj.Music.CTypes
+import           Imj.Music.Instruction
 import           Imj.Music.Score
 
 -- | Returns a list of the same size as the input, with only 'Rest' elements in it.
-mute :: [VoiceInstruction] -> [VoiceInstruction]
+mute :: [Instruction] -> [Instruction]
 mute l = List.replicate (List.length l) Rest
 
 -- | Interleaves the symbols of the two lists
-interleaveSymbols :: [VoiceInstruction] -> [VoiceInstruction] -> [VoiceInstruction]
+interleaveSymbols :: [Instruction] -> [Instruction] -> [Instruction]
 interleaveSymbols v1 v2 = concatMap (\(a,b) -> [a,b]) $ zip v1 v2
 
-intercalateSymbols :: [VoiceInstruction] -> [VoiceInstruction] -> [VoiceInstruction]
+intercalateSymbols :: [Instruction] -> [Instruction] -> [Instruction]
 intercalateSymbols s i = concatMap (\sy -> [sy] ++ i) s
 
-mapVoice :: ([VoiceInstruction] -> [VoiceInstruction]) -> Voice -> Voice
+mapVoice :: ([Instruction] -> [Instruction]) -> Voice -> Voice
 mapVoice f v = v { voiceInstructions = V.fromList $ f $ V.toList $ voiceInstructions v }
 
 transposeSymbol :: Int
                 -- ^ Count of semitones
-                -> VoiceInstruction
-                -> VoiceInstruction
+                -> Instruction
+                -> Instruction
 transposeSymbol s (Note n o) = uncurry Note $ midiPitchToNoteAndOctave (fromIntegral s + noteToMidiPitch n o)
 transposeSymbol _ Rest   = Rest
 transposeSymbol _ Extend = Extend
 
-intersperse :: VoiceInstruction -> Score -> Score
+intersperse :: Instruction -> Score -> Score
 intersperse s (Score voices) =
   Score $
     map
@@ -52,7 +52,7 @@ intersperse s (Score voices) =
         interleaveSymbols v (repeat s)
         )) voices
 
-intercalate :: [VoiceInstruction] -> Score -> Score
+intercalate :: [Instruction] -> Score -> Score
 intercalate symbols (Score voices) =
   Score $
     map

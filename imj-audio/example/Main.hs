@@ -13,18 +13,21 @@ import           Imj.Music.Compositions.Vivaldi
 
 
 main :: IO ()
-main = usingAudio -- WithMinLatency 0
-    $ do
+main = usingAudioOutput -- WithMinLatency 0
+     $ do
   --stressTest
   --threadDelay 10000
-  uncurry (flip playVoicesAtTempo simpleInstrument) vivaldiFourSeasonsSummerPresto
+  putStrLn "playing vivaldi summer presto"
+  uncurry (flip playVoicesAtTempo simpleInstrument) vivaldiFourSeasonsSummerPresto >>= print
   threadDelay 10000
-  uncurry (flip playVoicesAtTempo simpleInstrument) vivaldiFourSeasonsSpring
+  putStrLn "playing vivaldi spring"
+  uncurry (flip playVoicesAtTempo simpleInstrument) vivaldiFourSeasonsSpring >>= print
   threadDelay 10000
-  uncurry (flip playVoicesAtTempo simpleInstrument) tchaikovskiSwanLake
+  putStrLn "playing tchaikovski swan lake"
+  uncurry (flip playVoicesAtTempo simpleInstrument) tchaikovskiSwanLake >>= print
   threadDelay 10000
 
-stressTest :: IO ()
+stressTest :: IO PlayResult
 stressTest = playVoicesAtTempo 10000 simpleInstrument $ map (take 1000 . cycle) [voices|
   sol  - .  . .  .   la - .  . si -   -  - .
   vsol - -  - .  vla -  - -  . .  vsi -  . .

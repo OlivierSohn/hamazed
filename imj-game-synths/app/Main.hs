@@ -142,13 +142,13 @@ data SynthsGame = SynthsGame {
 instance UIInstructions SynthsGame where
   instructions color (SynthsGame _ _ _ instr _ idx) =
     case instr of
-      SineSynthAHDSR env (AHDSR a h d r ai di ri s) -> ahdsrInstructions
+      SineSynthAHDSR release (AHDSR a h d r ai di ri s) -> ahdsrInstructions
 
        where
 
         ahdsrInstructions =
           [ ConfigUI "Auto-release"
-              [ mkChoice 0 $ case env of
+              [ mkChoice 0 $ case release of
                   AutoRelease -> "Yes"
                   KeyRelease -> "No"
               ]
@@ -384,16 +384,16 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
 
     changeIntrumentValue instr idx inc =
       case instr of
-        SineSynthAHDSR env p@(AHDSR a h d r ai di ri s) -> case idx `mod` countEditables of
-          0 -> SineSynthAHDSR (cycleEnvelope env) p
-          1 -> SineSynthAHDSR env p {ahdsrAttack = changeParam predefinedAttack a inc}
-          2 -> SineSynthAHDSR env p {ahdsrAttackItp = changeParam predefinedAttackItp ai inc}
-          3 -> SineSynthAHDSR env p {ahdsrHold = changeParam predefinedHolds h inc}
-          4 -> SineSynthAHDSR env p {ahdsrDecay = changeParam predefinedDecays d inc}
-          5 -> SineSynthAHDSR env p {ahdsrDecayItp = changeParam predefinedDecayItp di inc}
-          6 -> SineSynthAHDSR env p {ahdsrSustain = changeParam predefinedSustains s inc}
-          7 -> SineSynthAHDSR env p {ahdsrRelease = changeParam predefinedReleases r inc}
-          8 -> SineSynthAHDSR env p {ahdsrReleaseItp = changeParam predefinedReleaseItp ri inc}
+        SineSynthAHDSR release p@(AHDSR a h d r ai di ri s) -> case idx `mod` countEditables of
+          0 -> SineSynthAHDSR (cycleReleaseMode release) p
+          1 -> SineSynthAHDSR release p {ahdsrAttack = changeParam predefinedAttack a inc}
+          2 -> SineSynthAHDSR release p {ahdsrAttackItp = changeParam predefinedAttackItp ai inc}
+          3 -> SineSynthAHDSR release p {ahdsrHold = changeParam predefinedHolds h inc}
+          4 -> SineSynthAHDSR release p {ahdsrDecay = changeParam predefinedDecays d inc}
+          5 -> SineSynthAHDSR release p {ahdsrDecayItp = changeParam predefinedDecayItp di inc}
+          6 -> SineSynthAHDSR release p {ahdsrSustain = changeParam predefinedSustains s inc}
+          7 -> SineSynthAHDSR release p {ahdsrRelease = changeParam predefinedReleases r inc}
+          8 -> SineSynthAHDSR release p {ahdsrReleaseItp = changeParam predefinedReleaseItp ri inc}
           _ -> error "logic"
         _ -> instr
 

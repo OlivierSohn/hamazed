@@ -28,7 +28,6 @@ namespace imajuscule {
       return p;
     }
 
-
     Event mkNoteOn(int pitch, float velocity) {
       Event e;
       e.type = Event::kNoteOnEvent;
@@ -61,23 +60,29 @@ namespace imajuscule {
         return v;
     }
 
-
+    bool convert(onEventResult e) {
+      switch(e) {
+        case onEventResult::OK:
+          return true;
+        default:
+          return false;
+      }
+    }
   } // NS audio
 
   namespace audioelement {
 
-    void midiEventAHDSR(envelType t, AHDSR p, audio::Event n) {
+    audio::onEventResult midiEventAHDSR(envelType t, AHDSR p, audio::Event n) {
       using namespace audio;
       static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
       switch(t) {
         case envelType::AHDSR_ReleaseAfterDecay:
-          midiEvent<AHDSREnvelope<A, float, EnvelopeRelease::ReleaseAfterDecay>>(p, n);
-          break;
+          return midiEvent<AHDSREnvelope<A, float, EnvelopeRelease::ReleaseAfterDecay>>(p, n);
         case envelType::AHDSR_WaitForKeyRelease:
-          midiEvent<AHDSREnvelope<A, float, EnvelopeRelease::WaitForKeyRelease>>(p, n);
-          break;
+          return midiEvent<AHDSREnvelope<A, float, EnvelopeRelease::WaitForKeyRelease>>(p, n);
         default:
-          break;
+        Assert(0);
+        return onEventResult::DROPPED_NOTE;
       }
     }
 

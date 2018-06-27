@@ -43,7 +43,7 @@ newtype WithAudio = WithAudio Bool
   deriving (Show)
 instance Audio WithAudio where
   withAudio (WithAudio yes)
-    | yes = usingAudio
+    | yes = usingAudioOutput
     | otherwise = id
 
   triggerLaserSound (WithAudio useAudio)

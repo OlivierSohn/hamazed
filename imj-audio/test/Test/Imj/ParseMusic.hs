@@ -14,7 +14,7 @@ testParseMonoVoice = do
   testParseMonoVoiceWithComments
 
   [voice||] `shouldBe`
-    ([] :: [VoiceInstruction])
+    ([] :: [Instruction])
 
   [voice|do|] `shouldBe`
     [Note Do noOctave]
@@ -244,7 +244,7 @@ testParsePolyVoice :: IO ()
 testParsePolyVoice = do
 
   [voices||] `shouldBe`
-    ([] :: [[VoiceInstruction]])
+    ([] :: [[Instruction]])
 
   [voices|do|] `shouldBe`
     [[Note Do noOctave]]

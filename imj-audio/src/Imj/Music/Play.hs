@@ -20,11 +20,12 @@ use 'playAtTempo', 'playVoicesAtTempo'
 
 module Imj.Music.Play
       (
-      -- * Play MusicalEvent
-        play
+      -- * Types
+        MusicalEvent
+      , PlayResult
       -- * Conversion
       , allMusic
-      -- * Play VoiceInstruction(s) all at once, with known tempo
+      -- * Play Instruction(s) all at once, with known tempo
       , playAtTempo
       , playVoicesAtTempo
       -- * Create MusicalEvent(s) for a time quantum
@@ -40,47 +41,54 @@ module Imj.Music.Play
 
 import           Imj.Prelude
 import           Control.Concurrent(threadDelay)
-import           Data.List(foldl')
 import           Data.Maybe(catMaybes, maybeToList)
 import qualified Data.Vector as V
 
-import           Imj.Audio.Wrapper
+import           Imj.Audio.Output
 import           Imj.Music.Score
-import           Imj.Music.CTypes
+import           Imj.Music.Instruction
+import           Imj.Music.Instrument
+
+-- | Plays a series of 'Instruction' at a constant tempo, using an 'Instrument'.
+playAtTempo :: Float
+            -- ^ Beats per minute
+            -> Instrument
+            -> [Instruction]
+            -> IO PlayResult
+playAtTempo tempo i =
+  playVoicesAtTempo tempo i . (:[])
+
 
 playVoicesAtTempo :: Float
                   -- ^ Beats per minute
                   -> Instrument
-                  -> [[VoiceInstruction]]
-                  -> IO ()
+                  -> [[Instruction]]
+                  -> IO PlayResult
 playVoicesAtTempo tempo i =
-  playMusic tempo . foldl' (zipWith (++)) (repeat []) . map (allMusic i)
+  playScoreOnceAtTempo tempo . mkScore i
 
--- | Plays a series of 'VoiceInstruction' at a constant tempo, using an 'Instrument'.
-playAtTempo :: Float
-            -- ^ Beats per minute
-            -> Instrument
-            -> [VoiceInstruction]
-            -> IO ()
-playAtTempo tempo i =
-  playMusic tempo . allMusic i
+playScoreOnceAtTempo :: Float -> Score -> IO PlayResult
+playScoreOnceAtTempo tempo s =
 
-playMusic :: Float
-            -- ^ Beats per minute
-            -> [[MusicalEvent]]
-            -> IO ()
-playMusic tempo m =
-  go m
+  go (scoreLength s) s
+
  where
-  go [] = return()
-  go (n:ns) = do
-    mapM_ play n
+  go 0 _ = return $ Right ()
+  go n score = do
+    let (newScore, instructions) = stepScore score
+    r <- mapM play instructions
     threadDelay pause
-    go ns
+    if any (==False) r
+      then
+        return $ Left ()
+      else
+        go (n-1) newScore
 
   pause = round $ 1000*1000*60/tempo
 
-allMusic :: Instrument -> [VoiceInstruction] -> [[MusicalEvent]]
+type PlayResult = Either () ()
+
+allMusic :: Instrument -> [Instruction] -> [[MusicalEvent]]
 allMusic i x =
   snd $ stepNVoiceAndStop (sizeVoice s) s
  where

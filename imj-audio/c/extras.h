@@ -23,6 +23,9 @@ namespace imajuscule {
   };
 
   namespace audioelement {
+
+    using AudioFloat = float;
+
     template <typename Envel>
     using VolumeAdjustedOscillator =
       FinalAudioElement<
@@ -98,7 +101,7 @@ namespace imajuscule {
       v.reserve(10000);
       for(int i=0; e.getRelaxedState() != EnvelopeState::EnvelopeDone1; ++i) {
         e.step();
-        v.push_back(e.value());
+        v.push_back(static_cast<float>(e.value()));
         if(!e.afterAttackBeforeSustain()) {
           splitAt = v.size();
           if constexpr (Env::Release == EnvelopeRelease::WaitForKeyRelease) {

@@ -8,9 +8,9 @@ namespace imajuscule {
       static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
       switch(t) {
         case envelType::AHDSR_ReleaseAfterDecay:
-          return envelopeGraph<AHDSREnvelope<A, float, EnvelopeRelease::ReleaseAfterDecay>>(p, nElems, splitAt);
+          return envelopeGraph<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>>(p, nElems, splitAt);
         case envelType::AHDSR_WaitForKeyRelease:
-          return envelopeGraph<AHDSREnvelope<A, float, EnvelopeRelease::WaitForKeyRelease>>(p, nElems, splitAt);
+          return envelopeGraph<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::WaitForKeyRelease>>(p, nElems, splitAt);
         default:
           return {};
       }
@@ -77,9 +77,9 @@ namespace imajuscule {
       static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
       switch(t) {
         case envelType::AHDSR_ReleaseAfterDecay:
-          return midiEvent<AHDSREnvelope<A, float, EnvelopeRelease::ReleaseAfterDecay>>(p, n);
+          return midiEvent<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>>(p, n);
         case envelType::AHDSR_WaitForKeyRelease:
-          return midiEvent<AHDSREnvelope<A, float, EnvelopeRelease::WaitForKeyRelease>>(p, n);
+          return midiEvent<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::WaitForKeyRelease>>(p, n);
         default:
         Assert(0);
         return onEventResult::DROPPED_NOTE;

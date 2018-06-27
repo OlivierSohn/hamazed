@@ -1,20 +1,16 @@
-- if we 'play' outside 'withAudio', at some point it blocks, because the realtime queue gets full.
+- music notation : a commented line should not count for a blank line in systems,
+else there is no way to easily comment out a voice of a system.
 
-- use a FreeList (atomic) for objects of the lock-free queue.
-This will remove the need for dynamic allocation when inserting in the queue.
+- swan lake act2 n.10 scene (moderato)
+http://www.kunstderfuge.com/tchaikovsky.htm
+
+read midi file, play it with simple instruments
 
 - those locations should be fixed in Grid3d:
 
   // TODO capture less
 
 - consider putting extras in cpp.audio
-
-- music notation : a commented line should not count for a blank line in systems.
-
-- swan lake act2 n.10 scene (moderato)
-http://www.kunstderfuge.com/tchaikovsky.htm
-
-read midi file, play it with simple instruments
 
 - make a player app where a melody is played and we can interactively change the instrument used to play it.
 
@@ -28,9 +24,6 @@ long attack, EaseIn Sine : smooth
 - make volume of music / effects adjustable in hamazed
 
 - limit the sustain value to 0.01 when using propder for decay
-
-- use 64 bit audio to reduce numerical errors (especially when summing a big signal with a small one)
-- remove the 256 channels limit per Channels (review types for channel ids : uint8_t -> int, use -1 or maxBound for None)
 
 - on soundengine, instead of using the channel xfade,
 the duration could be interpreted by the channel as "when to trigger the enveloppe keyReleased()"

@@ -1,5 +1,3 @@
-- music notation : a commented line should not count for a blank line in systems,
-else there is no way to easily comment out a voice of a system.
 
 - swan lake act2 n.10 scene (moderato)
 http://www.kunstderfuge.com/tchaikovsky.htm

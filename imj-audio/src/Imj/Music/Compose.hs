@@ -22,7 +22,7 @@ import           Language.Haskell.TH.Quote
 import           Data.Either(rights)
 import           Data.List(replicate, length, take)
 import           Data.String(lines)
-import           Data.Text(pack, strip)
+import           Data.Text(pack, strip, uncons)
 import           Text.Parsec((<|>), parse, char, noneOf, spaces, eof, many, many1, manyTill, alphaNum, skipMany, choice
                             , between, SourcePos, setPosition)
 import           Text.Parsec.Text(Parser)
@@ -208,18 +208,19 @@ concatSystems = go 0 []
 {- | Expression 'QuasiQuoter' producing /polyphonic/ voices, i.e. [['Instruction']],
 where the number of voices can vary over time.
 
-For example:
+Blocks of simultaneous voices are separated by a /blank/ line:
 
 @
 [voices|
   do sol la sol mi do
-            : blocks of simultaneous voices are separated by a blank line
+
   do ré mi
   mi fa sol
+  : do do do    <- commented lines do ** not ** act as a block separator, only blank lines separate blocks.
   sol la si
   ^do ^ré ^mi
 
-  fa        : voices that are shorter that the longest voice in the block are padded with 'Rest'.
+  fa        : voices that are shorter than the longest voice in the block are padded with 'Rest'.
   ré -   -
   |]
 @
@@ -246,7 +247,7 @@ la sol fa sol - -
 sol mi do ré - -
 
 mi  . mi . ré mi
-sol . la . fa sol   : Man, this second voice rules...
+sol . la . fa sol
 |]
 @
 
@@ -258,6 +259,12 @@ voices = QuasiQuoter {
         let symbolsByLine =
               map (either (error.show) id)
               $ map (parse (setPosition l *> fmap rights (manyTill monophonicSymbol eof)) "")
+              $ filter (maybe
+                  True -- keep blank lines
+                  (\case
+                    (':',_) -> False -- remove fully commented lines so that they are not seen
+                                     -- as a system separator.
+                    _ -> True) . uncons)
               $ map (strip . pack) -- for some reason I don't fully understand, strip is necessary.
               $ lines str
         dataToExpQ (const Nothing) $ concatSystems $ groupBySystem symbolsByLine

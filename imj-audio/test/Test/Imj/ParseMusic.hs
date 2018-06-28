@@ -274,6 +274,14 @@ testParsePolyVoice = do
     [[Note Do noOctave]
     ,[Note Ré noOctave]]
 
+
+  [voices|
+  do
+  : a commented line will not act as a separator
+  ré|] `shouldBe`
+    [[Note Do noOctave]
+    ,[Note Ré noOctave]]
+
   -- using a blank line as separator
   [voices|
   do

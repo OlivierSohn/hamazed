@@ -22,7 +22,6 @@ testReadMidi = do
         --"midi/liszt_hungarian_fantasia_for_orchestra_(c)laviano.mid"
         --"midi/tchaikovsky_swan_lake_10_(c)lucarelli (1).mid"
 
-
       res `shouldBe` (Right (Right (Right (Right ()))))
 
       -- verify successive initialization / deinitialization is ok

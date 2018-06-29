@@ -42,9 +42,9 @@ newtype ServerOnly = ServerOnly Bool
 newtype WithAudio = WithAudio Bool
   deriving (Show)
 instance Audio WithAudio where
-  withAudio (WithAudio yes)
-    | yes = usingAudioOutput
-    | otherwise = id
+  withAudio (WithAudio yes) x
+    | yes = usingAudioOutput x >>= either (fail . show) return
+    | otherwise = x
 
   triggerLaserSound (WithAudio useAudio)
     | useAudio = liftIO $ void $ laserSound

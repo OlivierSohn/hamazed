@@ -1,4 +1,6 @@
 
+- make instruments scale : if a given instrument is full, instantiate a second identical instrument
+
 - swan lake act2 n.10 scene (moderato)
 http://www.kunstderfuge.com/tchaikovsky.htm
 

@@ -11,6 +11,7 @@ module Imj.Music.Instrument
       , InstrumentNote(..)
       , mkInstrumentNote
       , NoteVelocity(..)
+      , mkNoteVelocity
       , EnvelopeCharacteristicTime
       , unEnvelopeCharacteristicTime
       -- * Analyze envelope
@@ -58,6 +59,13 @@ newtype NoteVelocity = NoteVelocity Float
  deriving (Generic, Num,Show,Eq)
 instance Binary NoteVelocity
 instance NFData NoteVelocity
+
+-- | Converts a discrete MIDI velocity (0..127) to a continuous velocity (0..1)
+mkNoteVelocity :: Int -> NoteVelocity
+mkNoteVelocity i
+  | i < 1     = NoteVelocity 0
+  | i > 126   = NoteVelocity 1
+  | otherwise = NoteVelocity $ (fromIntegral i) / 127
 
 -- | Returns lists of consecutive envelope values.
 --

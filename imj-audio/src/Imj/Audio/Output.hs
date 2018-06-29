@@ -18,16 +18,19 @@ the real-time audio thread is /not/ managed by the GHC runtime, there is
 The RAM usage will be proportional to the count of different 'Instrument's
 playing music at the same time.
 
+=== Concurrency
+
+All exported functions are thread-safe.
+
 -}
 
 module Imj.Audio.Output
-      (
-      -- * Bracketed init / teardown
+      ( -- * Bracketed init / teardown
         usingAudioOutput
       , usingAudioOutputWithMinLatency
       -- * Playing music
-      , MusicalEvent(..)
       , play
+      , MusicalEvent(..)
       -- * C++ audio-engine implementation details
       {-|
 
@@ -76,7 +79,6 @@ module Imj.Audio.Output
 
       ) where
 
-import           Control.Concurrent(threadDelay)
 import           Control.Monad.IO.Unlift(MonadUnliftIO, liftIO)
 import           Data.Bool(bool)
 import           Foreign.C
@@ -87,20 +89,29 @@ import           Imj.Music.Instruction
 import           Imj.Music.Instrument
 import           Imj.Timing
 
-
--- | Initializes the audio output stream,
--- runs the action containing (possibly concurrent) calls to 'play'.
+-- |
+-- * initializes the global audio output stream if it is not initialized yet,
+-- * then runs the action containing calls to 'play', and possibly reentrant calls
+--     to 'usingAudioOutput' or 'usingAudioOutputWithMinLatency'
+-- * then if this is currently the only call to 'usingAudioOutput' or 'usingAudioOutputWithMinLatency'
+--     in the program, the audio output signal is swiftly cross-faded to zero
+--     and the global audio output stream is uninitialized.
 --
--- When the action finishes, the audio output signal is swiftly cross-faded to zero,
--- and the audio output stream shutdown.
+-- This function is thread-safe because the initialization and teardown of the
+-- global audio output stream are protected by a lock.
 --
--- Re-entrancy is not supported.
+-- This function can recursively call 'usingAudioOutput' or
+-- 'usingAudioOutputWithMinLatency' in the action passed as parameter.
 usingAudioOutput :: MonadUnliftIO m
                  => m a
                  -> m a
 usingAudioOutput = usingAudioOutputWithMinLatency $ fromSecs 0.008
 
--- | Re-entrancy is not supported.
+-- | Same as 'usingAudioOutput' except that the minimum latency can be configured.
+--
+-- Note that the latency parameter will be used only if there is currently no other active call to
+-- 'usingAudioOutput' or 'usingAudioOutputWithMinLatency', else it is ignored (in that case,
+-- the global audio output stream is already initialized).
 usingAudioOutputWithMinLatency :: MonadUnliftIO m
                                => Time Duration System
                                -- ^ The minimum latency of the audio output stream.
@@ -113,23 +124,17 @@ usingAudioOutputWithMinLatency :: MonadUnliftIO m
                                -> m a
 usingAudioOutputWithMinLatency minLatency act =
   bracket bra ket $ either
-    (\_ -> fail "audio failed to initialize")
-    (\_ -> act)
+    (const $ fail "audio failed to initialize")
+    (const act)
 
  where
 
-  bra =
-    liftIO $ initializeAudioOutput minLatency Nothing  -- TODO to enable very low latencies, we could override portaudio's min latency
-      >>= either (return . Left)
-        (\res -> do
-          threadDelay 1000000 -- wait some time (on my osx system, this time is necessary
-                              -- to be able to play sound)
-          return $ Right res)
+  -- TODO to enable very low (thus unsafe) latencies, override portaudio's min latency (use a 'Just' instead of 'Nothing')
+  bra = liftIO $ initializeAudioOutput minLatency Nothing
 
-  ket _ = liftIO $ do
-    stopAudioOutputGracefully
-    threadDelay maxShutdownDurationMicros
-    teardownAudioOutput
+  -- we ignore the initialization return because regardless of wether it succeeded or not,
+  -- the 'initializeAudioOutput' call must be matched with a 'teardownAudioOutput' call.
+  ket _ = liftIO teardownAudioOutput
 
 initializeAudioOutput :: Time Duration System
                       -- ^ The audio output stream will have a latency no smaller than this value.
@@ -147,18 +152,13 @@ initializeAudioOutput a b =
       (realToFrac $ unsafeToSecs a)
       (maybe 0 (fromIntegral . toMicros) b)
 
--- | Should be called prior to using any other function.
+-- | Should be called prior to using 'effect***' and 'midi***' functions.
 foreign import ccall "initializeAudioOutput"
   initializeAudioOutput_ :: Float -> Int -> IO Bool
 
--- | Fades-out all audio quickly (within 'maxShutdownDurationMicros') and closes
--- any open audio channel.
-foreign import ccall "stopAudioOutputGracefully" stopAudioOutputGracefully :: IO ()
--- | Stops audio abruptly (see 'usingAudioOutput').
-foreign import ccall "teardownAudioOutput" teardownAudioOutput :: IO ()
--- | An upperbound on the time it will take for audio to shutdown gracefully (see 'stopAudioOutputGracefully').
-maxShutdownDurationMicros :: Int
-maxShutdownDurationMicros = 1000*12
+-- | Undoes what 'initializeAudioOutput' did.
+foreign import ccall "teardownAudioOutput"
+  teardownAudioOutput :: IO ()
 
 -- | Plays a 'MusicalEvent'.
 --

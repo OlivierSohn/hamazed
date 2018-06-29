@@ -55,8 +55,8 @@ playAtTempo :: Float
             -> Instrument
             -> [Instruction]
             -> IO PlayResult
-playAtTempo tempo i =
-  playVoicesAtTempo tempo i . (:[])
+playAtTempo tempo i instructions =
+  playVoicesAtTempo tempo i [instructions]
 
 
 playVoicesAtTempo :: Float
@@ -64,8 +64,8 @@ playVoicesAtTempo :: Float
                   -> Instrument
                   -> [[Instruction]]
                   -> IO PlayResult
-playVoicesAtTempo tempo i =
-  playScoreOnceAtTempo tempo . mkScore i
+playVoicesAtTempo tempo i instructions =
+  playScoreOnceAtTempo tempo (mkScore i instructions)
 
 playScoreOnceAtTempo :: Float -> Score -> IO PlayResult
 playScoreOnceAtTempo tempo s =

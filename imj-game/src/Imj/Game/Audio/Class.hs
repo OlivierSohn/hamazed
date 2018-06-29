@@ -9,7 +9,7 @@ import           Control.Monad.IO.Unlift(MonadUnliftIO)
 import           Imj.Music.Types
 
 class Audio e where
-  -- | The value to use when the user didn'T specify one on the command line.
+  -- | The value to use when the user didn't specify one on the command line.
   defaultAudio
     :: e
 

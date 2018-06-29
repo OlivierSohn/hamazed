@@ -114,9 +114,6 @@ instance Binary MidiPitch where
 noteToMidiPitch :: NoteName -> Octave -> MidiPitch
 noteToMidiPitch n oct = MidiPitch $ 12 * (fromIntegral oct-1) + fromIntegral (fromEnum n)
 
-
-
-
 midiPitchToNoteAndOctave :: MidiPitch -> (NoteName, Octave)
 midiPitchToNoteAndOctave pitch =
   (toEnum n, Octave $ o+1)

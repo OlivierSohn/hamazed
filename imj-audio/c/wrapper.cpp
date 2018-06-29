@@ -3,6 +3,27 @@
 
 #ifdef __cplusplus
 
+namespace imajuscule::audio {
+  /*
+  * Is equal to:
+  *   number of calls to 'initializeAudioOutput' - number of calls to 'teardownAudioOutput'
+  */
+  int & countUsers() {
+    static int n(0);
+    return n;
+  }
+
+  /*
+  * Protects access to countUsers() and the initialization / uninitialization of the global audio output stream
+  */
+  std::mutex & initMutex() {
+    static std::mutex m;
+    return m;
+  }
+}
+
+
+
 extern "C" {
 
 /*  void testFreeList() {
@@ -105,19 +126,48 @@ extern "C" {
   }*/
 
   /*
-  @param minLatencySeconds :
-    The minimum portaudio latency, in seconds.
-    Pass 0.f to use the smallest latency possible.
-  @param portaudioMinLatencyMillis :
-    If strictly positive, overrides the portaudio minimum latency by
-      setting an environment variable.
-
-    @returns true on success, false on error.
+  * Increments the count of users, and
+  *
+  * - If we are the first user:
+  *     initializes the audio output context,
+  *     taking into account the latency parameters,
+  * - Else:
+  *     returns the result of the first initialization,
+  *     ignoring the latency parameters.
+  *
+  * Every successfull or unsuccessfull call to this function
+  *   should be matched by a call to 'teardownAudioOutput'.
+  *   .
+  * @param minLatencySeconds :
+  *   The minimum portaudio latency, in seconds.
+  *   Pass 0.f to use the smallest latency possible.
+  * @param portaudioMinLatencyMillis :
+  *   If strictly positive, overrides the portaudio minimum latency by
+  *     setting an environment variable.
+  *
+  * @returns true on success, false on error.
   */
   bool initializeAudioOutput (float minLatencySeconds, int portaudioMinLatencyMillis) {
     using namespace std;
     using namespace imajuscule;
     using namespace imajuscule::audio;
+
+    std::lock_guard l(initMutex());
+    ++countUsers();
+    LG(INFO, "initializeAudioOutput: nUsers = %d", countUsers());
+
+    {
+      if( countUsers() > 1) {
+        // We are ** not ** the first user.
+        return getAudioContext().Initialized();
+      }
+      else if(countUsers() <= 0) {
+        LG(ERR, "initializeAudioOutput: nUsers = %d", countUsers());
+        Assert(0);
+        return getAudioContext().Initialized();
+      }
+    }
+
 #ifndef NDEBUG
     cout << "Warning : C++ sources of imj-audio were built without NDEBUG" << endl;
 #endif
@@ -151,18 +201,57 @@ extern "C" {
     }
     getXfadeChannels() = &xfadeChan;
 
-    return getAudioContext().Init(minLatencySeconds);
+    if(!getAudioContext().Init(minLatencySeconds)) {
+      return false;
+    }
+    // On macOS 10.13.5, this delay is necessary to be able to play sound,
+    //   it might be a bug in portaudio where Pa_StartStream doesn't wait for the
+    //   stream to be up and running.
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    return true;
   }
 
-  void stopAudioOutputGracefully() {
-    using namespace imajuscule::audio;
-    getAudioContext().onApplicationShouldClose();
-  }
-
+  /*
+  * Decrements the count of users, and if we are the last user,
+  *   shutdowns audio output after having driven the audio signal to 0.
+  *
+  * Every successfull or unsuccessfull call to 'initializeAudioOutput'
+  * must be matched by a call to this function.
+  */
   void teardownAudioOutput() {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;
+
+    std::lock_guard l(initMutex());
+
+    --countUsers();
+    LG(INFO, "teardownAudioOutput  : nUsers = %d", countUsers());
+    if(countUsers() > 0) {
+      // We are ** not ** the last user.
+      return;
+    }
+
+    if(getAudioContext().Initialized()) {
+      // This will "quickly" crossfade the audio output channels to zero.
+      getAudioContext().onApplicationShouldClose();
+
+      // we sleep whil channels are crossfaded to zero
+
+      int bufferSize = n_audio_cb_frames.load(std::memory_order_relaxed);
+      if(bufferSize == initial_n_audio_cb_frames) {
+        // assume a very big buffer size if the audio callback didn't have a chance
+        // to run yet.
+        bufferSize = 10000;
+      }
+      float latencyTime = bufferSize / static_cast<float>(SAMPLE_RATE);
+      float fadeOutTime = xfade_on_close / static_cast<float>(SAMPLE_RATE);
+      float marginTimeSeconds = 0.020f; // taking into account the time to run the code
+      float waitSeconds = 2*latencyTime + 2*fadeOutTime + marginTimeSeconds;
+      std::this_thread::sleep_for( std::chrono::milliseconds(1 + static_cast<int>(waitSeconds * 1000)));
+    }
+
+    // All channels have crossfaded to 0 by now.
 
     windVoice().finalize();
 

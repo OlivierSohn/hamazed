@@ -13,14 +13,16 @@ testReadMidi :: IO ()
 testReadMidi = do
   -- verify usingAudioOutput is reentrant
   res <- usingAudioOutput $ usingAudioOutput $ usingAudioOutput $ playMidiFile
-    -- "/Users/Olivier/Dev/hs.hamazed/liszt_hungarian_fantasia_for_orchestra_(c)laviano.mid"
-    "/Users/Olivier/Dev/hs.hamazed/tchaikovsky_swan_lake_10_(c)lucarelli (1).mid"
+    --"midi/liszt_hungarian_fantasia_for_orchestra_(c)laviano.mid"
+    --"midi/tchaikovsky_swan_lake_10_(c)lucarelli (1).mid"
+    "./midi/HappyBirthday.mid"
 
   res `shouldBe` (Right ())
 
   -- verify successive initialization / deinitialization is ok
   res2 <- usingAudioOutput $ playMidiFile
-    "/Users/Olivier/Dev/hs.hamazed/tchaikovsky_swan_lake_10_(c)lucarelli (1).mid"
+    --"./midi/tchaikovsky_swan_lake_10_(c)lucarelli (1).mid"
+    "./midi/HappyBirthday.mid"
 
   res2 `shouldBe` (Right ())
 

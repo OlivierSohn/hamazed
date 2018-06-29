@@ -1,5 +1,6 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 {-|
 The functions in this module use
@@ -81,6 +82,7 @@ module Imj.Audio.Output
 
 import           Control.Monad.IO.Unlift(MonadUnliftIO, liftIO)
 import           Data.Bool(bool)
+import           Data.Text(Text)
 import           Foreign.C
 import           UnliftIO.Exception(bracket)
 
@@ -104,7 +106,7 @@ import           Imj.Timing
 -- 'usingAudioOutputWithMinLatency' in the action passed as parameter.
 usingAudioOutput :: MonadUnliftIO m
                  => m a
-                 -> m a
+                 -> m (Either Text a)
 usingAudioOutput = usingAudioOutputWithMinLatency $ fromSecs 0.008
 
 -- | Same as 'usingAudioOutput' except that the minimum latency can be configured.
@@ -121,11 +123,11 @@ usingAudioOutputWithMinLatency :: MonadUnliftIO m
                                -- Hence, when in doubt, use 'usingAudioOutput' which uses
                                -- a safe default value.
                                -> m a
-                               -> m a
+                               -> m (Either Text a)
 usingAudioOutputWithMinLatency minLatency act =
   bracket bra ket $ either
-    (const $ fail "audio failed to initialize")
-    (const act)
+    (const $ return $ Left "Audio output failed to initialize")
+    (const $ fmap Right act)
 
  where
 

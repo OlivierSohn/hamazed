@@ -6,6 +6,7 @@
 module Main where
 
 import           Control.Concurrent(threadDelay)
+import           Control.Monad(void)
 
 import           Imj.Audio
 import           Imj.Music.Compositions.Tchaikovski
@@ -13,7 +14,7 @@ import           Imj.Music.Compositions.Vivaldi
 
 
 main :: IO ()
-main = usingAudioOutput -- WithMinLatency 0
+main = void $ usingAudioOutput -- WithMinLatency 0
      $ do
   --stressTest
   --threadDelay 10000

@@ -177,14 +177,12 @@ play :: MusicalEvent
      -- ^ 'True' if the call succeeds.
 play (StartNote n@(InstrumentNote _ _ i) (NoteVelocity v)) = case i of
   SineSynthAHDSR e ahdsr -> midiNoteOnAHDSR (fromIntegral $ fromEnum e) ahdsr pitch vel
-  SineSynth ect -> midiNoteOn (fromIntegral $ unEnvelopeCharacteristicTime ect) pitch vel
   Wind k -> effectOn (fromIntegral k) pitch vel
  where
   (MidiPitch pitch) = instrumentNoteToMidiPitch n
   vel = CFloat v
 play (StopNote n@(InstrumentNote _ _ i)) = case i of
   SineSynthAHDSR e ahdsr -> midiNoteOffAHDSR (fromIntegral $ fromEnum e) ahdsr pitch
-  SineSynth ect -> midiNoteOff (fromIntegral $ unEnvelopeCharacteristicTime ect) pitch
   Wind _ -> effectOff pitch
  where
   (MidiPitch pitch) = instrumentNoteToMidiPitch n
@@ -198,7 +196,5 @@ midiNoteOnAHDSR  t (AHDSR'Envelope a h d r ai di ri s) i v =
 
 foreign import ccall "effectOn" effectOn :: CInt -> CShort -> CFloat -> IO Bool
 foreign import ccall "effectOff" effectOff :: CShort -> IO Bool
-foreign import ccall "midiNoteOn" midiNoteOn :: CInt -> CShort -> CFloat -> IO Bool
-foreign import ccall "midiNoteOff" midiNoteOff :: CInt -> CShort -> IO Bool
 foreign import ccall "midiNoteOnAHDSR_" midiNoteOnAHDSR_ :: CInt -> CInt -> CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CInt -> CShort -> CFloat -> IO Bool
 foreign import ccall "midiNoteOffAHDSR_" midiNoteOffAHDSR_ :: CInt -> CInt -> CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CInt -> CShort -> IO Bool

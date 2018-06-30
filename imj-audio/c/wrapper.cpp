@@ -257,7 +257,6 @@ extern "C" {
 
     static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
 
-    Synths<SimpleLinearEnvelope<A, AudioFloat>>::finalize();
     Synths<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::WaitForKeyRelease>>::finalize();
     Synths<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>>::finalize();
 
@@ -265,27 +264,6 @@ extern "C" {
 
     getAudioContext().getChannelHandler().getChannels().getChannelsXFade().clear();
     getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade().clear();
-  }
-
-  bool midiNoteOn(int envelCharacTime, int16_t pitch, float velocity) {
-    using namespace imajuscule;
-    using namespace imajuscule::audio;
-    using namespace imajuscule::audioelement;
-    static constexpr auto A = getAtomicity<Ctxt::policy>();
-    if(unlikely(!getAudioContext().Initialized())) {
-      return false;
-    }
-    return convert(midiEvent<SimpleLinearEnvelope<A, AudioFloat>>(envelCharacTime, mkNoteOn(pitch,velocity)));
-  }
-  bool midiNoteOff(int envelCharacTime, int16_t pitch) {
-    using namespace imajuscule;
-    using namespace imajuscule::audio;
-    using namespace imajuscule::audioelement;
-    static constexpr auto A = getAtomicity<Ctxt::policy>();
-    if(unlikely(!getAudioContext().Initialized())) {
-      return false;
-    }
-    return convert(midiEvent<SimpleLinearEnvelope<A, AudioFloat>>(envelCharacTime, mkNoteOff(pitch)));
   }
 
   bool midiNoteOnAHDSR_(imajuscule::envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int16_t pitch, float velocity) {

@@ -1,8 +1,18 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Imj.Music.Midi
-      ( playMidiFile
+      ( -- * Easy
+        playMidiFile
+      -- * Advanced
+      , mkMidiPartition
+      , runMidiPartitionWith
+      , midiEventHandler'PlayAnd
+      , PlayState(..)
+      , ActiveNotes
+      -- * Reexported for tests
+      , hasFinishedConsistently
       ) where
 
 import           Prelude(print, putStrLn, fromRational)
@@ -27,25 +37,43 @@ import           Imj.Timing
 -- TODO provide a volume parameter to avoid saturation, and a function to map 0..127 velocity to 0..1.
 -- TODO provide the choice of volume adjustment wrt frequency (yes, no, continuous)
 -- TODO use white noise to handle the drums on beginning of /Users/Olivier/Dev/hs.hamazed/liszt_hungarian_fantasia_for_orchestra_(c)laviano.mid
+
 -- | Plays a midifile, and prints unhandled events to stdout.
+--
+-- Must be called within an action passed to 'usingAudioOutput' or 'usingAudioOutputWithMinLatency'
 playMidiFile :: FilePath
-             -> IO (Either () ())
-playMidiFile p =
-  mkMidiPartition p >>= playMidiPartition
+             -> Instrument
+             -> IO (Either ActiveNotes ActiveNotes)
+playMidiFile p i =
+  mkMidiPartition p >>= runMidiPartitionWith
+    (midiEventHandler'PlayAnd i print mkEmptyActiveNotes insertNote removeNote maybeRender)
+
+data ActiveNotes = AN {
+    _byChannel :: Map ChannelMsg.Channel ChannelState
+  , _step :: !Step
+  , _renderedAt :: !Step
+} deriving(Show, Eq)
+
+mkEmptyActiveNotes :: ActiveNotes
+mkEmptyActiveNotes = AN mempty firstStep (pred firstStep)
+
+hasFinishedConsistently :: ActiveNotes -> Either Text ()
+hasFinishedConsistently (AN ma a b)
+  | countActiveNotes > 0 = Left "didn't finish playing"
+  | a /= b = Left "did't render all"
+  | otherwise = Right ()
+ where
+  countActiveNotes = Map.foldl' (\n (CS _ l) -> n + length l) 0 ma
 
 data ChannelState = CS {
     _order :: !Int
     -- ^ order of appearance of the channel in the song.
   , _activeNotes :: !ChannelNotes
-}
-data ActiveNotes = AN {
-    _byChannel :: Map ChannelMsg.Channel ChannelState
-  , _step :: !Step
-  , _renderedAt :: !Step
-}
+} deriving(Show, Eq)
 
-mkEmptyActiveNotes :: ActiveNotes
-mkEmptyActiveNotes = AN mempty firstStep (pred firstStep)
+type ChannelNotes = [(Voice.Pitch, Voice.Velocity, Rank, Step)]
+    -- ^ The 'Rank's are unique among the list, strictly positive,
+    -- and inserted elements are assigned a minimal rank.
 
 newtype Rank = Rank Int
   deriving(Show, Ord, Eq, Enum, Integral, Real, Num)
@@ -59,9 +87,55 @@ newtype Step = Step Int
 firstStep :: Step
 firstStep = Step 0
 
-type ChannelNotes = [(Voice.Pitch, Voice.Velocity, Rank, Step)]
-    -- ^ The 'Rank's are unique among the list, strictly positive,
-    -- and inserted elements are assigned a minimal rank.
+data PlayState a = PlayState {
+    initialState :: !a
+  , onMidiEvent :: Evt.T -> a -> IO (a, Bool)
+  -- ^ Is called when 'runMidiPartitionWith' encounters a midi event.
+  --  Returns 'True' to continue playing.
+  , onMayRender :: a -> IO a
+    -- ^ Is called when 'runMidiPartitionWith' detects a gap between the last handled event
+    -- and the next one.
+}
+
+-- | This handler plays the midi notes, and lets you customize the rendering
+-- by passing appropriate parameters.
+midiEventHandler'PlayAnd :: Instrument
+                         -> (Evt.T -> IO ())
+                         -- ^ Called when a non-note event is encountered.
+                         -> a
+                         -- ^ Initial state
+                         -> (ChannelMsg.Channel -> Voice.Pitch -> Voice.Velocity -> a -> a)
+                         -- ^ Called to update the state when a note has started playing
+                         -> (ChannelMsg.Channel -> Voice.Pitch -> a -> a)
+                         -- ^ Called to update the state when a note has stopped playing
+                         -> (a -> IO a)
+                         -- ^ Called when it is time to maybe-render 'a'
+                         -> PlayState a
+midiEventHandler'PlayAnd instrument onOtherEvent i onStart onStop mayRender =
+  PlayState i onMidiEvt mayRender
+ where
+  onMidiEvt evt s = case evt of
+    (Evt.MIDIEvent (ChannelMsg.Cons channel body)) -> case body of
+      ChannelMsg.Voice v -> case v of
+        Voice.NoteOn pitch vel ->
+          (,)
+            (onStart channel pitch vel s)
+            <$> play (StartNote
+                  (mkInstrumentNote (fromIntegral $ Voice.fromPitch pitch) instrument)
+                  $ mkNoteVelocity $ Voice.fromVelocity vel)
+        Voice.NoteOff pitch _ ->
+          (,)
+            (onStop channel pitch s)
+            <$> play (StopNote $ mkInstrumentNote (fromIntegral $ Voice.fromPitch pitch) instrument)
+        _ -> do
+          onOtherEvent evt
+          return (s,True)
+      _ -> do
+        onOtherEvent evt
+        return (s,True)
+    _ -> do
+      onOtherEvent evt
+      return (s,True)
 
 prettyShowChannels :: ActiveNotes -> String
 prettyShowChannels (AN an _ prevRenderedI) =
@@ -138,58 +212,41 @@ mkMidiPartition p = do
   (Cons midiType division tracks) <- explicitNoteOff <$> fromFile p
   return $ toPairList $ secondsFromTicks division $ mergeTracks midiType tracks
 
-playMidiPartition :: [(Rational, Evt.T)]
-                  -> IO (Either () ())
-playMidiPartition part = do
+
+runMidiPartitionWith :: PlayState a
+                     -- ^ 'PlayState' encapsulates the logic to render
+                     -- (play, print, etc...) the played notes.
+                     -> [(Rational, Evt.T)]
+                     -> IO (Either a a)
+runMidiPartitionWith stateFuns part = do
   start <- getSystemTime
   run part start
  where
   run a start =
-    go a 0 mkEmptyActiveNotes
+    go a 0 $ initialState stateFuns
    where
-    go [] _ _ = return $ Right ()
-    go ((timeToWait,whatToPlay):rest) time initialActiveNotes = do
-      let mayAct = case whatToPlay of
-            (Evt.MIDIEvent (ChannelMsg.Cons channel body)) -> case body of
-              ChannelMsg.Mode _ -> Just (print whatToPlay >> return True, id)
-              ChannelMsg.Voice v -> case v of
-                Voice.NoteOn pitch vel ->
-                  Just (do
-                    play $ StartNote
-                      (mkInstrumentNote (fromIntegral $ Voice.fromPitch pitch) simpleInstrument)
-                      $ mkNoteVelocity $ Voice.fromVelocity vel
-                  , insertNote channel pitch vel)
-                Voice.NoteOff pitch _ ->
-                  Just
-                    (play $ StopNote $ mkInstrumentNote (fromIntegral $ Voice.fromPitch pitch) simpleInstrument
-                  , removeNote channel pitch)
-                _ -> Nothing
-            _ -> Just (print whatToPlay >> return True, id)
+    go [] _ state1 = do
+      Right <$> onMayRender stateFuns state1
+    go ((timeToWait,whatToPlay):rest) time state1 = do
       let wait = toNumber timeToWait
-          newTime = time + wait
-      activeNotes <-
+      state2 <-
         if wait > 0
           then
             -- we may wait so we allow to render.
-            maybeRender initialActiveNotes
+            onMayRender stateFuns state1
           else
-            return initialActiveNotes
-      maybe
-        (go rest newTime activeNotes)
-        (\(action, stateNotes) -> do
-            let newTimeApprox = addDuration (fromSecs $ fromRational newTime) start
-            now <- getSystemTime
-            let duration = toMicros $ now...newTimeApprox
-                newActiveNotes = stateNotes activeNotes
-            when (duration > 0) $ threadDelay $ fromIntegral duration
-            continue <- action
-            if continue
-              then
-                go rest newTime newActiveNotes
-              else
-                return $ Left ()
-          )
-        mayAct
+            return state1
+      let newTime = time + wait
+          newTimeApprox = addDuration (fromSecs $ fromRational newTime) start
+      now <- getSystemTime
+      let duration = fromIntegral $ toMicros $ now...newTimeApprox
+      when (duration > 0) $ threadDelay duration
+      (state3, continue) <- onMidiEvent stateFuns whatToPlay state2
+      if continue
+        then
+          go rest newTime state3
+        else
+          return $ Left state3
 
 justifyR, justifyL :: Int -> String -> String
 justifyR n x =

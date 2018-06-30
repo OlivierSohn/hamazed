@@ -1,10 +1,4 @@
-
 - make instruments scale : if a given instrument is full, instantiate a second identical instrument
-
-- swan lake act2 n.10 scene (moderato)
-http://www.kunstderfuge.com/tchaikovsky.htm
-
-read midi file, play it with simple instruments
 
 - those locations should be fixed in Grid3d:
 
@@ -23,14 +17,11 @@ long attack, EaseIn Sine : smooth
 
 - make volume of music / effects adjustable in hamazed
 
-- limit the sustain value to 0.01 when using propder for decay
+- limit the sustain value to 0.01 when using proper for decay
 
 - on soundengine, instead of using the channel xfade,
 the duration could be interpreted by the channel as "when to trigger the enveloppe keyReleased()"
 (thus, also when to trigger the enveloppe of the following request).
-
-- develop enveloppes:
-use leap motion as input for envelope / pitch?
 
 - synths : verify if with 2 players, ghost notes occur.
 

@@ -29,7 +29,7 @@ namespace imajuscule {
     template <typename Envel>
     using VolumeAdjustedOscillator =
       FinalAudioElement<
-        Envelopped<
+        Enveloped<
           VolumeAdjusted<
             OscillatorAlgo<
               typename Envel::FPT
@@ -47,25 +47,10 @@ namespace imajuscule {
     template<typename S>
     struct HasNoteOff;
 
-    template<Atomicity A, typename T>
-    struct ClampParam<SimpleLinearEnvelope<A, T>> {
-      static auto clamp(int envelCharacTime) {
-        return std::max(envelCharacTime, 100);
-      }
-    };
-
     template<Atomicity A, typename T, EnvelopeRelease Rel>
     struct ClampParam<AHDSREnvelope<A, T, Rel>> {
       static auto clamp(AHDSR const & env) {
         return env; // TODO clamp according to AHDSREnvelope
-      }
-    };
-
-    template<Atomicity A, typename T>
-    struct SetParam<SimpleLinearEnvelope<A, T>> {
-      template<typename B>
-      static void set(int dt, B & b) {
-        b.forEachElems([dt](auto & e) { e.algo.editEnveloppe().setEnvelopeCharacTime(dt); });
       }
     };
 
@@ -77,16 +62,10 @@ namespace imajuscule {
       }
     };
 
-    template<Atomicity A, typename T>
-    struct HasNoteOff<SimpleLinearEnvelope<A, T>> {
-      static constexpr bool value = true;
-    };
-
     template<Atomicity A, typename T, EnvelopeRelease Rel>
     struct HasNoteOff<AHDSREnvelope<A, T, Rel>> {
       static constexpr bool value = Rel == EnvelopeRelease::WaitForKeyRelease;
     };
-
 
     template<typename Env>
     std::pair<std::vector<float>, int> envelopeGraphVec(typename Env::Param const & rawEnvParams) {

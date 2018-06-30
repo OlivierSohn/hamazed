@@ -119,20 +119,25 @@ by 'analyzeAHDSREnvelope' gives:
    key is pressed        key is released
 @
 
-Attack, decay and release phases can be shaped using an 'Interpolation'.
+'ahdsrAttack', 'ahdsrDecay' and 'ahdsrRelease' durations are hints from which the
+audio engine will deduce the actual attack / decay / release durations:
+actual values will be at least the hint values, and at least 2.5 times
+the period of the sound, to avoid any audible crack.
+
+Attack, Decay and Release phases can be shaped using an 'Interpolation'.
 -}
 data AHDSR'Envelope = AHDSR'Envelope {
     ahdsrAttack :: {-# UNPACK #-} !Int
-    -- ^ Attack duration : the number of samples between when the key is pressed and when the
+    -- ^ Hint for the number of samples between when the key is pressed and when the
     -- envelope reaches 1
   , ahdsrHold :: {-# UNPACK #-} !Int
-    -- ^ Hold duration: the number of samples during which the full value, 1, will be maintained
+    -- ^ Hint for the number of samples during which the full value, 1, will be maintained
     -- after the attack.
   , ahdsrDecay :: {-# UNPACK #-} !Int
-    -- ^ Decay duration: the number of samples between the end of the Hold phase and the beginning of
+    -- ^ Hint for the number of samples between the end of the Hold phase and the beginning of
     -- sustain.
   , ahdsrRelease :: {-# UNPACK #-} !Int
-    -- ^ Release duration: the number of samples between the moment the key is released and
+    -- ^ Release duration:  hint for number of samples between the moment the key is released and
     -- the moment the envelope reaches 0 (irrespective of wether the envelope had enough time
     -- to reach sustain or not).
   , ahdsrAttackItp :: !Interpolation

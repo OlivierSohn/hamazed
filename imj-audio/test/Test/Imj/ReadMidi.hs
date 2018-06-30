@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Test.Imj.ReadMidi
           ( testReadMidi
@@ -8,8 +9,9 @@ module Test.Imj.ReadMidi
 
 import           Data.Text(unpack)
 
-import           Imj.Music.Midi
 import           Imj.Audio.Output
+import           Imj.Music.Instrument
+import           Imj.Music.Midi
 
 testReadMidi :: IO ()
 testReadMidi = do
@@ -17,19 +19,24 @@ testReadMidi = do
   usingAudioOutput (return ()) >>= either
     (\e -> putStrLn $ "skipping test, no audio output is available :" ++ show (unpack e))
     (\_ -> do
+      let --part = "./midi/HappyBirthday.mid"
+          --part = "midi/liszt_hungarian_fantasia_for_orchestra_(c)laviano.mid" -- contains very low basses
+          part = "midi/tchaikovsky_swan_lake_10_(c)lucarelli (1).mid"
       -- verify usingAudioOutput is reentrant
-      res <- usingAudioOutput $ usingAudioOutput $ usingAudioOutput $ playMidiFile "./midi/HappyBirthday.mid"
-        --"midi/liszt_hungarian_fantasia_for_orchestra_(c)laviano.mid"
-        --"midi/tchaikovsky_swan_lake_10_(c)lucarelli (1).mid"
-
-      res `shouldBe` (Right (Right (Right (Right ()))))
+      usingAudioOutput (usingAudioOutput $ usingAudioOutput $
+        playMidiFile part $ trapezoidalInstrument 401)
+          >>= \case
+        (Right (Right (Right (Right an)))) ->
+          hasFinishedConsistently an `shouldBe` Right ()
+        _ -> fail ""
 
       -- verify successive initialization / deinitialization is ok
-      res2 <- usingAudioOutput $ playMidiFile "./midi/HappyBirthday.mid"
-        --"./midi/tchaikovsky_swan_lake_10_(c)lucarelli (1).mid"
-
-      res2 `shouldBe` (Right (Right ()))
-      return ()
+      usingAudioOutput(
+        playMidiFile part $ trapezoidalInstrument 5000)
+          >>= \case
+        (Right (Right an)) ->
+          hasFinishedConsistently an `shouldBe` Right ()
+        _ -> fail ""
       )
 
 

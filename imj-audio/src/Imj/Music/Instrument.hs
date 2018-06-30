@@ -12,8 +12,6 @@ module Imj.Music.Instrument
       , mkInstrumentNote
       , NoteVelocity(..)
       , mkNoteVelocity
-      , EnvelopeCharacteristicTime
-      , unEnvelopeCharacteristicTime
       -- * Analyze envelope
       , envelopeShape
       -- * Utilities
@@ -30,6 +28,7 @@ module Imj.Music.Instrument
       , stringsInstrument
       , longInstrument
       , longBellInstrument
+      , trapezoidalInstrument
       ) where
 
 
@@ -80,14 +79,11 @@ mkNoteVelocity i
 envelopeShape :: Instrument -> IO [Vector Float]
 envelopeShape = \case
   SineSynthAHDSR e ahdsr -> analyzeAHDSREnvelope e ahdsr
-  SineSynth _ -> return []
   Wind _ -> return []
 
 -- | A musical instrument (or musical effect).
 data Instrument =
-    SineSynth !EnvelopeCharacteristicTime
-    -- ^ Simple sinus synthethizer, with phase randomization, and trapezoïdal linear envelope.
-  | SineSynthAHDSR !ReleaseMode !AHDSR'Envelope
+    SineSynthAHDSR !ReleaseMode !AHDSR'Envelope
     -- ^ Envelope-based synthethizer, with phase randomization.
   | Wind !Int
   -- ^ Wind sound effect, modelled using filtered noise.
@@ -113,28 +109,17 @@ mkInstrumentNote pitch i =
  where
   (n,o) = midiPitchToNoteAndOctave pitch
 
-{- |
-@
-   | c |                | c |
-       ------------------                  < 1
-      .                  .
-     .                    .                < s
-    .                      .
- ---                        -------------  < 0
-   ^                     ^
-   |                     |
-   key is pressed        key is released
-@
--}
-newtype EnvelopeCharacteristicTime = EnvelCharacTime {unEnvelopeCharacteristicTime :: Int}
-  deriving(Generic, Show, Ord, Eq, Data)
-instance Binary EnvelopeCharacteristicTime
-instance NFData EnvelopeCharacteristicTime
 
 
 simpleInstrument, bellInstrument, organicInstrument, shortInstrument, testInstrument, stringsInstrument :: Instrument
 longInstrument, longBellInstrument, bell2Instrument :: Instrument
-simpleInstrument = SineSynth $ EnvelCharacTime 100
+simpleInstrument = SineSynthAHDSR KeyRelease $
+  AHDSR'Envelope
+    401 0 0 401
+    Linear
+    Linear
+    Linear
+    1
 bellInstrument = SineSynthAHDSR AutoRelease $
   AHDSR'Envelope
     500 200 40000 30000
@@ -191,3 +176,11 @@ longBellInstrument = SineSynthAHDSR AutoRelease
       ProportionaValueDerivative
       (Eased EaseOut Sine)
       0.138
+trapezoidalInstrument :: Int -> Instrument
+trapezoidalInstrument i = SineSynthAHDSR KeyRelease
+  $ AHDSR'Envelope
+      i 0 0 i
+      Linear
+      ProportionaValueDerivative
+      Linear
+      1

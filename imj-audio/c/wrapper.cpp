@@ -20,110 +20,68 @@ namespace imajuscule::audio {
     static std::mutex m;
     return m;
   }
+
+  bool convert(onEventResult e) {
+    switch(e) {
+      case onEventResult::OK:
+        return true;
+      default:
+        return false;
+    }
+  }
 }
+
+namespace imajuscule::audioelement {
+
+
+  template<typename Env>
+  float* envelopeGraph(typename Env::Param const & rawEnvParams, int*nElems, int*splitAt) {
+    std::vector<float> v;
+    int split;
+    std::tie(v, split) = envelopeGraphVec<Env>(rawEnvParams);
+    if(nElems) {
+      *nElems = v.size();
+    }
+    if(splitAt) {
+      *splitAt = split;
+    }
+    auto n_bytes = v.size()*sizeof(decltype(v[0]));
+    auto c_arr = imj_c_malloc(n_bytes); // will be freed by haskell finalizer.
+    memcpy(c_arr, v.data(), n_bytes);
+    return static_cast<float*>(c_arr);
+  }
+
+  float* analyzeEnvelopeGraph(EnvelopeRelease t, AHDSR p, int* nElems, int*splitAt) {
+    static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
+    switch(t) {
+      case EnvelopeRelease::ReleaseAfterDecay:
+        return envelopeGraph<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>>(p, nElems, splitAt);
+      case EnvelopeRelease::WaitForKeyRelease:
+        return envelopeGraph<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::WaitForKeyRelease>>(p, nElems, splitAt);
+      default:
+        return {};
+    }
+  }
+
+  audio::onEventResult midiEventAHDSR(EnvelopeRelease t, AHDSR p, audio::Event n) {
+    using namespace audio;
+    static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
+    switch(t) {
+      case EnvelopeRelease::ReleaseAfterDecay:
+        return midiEvent<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>>(p, n);
+      case EnvelopeRelease::WaitForKeyRelease:
+        return midiEvent<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::WaitForKeyRelease>>(p, n);
+      default:
+      Assert(0);
+      return onEventResult::DROPPED_NOTE;
+    }
+  }
+
+} // NS imajuscule::audioelement
 
 
 
 extern "C" {
-
-/*  void testFreeList() {
-    using FL = imajuscule::FreeList<int64_t, 4096/sizeof(int64_t)>;
-    FL l;
-    l.Take();
-// should the size of the free list be limited to a page/ aligned to the start of the page?
-    using namespace imajuscule::audioelement;
-    using namespace imajuscule::audio::mySynth;
-    using namespace imajuscule::audio;
-    std::cout << "sizeof synth " << sizeof(SynthT<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>) << std::endl;
-    std::cout << "sizeof mnc " << sizeof(MonoNoteChannel<VolumeAdjustedOscillator<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>, NoXFadeChans>) << std::endl;
-    std::cout << "sizeof au " << sizeof(AEBuffer<float>) << std::endl;
-    std::cout << "sizeof aub " << sizeof(AEBuffer<float>::buffer_placeholder_t) << std::endl;
-    union {
-        AEBuffer<float>::buffer_placeholder_t for_alignment;
-        float buffer[n_frames_per_buffer];
-    } u;
-    std::cout << "sizeof auu " << sizeof(u) << std::endl;
-
-    struct F { // 64 bytes
-      union {
-          AEBuffer<float>::buffer_placeholder_t for_alignment;
-          float buffer[n_frames_per_buffer];
-      };
-    };
-    struct G_ { // 128 bytes
-      union {
-          AEBuffer<float>::buffer_placeholder_t for_alignment;
-          float buffer[n_frames_per_buffer];
-      };
-      bool me : 1;
-    };
-    struct G { // 128 bytes
-      union {
-          AEBuffer<float>::buffer_placeholder_t for_alignment;
-          float buffer[n_frames_per_buffer];
-      };
-      bool me : 1;
-    }__attribute__((packed));
-    struct G2 { // 128 bytes
-      union {
-          AEBuffer<float>::buffer_placeholder_t for_alignment;
-          float buffer[n_frames_per_buffer];
-      };
-      bool me;
-    }__attribute__((packed));
-    struct g2_ : public G2 {
-      int32_t i;
-    }__attribute__((packed));
-    struct g2 : public G2 {
-      int32_t i : 3;
-    }__attribute__((packed));
-
-    struct H { // 68 bytes
-      union {
-          float buffer[n_frames_per_buffer];
-      };
-      bool me : 1;
-    };
-    struct H2 { // 68 bytes
-      float buffer[n_frames_per_buffer];
-      bool me : 1;
-    };
-    struct I { // 128 bytes
-      union {
-          AEBuffer<float>::buffer_placeholder_t for_alignment;
-      };
-      bool me : 1;
-    };
-    struct I2 { // 128 bytes
-      AEBuffer<float>::buffer_placeholder_t for_alignment;
-      bool me : 1;
-    };
-    struct i2_ : public I2 {
-      int stuff;
-    };
-    struct i2 : public I2 {
-      int stuff;
-    }__attribute__((packed));
-    struct ii2 : public i2 {
-      int stuff2;
-    };
-
-    std::cout << "sizeof F " << sizeof(F) << std::endl;
-    std::cout << "sizeof G_ " << sizeof(G_) << std::endl;
-    std::cout << "sizeof G " << sizeof(G) << std::endl;
-    std::cout << "sizeof G2 " << sizeof(G2) << std::endl;
-    std::cout << "sizeof g2_ " << sizeof(g2_) << std::endl;
-    std::cout << "sizeof g2 " << sizeof(g2) << std::endl;
-    std::cout << "sizeof H " << sizeof(H) << std::endl;
-    std::cout << "sizeof H2 " << sizeof(H2) << std::endl;
-    std::cout << "sizeof I " << sizeof(I) << std::endl;
-    std::cout << "sizeof I2 " << sizeof(I2) << std::endl;
-    std::cout << "sizeof i2_ " << sizeof(i2_) << std::endl;
-    std::cout << "sizeof i2 " << sizeof(i2) << std::endl;
-    std::cout << "sizeof ii2 " << sizeof(ii2) << std::endl;
-
-    std::cout << "sizeof NoXFadeChans " << sizeof(NoXFadeChans) << std::endl;
-  }*/
 
   /*
   * Increments the count of users, and
@@ -266,7 +224,7 @@ extern "C" {
     getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade().clear();
   }
 
-  bool midiNoteOnAHDSR_(imajuscule::envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int16_t pitch, float velocity) {
+  bool midiNoteOnAHDSR_(imajuscule::audioelement::EnvelopeRelease t, int a, int ai, int h, int d, int di, float s, int r, int ri, int16_t pitch, float velocity) {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;
@@ -277,7 +235,7 @@ extern "C" {
     auto n = mkNoteOn(pitch,velocity);
     return convert(midiEventAHDSR(t, p, n));
   }
-  bool midiNoteOffAHDSR_(imajuscule::envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int16_t pitch) {
+  bool midiNoteOffAHDSR_(imajuscule::audioelement::EnvelopeRelease t, int a, int ai, int h, int d, int di, float s, int r, int ri, int16_t pitch) {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;
@@ -289,7 +247,7 @@ extern "C" {
     return convert(midiEventAHDSR(t, p, n));
   }
 
-  float* analyzeAHDSREnvelope_(imajuscule::envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int*nElems, int*splitAt) {
+  float* analyzeAHDSREnvelope_(imajuscule::audioelement::EnvelopeRelease t, int a, int ai, int h, int d, int di, float s, int r, int ri, int*nElems, int*splitAt) {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;

@@ -1,12 +1,12 @@
 /*
-This thin C++ layer on top of the audio-engine defines the
-notion of instruments and uses locks to protect concurrent accesses to
-instruments containers. These locks are acquired
-according to the same global order, everywhere in the code, so as to
-ensure that no deadlock will ever occur.
+  This C++ layer on top of the audio-engine defines the
+  notion of instruments and uses locks to protect concurrent accesses to
+  instruments containers. These locks are acquired
+  according to the same global order, everywhere in the code, so as to
+  ensure that no deadlock will ever occur.
 
-Note that these locks are not taken by the audio realtime thread,
-which remains lock-free unless IMJ_AUDIO_MASTERGLOBALLOCK is used.
+  These locks are not taken by the audio realtime thread,
+  which remains lock-free unless IMJ_AUDIO_MASTERGLOBALLOCK is used.
 */
 
 #include "compiler.prepro.h"
@@ -16,12 +16,6 @@ which remains lock-free unless IMJ_AUDIO_MASTERGLOBALLOCK is used.
 #ifdef __cplusplus
 
 namespace imajuscule {
-
-  enum class envelType {
-      AHDSR_WaitForKeyRelease
-    , AHDSR_ReleaseAfterDecay
-  };
-
   namespace audioelement {
 
     using AudioFloat = float;
@@ -41,18 +35,9 @@ namespace imajuscule {
       >;
 
     template<typename S>
-    struct ClampParam;
-    template<typename S>
     struct SetParam;
     template<typename S>
     struct HasNoteOff;
-
-    template<Atomicity A, typename T, EnvelopeRelease Rel>
-    struct ClampParam<AHDSREnvelope<A, T, Rel>> {
-      static auto clamp(AHDSR const & env) {
-        return env; // TODO clamp according to AHDSREnvelope
-      }
-    };
 
     template<Atomicity A, typename T, EnvelopeRelease Rel>
     struct SetParam<AHDSREnvelope<A, T, Rel>> {
@@ -68,9 +53,8 @@ namespace imajuscule {
     };
 
     template<typename Env>
-    std::pair<std::vector<float>, int> envelopeGraphVec(typename Env::Param const & rawEnvParams) {
+    std::pair<std::vector<float>, int> envelopeGraphVec(typename Env::Param const & envParams) {
       Env e;
-      auto envParams = ClampParam<Env>::clamp(rawEnvParams);
       e.setAHDSR(envParams);
       // emulate a key-press
       e.onKeyPressed();
@@ -96,25 +80,6 @@ namespace imajuscule {
       }
       return {std::move(v),splitAt};
     }
-
-    template<typename Env>
-    float* envelopeGraph(typename Env::Param const & rawEnvParams, int*nElems, int*splitAt) {
-      std::vector<float> v;
-      int split;
-      std::tie(v, split) = envelopeGraphVec<Env>(rawEnvParams);
-      if(nElems) {
-        *nElems = v.size();
-      }
-      if(splitAt) {
-        *splitAt = split;
-      }
-      auto n_bytes = v.size()*sizeof(decltype(v[0]));
-      auto c_arr = imj_c_malloc(n_bytes); // will be freed by haskell finalizer.
-      memcpy(c_arr, v.data(), n_bytes);
-      return static_cast<float*>(c_arr);
-    }
-
-    float* analyzeEnvelopeGraph(envelType t, AHDSR p, int* nElems, int*splitAt);
   }
 
   namespace audio {
@@ -147,8 +112,6 @@ namespace imajuscule {
     Event mkNoteOn(int pitch, float velocity);
 
     Event mkNoteOff(int pitch);
-
-    // no error above this
 
     namespace sine {
       template <typename Env>
@@ -259,41 +222,37 @@ namespace imajuscule {
       // Hence, while garbage collecting / recycling, if we take the map lock,
       // and if the instrument lock is not taken, we have the guarantee that
       // the instrument lock won't be taken until we release the map lock.
-      static Using<withChannels<T>> get(K const & rawEnvelParam) {
+      static Using<withChannels<T>> get(K const & envelParam) {
         using namespace audioelement;
+        // we use a global lock because we can concurrently modify and lookup the map.
+        std::lock_guard<std::mutex> l(mutex());
 
-        auto envelParam = ClampParam<Envel>::clamp(rawEnvelParam);
-        {
-          // we use a global lock because we can concurrently modify and lookup the map.
-          std::lock_guard<std::mutex> l(mutex());
+        auto & synths = map();
 
-          auto & synths = map();
-
-          auto it = synths.find(envelParam);
-          if(it != synths.end()) {
-            return Using(std::move(l), *(it->second));
-          }
-          if(auto * p = recycleInstrument(synths, envelParam)) {
-            return Using(std::move(l), *p);
-          }
-          auto [c,remover] = addNoXfadeChannels(T::n_channels);
-          auto p = std::make_unique<withChannels<T>>(c);
-          SetParam<Envel>::set(envelParam, p->obj);
-          if(!p->obj.initialize(p->chans)) {
-            auto oneSynth = synths.begin();
-            if(oneSynth != synths.end()) {
-              LG(ERR, "a preexisting synth is returned");
-              // The channels have the same lifecycle as the instrument, the instrument will be destroyed
-              //  so we remove the associated channels:
-              remover.flagForRemoval();
-              return Using(std::move(l), *(oneSynth->second.get()));
-            }
-            LG(ERR, "an uninitialized synth is returned");
-          }
-          return Using(
-              std::move(l)
-            , *(synths.emplace(envelParam, std::move(p)).first->second));
+        auto it = synths.find(envelParam);
+        if(it != synths.end()) {
+          return Using(std::move(l), *(it->second));
         }
+        if(auto * p = recycleInstrument(synths, envelParam)) {
+          return Using(std::move(l), *p);
+        }
+        auto [c,remover] = addNoXfadeChannels(T::n_channels);
+        auto p = std::make_unique<withChannels<T>>(c);
+        SetParam<Envel>::set(envelParam, p->obj);
+        if(!p->obj.initialize(p->chans)) {
+          auto oneSynth = synths.begin();
+          if(oneSynth != synths.end()) {
+            LG(ERR, "a preexisting synth is returned");
+            // The channels have the same lifecycle as the instrument, the instrument will be destroyed
+            //  so we remove the associated channels:
+            remover.flagForRemoval();
+            return Using(std::move(l), *(oneSynth->second.get()));
+          }
+          LG(ERR, "an uninitialized synth is returned");
+        }
+        return Using(
+            std::move(l)
+          , *(synths.emplace(envelParam, std::move(p)).first->second));
       }
 
       static void finalize() {
@@ -326,15 +285,16 @@ namespace imajuscule {
           }
           auto & o = *i;
           if(auto scoped = tryScopedLock(o.isUsed)) {
-            // we don't take the audio lock because hasOrchestratorsOrComputes relies on an
+            // we don't take the audio lock because 'hasRealtimeFunctions' relies on an
             // atomically incremented / decremented counter.
-            if(o.chans.hasOrchestratorsOrComputes()) {
+            if(o.chans.hasRealtimeFunctions()) {
               continue;
             }
 
-            // - we have 0 orchestrator and 0 computes
-            // - no note is being started, hence we won't increase the number of orchestrators or computes.
-            // Hence, all enveloppes should be finished : if one is not finished, it will not have a chance to ever finish.
+            // We can assume that all enveloppes are finished : should one
+            // not be finished, it would not have a chance to ever finish
+            // because there is 0 real-time std::function (oneShots/orchestrator/compute),
+            // and no note is being started, because the map mutex has been taken.
             Assert(o.obj.areEnvelopesFinished() && "inconsistent envelopes");
 
             // this code uses c++17 features not present in clang yet, so it's replaced by the code after.
@@ -363,9 +323,9 @@ namespace imajuscule {
       static auto addNoXfadeChannels(int nVoices) {
         static constexpr auto n_max_orchestrator_per_channel = 0; // we don't use orchestrators
         return getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade().emplace_front(
-            getAudioContext().getChannelHandler().get_lock_policy(),
-            std::min(nVoices, static_cast<int>(std::numeric_limits<uint8_t>::max())),
-            n_max_orchestrator_per_channel);
+          getAudioContext().getChannelHandler().get_lock_policy(),
+          std::min(nVoices, static_cast<int>(std::numeric_limits<uint8_t>::max())),
+          n_max_orchestrator_per_channel);
       }
     };
 
@@ -379,17 +339,6 @@ namespace imajuscule {
     VoiceWindImpl & windVoice();
 
   } // NS audio
-
-  namespace audioelement {
-
-    extern audio::onEventResult midiEventAHDSR(envelType t, AHDSR p, audio::Event n);
-
-  } // NS audioelement
-
-  namespace audio {
-    extern bool convert(onEventResult e);
-  }
-
-}
+} // NS imajuscule
 
 #endif

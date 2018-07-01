@@ -1,10 +1,15 @@
-- make instruments scale : if a given instrument is full, instantiate a second identical instrument
+- make instrument with harmonics, and a single envelope per harmonic.
+
+- [nice to have] allow unlimited polyphony on every instrument.
+.. if a given instrument is full, instantiate a second identical instrument:
+  the problem is we don't know to which instrument we should send noteoff.
+.. allow the underlying container of TunedPitch / Channel pairs to grow
 
 - those locations should be fixed in Grid3d:
 
   // TODO capture less
 
-- consider putting extras in cpp.audio
+- consider putting extras in cpp.audio, to have a nice C++ API
 
 - make a player app where a melody is played and we can interactively change the instrument used to play it.
 

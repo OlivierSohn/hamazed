@@ -1,5 +1,6 @@
 #include "compiler.prepro.h"
 #include "extras.h"
+#include "memory.h"
 
 #ifdef __cplusplus
 

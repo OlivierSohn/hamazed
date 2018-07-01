@@ -11,7 +11,6 @@
 
 #include "compiler.prepro.h"
 #include "cpp.audio/include/public.h"
-#include "memory.h"
 
 #ifdef __cplusplus
 
@@ -158,11 +157,7 @@ namespace imajuscule {
       }
 
       T obj;
-
-      // Note that if mononotechannel used pointers to the channels instead of ids
-      // we would not need this field:
       NoXFadeChans & chans;
-
       std::mutex isUsed;
 
       static constexpr auto n_mnc = T::n_channels;
@@ -172,9 +167,9 @@ namespace imajuscule {
 
     // a 'Using' instance gives the guarantee that the object 'o' passed to its constructor
     // won't be destroyed during the entire lifetime of the instance, iff the following conditions hold:
-    //   (1) T::~T() locks, then unlocks 'o.isUsed'
-    //   (2) 'protectsDestruction' passed to the constructor is currently locked
-    //          and 'o' cannot be destroyed until 'protectsDestruction' is unlocked
+    //   (1) 'protectsDestruction' passed to the constructor is currently locked
+    //   (2) T::~T() locks, then unlocks 'o.isUsed', so that 'o' cannot be destroyed
+    //         until 'protectsDestruction' is unlocked
     template<typename T>
     struct Using {
       T & o; // this reference makes the object move-only, which is what we want
@@ -225,7 +220,7 @@ namespace imajuscule {
       static Using<withChannels<T>> get(K const & envelParam) {
         using namespace audioelement;
         // we use a global lock because we can concurrently modify and lookup the map.
-        std::lock_guard<std::mutex> l(mutex());
+        std::lock_guard<std::mutex> l(map_mutex());
 
         auto & synths = map();
 
@@ -256,7 +251,7 @@ namespace imajuscule {
       }
 
       static void finalize() {
-        std::lock_guard<std::mutex> l(mutex());
+        std::lock_guard<std::mutex> l(map_mutex());
         for(auto & s : map()) {
           s.second->finalize();
         }
@@ -270,7 +265,7 @@ namespace imajuscule {
         static Map m;
         return m;
       }
-      static auto & mutex() {
+      static auto & map_mutex() {
         static std::mutex m;
         return m;
       }
@@ -297,12 +292,13 @@ namespace imajuscule {
             // and no note is being started, because the map mutex has been taken.
             Assert(o.obj.areEnvelopesFinished() && "inconsistent envelopes");
 
-            // this code uses c++17 features not present in clang yet, so it's replaced by the code after.
             /*
             auto node = synths.extract(it);
             node.key() = envelParam;
             auto [inserted, isNew] = synths.insert(std::move(node));
             */
+            // the code above uses C++17 features not present in clang yet, it is
+            // replaced by the code below.
             std::unique_ptr<withChannels<T>> new_p;
             new_p.swap(it->second);
             synths.erase(it);

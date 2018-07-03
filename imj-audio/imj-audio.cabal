@@ -93,10 +93,11 @@ Flag Assertions
 -- When cxx-sources and cxx-options will be available in cabal,
 -- we can merge this convenience library with the main library.
 -- Today if we merge the two, we have compilation flags conflicts because
--- the main library builds c.
+-- the main library builds c while converting an .hsc file to the corresponding
+-- .hs file.
 library imj-audio-cxx
   hs-source-dirs:      src
-  other-modules:
+  exposed-modules:     Imj.Audio.Dummy
   c-sources:           c/library.cpp
                      , c/memory.cpp
                      , c/extras.cpp
@@ -151,6 +152,8 @@ library
                      , Imj.Music.Midi
                      , Imj.Music.Play
                      , Imj.Music.Score
+-- To build the haddock doc, first remove 'imj-audio-cxx' from build-depends
+-- to circumvent https://github.com/haskell/cabal/issues/4215
   build-depends:       base >= 4.9 && < 4.12
                      , binary == 0.8.*
                      , containers ==0.5.*

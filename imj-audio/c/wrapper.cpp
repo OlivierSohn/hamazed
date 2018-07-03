@@ -64,14 +64,14 @@ namespace imajuscule::audioelement {
     }
   }
 
-  audio::onEventResult midiEventAHDSR(EnvelopeRelease t, AHDSR p, audio::Event n) {
+  audio::onEventResult midiEventAHDSR(EnvelopeRelease t, CConstArray<harmonicProperties_t> const & harmonics, AHDSR p, audio::Event n) {
     using namespace audio;
     static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
     switch(t) {
       case EnvelopeRelease::ReleaseAfterDecay:
-        return midiEvent<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>>(p, n);
+        return midiEvent<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>>(harmonics, p, n);
       case EnvelopeRelease::WaitForKeyRelease:
-        return midiEvent<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::WaitForKeyRelease>>(p, n);
+        return midiEvent<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::WaitForKeyRelease>>(harmonics, p, n);
       default:
       Assert(0);
       return onEventResult::DROPPED_NOTE;
@@ -225,7 +225,10 @@ extern "C" {
     getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade().clear();
   }
 
-  bool midiNoteOnAHDSR_(imajuscule::audioelement::EnvelopeRelease t, int a, int ai, int h, int d, int di, float s, int r, int ri, int16_t pitch, float velocity) {
+  bool midiNoteOnAHDSR_(imajuscule::audioelement::EnvelopeRelease t,
+                       int a, int ai, int h, int d, int di, float s, int r, int ri,
+                       harmonicProperties_t * hars, int har_sz,
+                       int16_t pitch, float velocity) {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;
@@ -234,9 +237,12 @@ extern "C" {
     }
     auto p = AHDSR{a,itp::toItp(ai),h,d,itp::toItp(di),r,itp::toItp(ri),s};
     auto n = mkNoteOn(pitch,velocity);
-    return convert(midiEventAHDSR(t, p, n));
+    return convert(midiEventAHDSR(t, {hars, har_sz}, p, n));
   }
-  bool midiNoteOffAHDSR_(imajuscule::audioelement::EnvelopeRelease t, int a, int ai, int h, int d, int di, float s, int r, int ri, int16_t pitch) {
+  bool midiNoteOffAHDSR_(imajuscule::audioelement::EnvelopeRelease t,
+                         int a, int ai, int h, int d, int di, float s, int r, int ri,
+                         harmonicProperties_t * hars, int har_sz,
+                         int16_t pitch) {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;
@@ -245,7 +251,7 @@ extern "C" {
     }
     auto p = AHDSR{a,itp::toItp(ai),h,d,itp::toItp(di),r,itp::toItp(ri),s};
     auto n = mkNoteOff(pitch);
-    return convert(midiEventAHDSR(t, p, n));
+    return convert(midiEventAHDSR(t, {hars, har_sz}, p, n));
   }
 
   float* analyzeAHDSREnvelope_(imajuscule::audioelement::EnvelopeRelease t, int a, int ai, int h, int d, int di, float s, int r, int ri, int*nElems, int*splitAt) {

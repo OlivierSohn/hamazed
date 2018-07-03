@@ -20,9 +20,9 @@ namespace imajuscule {
     using AudioFloat = float;
 
     template <typename Envel>
-    using VolumeAdjustedOscillator =
+    using VolumeAdjustedMultiOscillator =
       FinalAudioElement<
-        Enveloped<
+        MultiEnveloped<
           VolumeAdjusted<
             OscillatorAlgo<
               typename Envel::FPT
@@ -40,9 +40,13 @@ namespace imajuscule {
 
     template<Atomicity A, typename T, EnvelopeRelease Rel>
     struct SetParam<AHDSREnvelope<A, T, Rel>> {
-      template<typename B>
-      static void set(AHDSR const & env, B & b) {
-        b.forEachElems([&env](auto & e) { e.algo.editEnveloppe().setAHDSR(env); });
+      template<typename HarmonicsArray, typename B>
+      static void set(AHDSR const & env, HarmonicsArray const & props, B & b) {
+        b.forEachElems([&env, &props](auto & e) {
+          // the order is important, maybe we need a single method.
+          e.algo.setHarmonics(props);
+          e.algo.editEnvelope().setAHDSR(env);
+        });
       }
     };
 
@@ -118,7 +122,7 @@ namespace imajuscule {
         Ctxt::policy
       , Ctxt::nAudioOut
       , XfadePolicy::SkipXfade
-      , audioelement::Oscillator<Env>
+      , audioelement::MultiOscillator<Env>
       , audioelement::HasNoteOff<Env>::value
       , EventIterator<IEventList>
       , NoteOnEvent
@@ -131,7 +135,7 @@ namespace imajuscule {
         Ctxt::policy
       , Ctxt::nAudioOut
       , XfadePolicy::SkipXfade
-      , audioelement::VolumeAdjustedOscillator<Env>
+      , audioelement::VolumeAdjustedMultiOscillator<Env>
       , audioelement::HasNoteOff<Env>::value
       , EventIterator<IEventList>
       , NoteOnEvent
@@ -211,29 +215,54 @@ namespace imajuscule {
     template <typename Envel>
     struct Synths {
       using T = mySynth::SynthT<Envel>;
-      using K = typename Envel::Param;
+      using EnvelParamT = typename Envel::Param;
+
+      struct K {
+        template<typename HarmonicsArray>
+        K(HarmonicsArray const & harmonics, EnvelParamT const & p) :
+        harmonicsHash(audioelement::hashHarmonics(harmonics)),
+        p(p)
+        {}
+
+        bool operator < (K const & other) const {
+          if(harmonicsHash < other.harmonicsHash) {
+            return true;
+          }
+          else if(harmonicsHash > other.harmonicsHash) {
+            return false;
+          }
+          else {
+            return p < other.p;
+          }
+        }
+      private:
+        std::size_t harmonicsHash;
+        EnvelParamT p; // should we add this to the hash to reduce the size of the key?
+      };
 
       // NOTE the 'Using' is constructed while we hold the lock to the map.
       // Hence, while garbage collecting / recycling, if we take the map lock,
       // and if the instrument lock is not taken, we have the guarantee that
       // the instrument lock won't be taken until we release the map lock.
-      static Using<withChannels<T>> get(K const & envelParam) {
+      template<typename HarmonicsArray>
+      static Using<withChannels<T>> get(HarmonicsArray const & harmonics, EnvelParamT const & envelParam) {
         using namespace audioelement;
+        K key{harmonics,envelParam};
+
         // we use a global lock because we can concurrently modify and lookup the map.
         std::lock_guard<std::mutex> l(map_mutex());
 
         auto & synths = map();
-
-        auto it = synths.find(envelParam);
+        auto it = synths.find(key);
         if(it != synths.end()) {
           return Using(std::move(l), *(it->second));
         }
-        if(auto * p = recycleInstrument(synths, envelParam)) {
+        if(auto * p = recycleInstrument(synths, harmonics, envelParam, key)) {
           return Using(std::move(l), *p);
         }
         auto [c,remover] = addNoXfadeChannels(T::n_channels);
         auto p = std::make_unique<withChannels<T>>(c);
-        SetParam<Envel>::set(envelParam, p->obj);
+        SetParam<Envel>::set(envelParam, harmonics, p->obj);
         if(!p->obj.initialize(p->chans)) {
           auto oneSynth = synths.begin();
           if(oneSynth != synths.end()) {
@@ -247,7 +276,7 @@ namespace imajuscule {
         }
         return Using(
             std::move(l)
-          , *(synths.emplace(envelParam, std::move(p)).first->second));
+          , *(synths.emplace(key, std::move(p)).first->second));
       }
 
       static void finalize() {
@@ -271,7 +300,8 @@ namespace imajuscule {
       }
 
       /* The caller is expected to take the map mutex. */
-      static withChannels<T> * recycleInstrument(Map & synths, K const & envelParam) {
+      template<typename HarmonicsArray>
+      static withChannels<T> * recycleInstrument(Map & synths, HarmonicsArray const & harmonics, EnvelParamT const & envelParam, K const & key) {
         for(auto it = synths.begin(), end = synths.end(); it != end; ++it) {
           auto & i = it->second;
           if(!i) {
@@ -302,11 +332,11 @@ namespace imajuscule {
             std::unique_ptr<withChannels<T>> new_p;
             new_p.swap(it->second);
             synths.erase(it);
-            auto [inserted, isNew] = synths.emplace(envelParam, std::move(new_p));
+            auto [inserted, isNew] = synths.emplace(key, std::move(new_p));
 
             Assert(isNew); // because prior to calling this function, we did a lookup
             using namespace audioelement;
-            SetParam<Envel>::set(envelParam, inserted->second->obj);
+            SetParam<Envel>::set(envelParam, harmonics, inserted->second->obj);
             return inserted->second.get();
           }
           else {
@@ -325,9 +355,9 @@ namespace imajuscule {
       }
     };
 
-    template<typename Env>
-    onEventResult midiEvent(typename Env::Param const & env, Event e) {
-      return Synths<Env>::get(env).o.onEvent2(e, getAudioContext().getChannelHandler());
+    template<typename Env, typename HarmonicsArray>
+    onEventResult midiEvent(HarmonicsArray const & harmonics, typename Env::Param const & env, Event e) {
+      return Synths<Env>::get(harmonics, env).o.onEvent2(e, getAudioContext().getChannelHandler());
     }
 
     using VoiceWindImpl = Voice<Ctxt::policy, Ctxt::nAudioOut, audio::SoundEngineMode::WIND, true>;

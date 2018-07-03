@@ -89,42 +89,19 @@ Flag Assertions
     Default: False
 --------------------------------------------------------------------------------
 
-library
+-- This convenience library builds cxx sources.
+-- When cxx-sources and cxx-options will be available in cabal,
+-- we can merge this convenience library with the main library.
+-- Today if we merge the two, we have compilation flags conflicts because
+-- the main library builds c.
+library imj-audio-cxx
   hs-source-dirs:      src
   other-modules:
   c-sources:           c/library.cpp
                      , c/memory.cpp
                      , c/extras.cpp
                      , c/wrapper.cpp
-  exposed-modules:     Imj.Audio
-                     , Imj.Audio.Output
-                     , Imj.Audio.Envelope
-                     , Imj.Music.Alter
-                     , Imj.Music.Compose
-                     , Imj.Music.Compositions.Tchaikovski
-                     , Imj.Music.Compositions.Vivaldi
-                     , Imj.Music.Instruction
-                     , Imj.Music.Instrument
-                     , Imj.Music.Midi
-                     , Imj.Music.Play
-                     , Imj.Music.Score
-  build-depends:       base >= 4.9 && < 4.12
-                     , binary == 0.8.*
-                     , containers ==0.5.*
-                     , deepseq ==1.4.*
-                     , event-list == 0.1.*
-                     , imj-prelude ==0.1.*
-                     , imj-time ==0.1.*
-                     , midi ==0.2.*
-                     , non-negative == 0.1.*
-                     , parsec ==3.1.*
-                     , template-haskell >=2.12 && < 2.14
-                     , text >=1.2.3 && < 1.3
-                     , unliftio ==0.2.*
-                     , unliftio-core ==0.1.*
-                     , vector >= 0.12.0.1 && < 0.13
   default-language:    Haskell2010
-
 
   extra-libraries:     stdc++
 
@@ -157,6 +134,40 @@ library
     cc-options:        -DIMJ_LOG_MIDI
   if(flag(LogMem))
     cc-options:        -DIMJ_LOG_MEMORY
+
+library
+  hs-source-dirs:      src
+  include-dirs:        c/cpp.audio/include
+  exposed-modules:     Imj.Audio
+                     , Imj.Audio.Envelope
+                     , Imj.Audio.Harmonics
+                     , Imj.Audio.Output
+                     , Imj.Music.Alter
+                     , Imj.Music.Compose
+                     , Imj.Music.Compositions.Tchaikovski
+                     , Imj.Music.Compositions.Vivaldi
+                     , Imj.Music.Instruction
+                     , Imj.Music.Instrument
+                     , Imj.Music.Midi
+                     , Imj.Music.Play
+                     , Imj.Music.Score
+  build-depends:       base >= 4.9 && < 4.12
+                     , binary == 0.8.*
+                     , containers ==0.5.*
+                     , deepseq ==1.4.*
+                     , event-list == 0.1.*
+                     , imj-prelude ==0.1.*
+                     , imj-time ==0.1.*
+                     , imj-audio-cxx
+                     , midi ==0.2.*
+                     , non-negative == 0.1.*
+                     , parsec ==3.1.*
+                     , template-haskell >=2.12 && < 2.14
+                     , text >=1.2.3 && < 1.3
+                     , unliftio ==0.2.*
+                     , unliftio-core ==0.1.*
+                     , vector >= 0.12.0.1 && < 0.13
+                     , vector-binary-instances ==0.2.*
 
 executable imj-audio-exe
   hs-source-dirs:      example

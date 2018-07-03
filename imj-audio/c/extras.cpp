@@ -45,6 +45,7 @@ namespace imajuscule::audio {
     static VoiceWindImpl v(buffers);
     return v;
   }
+
 } // NS imajuscule::audio
 
 #endif

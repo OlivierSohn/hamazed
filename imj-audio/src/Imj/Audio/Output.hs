@@ -83,10 +83,14 @@ module Imj.Audio.Output
 import           Control.Monad.IO.Unlift(MonadUnliftIO, liftIO)
 import           Data.Bool(bool)
 import           Data.Text(Text)
-import           Foreign.C
+import qualified Data.Vector.Storable as S
+import           Foreign.C(CInt(..), CShort(..), CFloat(..))
+import           Foreign.ForeignPtr(withForeignPtr)
+import           Foreign.Ptr(Ptr)
 import           UnliftIO.Exception(bracket)
 
 import           Imj.Audio.Envelope
+import           Imj.Audio.Harmonics
 import           Imj.Music.Instruction
 import           Imj.Music.Instrument
 import           Imj.Timing
@@ -176,25 +180,47 @@ play :: MusicalEvent
      -> IO Bool
      -- ^ 'True' if the call succeeds.
 play (StartNote n@(InstrumentNote _ _ i) (NoteVelocity v)) = case i of
-  SineSynthAHDSR e ahdsr -> midiNoteOnAHDSR (fromIntegral $ fromEnum e) ahdsr pitch vel
+  SineSynthAHDSR harmonics e ahdsr -> midiNoteOnAHDSR (fromIntegral $ fromEnum e) ahdsr harmonics pitch vel
   Wind k -> effectOn (fromIntegral k) pitch vel
  where
   (MidiPitch pitch) = instrumentNoteToMidiPitch n
   vel = CFloat v
 play (StopNote n@(InstrumentNote _ _ i)) = case i of
-  SineSynthAHDSR e ahdsr -> midiNoteOffAHDSR (fromIntegral $ fromEnum e) ahdsr pitch
+  SineSynthAHDSR harmonics e ahdsr -> midiNoteOffAHDSR (fromIntegral $ fromEnum e) ahdsr harmonics pitch
   Wind _ -> effectOff pitch
  where
   (MidiPitch pitch) = instrumentNoteToMidiPitch n
 
-midiNoteOffAHDSR :: CInt -> AHDSR'Envelope -> CShort -> IO Bool
-midiNoteOnAHDSR :: CInt -> AHDSR'Envelope -> CShort -> CFloat -> IO Bool
-midiNoteOffAHDSR t (AHDSR'Envelope a h d r ai di ri s) i   =
-  midiNoteOffAHDSR_ t (fromIntegral a) (interpolationToCInt ai) (fromIntegral h) (fromIntegral d) (interpolationToCInt di) (realToFrac s) (fromIntegral r) (interpolationToCInt ri) i
-midiNoteOnAHDSR  t (AHDSR'Envelope a h d r ai di ri s) i v =
-  midiNoteOnAHDSR_  t (fromIntegral a) (interpolationToCInt ai) (fromIntegral h) (fromIntegral d) (interpolationToCInt di) (realToFrac s) (fromIntegral r) (interpolationToCInt ri) i v
+midiNoteOffAHDSR :: CInt -> AHDSR'Envelope -> S.Vector HarmonicProperties -> CShort -> IO Bool
+midiNoteOnAHDSR :: CInt -> AHDSR'Envelope -> S.Vector HarmonicProperties -> CShort -> CFloat -> IO Bool
+midiNoteOffAHDSR t (AHDSR'Envelope a h d r ai di ri s) har i   =
+  withForeignPtr harPtr $ \harmonicsPtr ->
+    midiNoteOffAHDSR_ t
+      (fromIntegral a) (interpolationToCInt ai) (fromIntegral h) (fromIntegral d) (interpolationToCInt di) (realToFrac s) (fromIntegral r) (interpolationToCInt ri)
+      harmonicsPtr (fromIntegral harmonicsSz)
+      i
+ where
+  (harPtr, harmonicsSz) = S.unsafeToForeignPtr0 har
+
+midiNoteOnAHDSR  t (AHDSR'Envelope a h d r ai di ri s) har i v =
+  withForeignPtr harPtr $ \harmonicsPtr ->
+    midiNoteOnAHDSR_  t
+      (fromIntegral a) (interpolationToCInt ai) (fromIntegral h) (fromIntegral d) (interpolationToCInt di) (realToFrac s) (fromIntegral r) (interpolationToCInt ri)
+      harmonicsPtr (fromIntegral harmonicsSz)
+      i v
+ where
+  (harPtr, harmonicsSz) = S.unsafeToForeignPtr0 har
 
 foreign import ccall "effectOn" effectOn :: CInt -> CShort -> CFloat -> IO Bool
 foreign import ccall "effectOff" effectOff :: CShort -> IO Bool
-foreign import ccall "midiNoteOnAHDSR_" midiNoteOnAHDSR_ :: CInt -> CInt -> CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CInt -> CShort -> CFloat -> IO Bool
-foreign import ccall "midiNoteOffAHDSR_" midiNoteOffAHDSR_ :: CInt -> CInt -> CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CInt -> CShort -> IO Bool
+foreign import ccall "midiNoteOnAHDSR_"
+  midiNoteOnAHDSR_ :: CInt
+                   -- ^ Envelope type
+                   -> CInt -> CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CInt
+                   -> Ptr HarmonicProperties -> CInt
+                   -> CShort -> CFloat -> IO Bool
+foreign import ccall "midiNoteOffAHDSR_"
+  midiNoteOffAHDSR_ :: CInt
+                    -> CInt -> CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CInt
+                    -> Ptr HarmonicProperties -> CInt
+                    -> CShort -> IO Bool

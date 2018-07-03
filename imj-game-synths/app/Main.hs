@@ -36,6 +36,7 @@ import qualified Data.Set as Set
 import           Data.Text(pack, Text)
 import           Data.Vector.Unboxed(Vector)
 import qualified Data.Vector.Unboxed as V
+import qualified Data.Vector.Storable as S
 import           Data.Proxy(Proxy(..))
 import           GHC.Generics(Generic)
 import qualified Graphics.UI.GLFW as GLFW(Key(..), KeyState(..))
@@ -44,6 +45,7 @@ import           System.IO(withFile, IOMode(..))
 import           System.Directory(doesFileExist)
 
 import           Imj.Audio
+import           Imj.Audio.Harmonics
 import           Imj.Categorized
 import           Imj.ClientView.Types
 import           Imj.Event
@@ -130,23 +132,54 @@ toggleView = \case
   LinearView -> LogView
   LogView -> LinearView
 
+data EditMode = Harmonics | Envelope
+  deriving(Show)
+
+data Edition = Edition {
+    editMode :: !EditMode
+  , envelopeIdx :: !Int
+  -- ^ Index of the enveloppe parameter that will be edited on left/right arrows.
+  , harmonicIdx :: !Int
+  -- ^ Index of the harmonic that will be edited on left/right arrows.
+} deriving(Show)
+
+mkEdition :: Edition
+mkEdition = Edition Envelope 0 0
+
+toggleEditMode :: Edition -> Edition
+toggleEditMode e = case editMode e of
+  Harmonics -> e {editMode = Envelope}
+  Envelope -> e {editMode = Harmonics}
+
+editiontIndex :: Edition -> Int
+editiontIndex (Edition mode i j) = case mode of
+  Envelope -> i
+  Harmonics -> j
+
+setEditionIndex :: Int -> Edition -> Edition
+setEditionIndex idx (Edition mode i j) = case mode of
+  Envelope -> Edition mode idx j
+  Harmonics -> Edition mode i idx
+
 data SynthsGame = SynthsGame {
     pianos :: !(Map ClientId PressedKeys)
   , pianoLoops :: !(Map SequencerId (Map LoopId PressedKeys))
   , clientPressedKeys :: !(Map GLFW.Key InstrumentNote)
   , instrument :: !Instrument
   , envelopePlot :: EnvelopePlot
-  , editedIndex :: !Int
-  -- ^ Index of the enveloppe parameter that will be edited on left/right arrows.
+  , edition :: !Edition
 } deriving(Show)
+
 instance UIInstructions SynthsGame where
-  instructions color (SynthsGame _ _ _ instr _ idx) =
+  instructions color (SynthsGame _ _ _ instr _ edit@(Edition mode _ _)) =
     case instr of
-      SineSynthAHDSR release (AHDSR'Envelope a h d r ai di ri s) -> ahdsrInstructions
+      SineSynthAHDSR harmonics release (AHDSR'Envelope a h d r ai di ri s) -> case mode of
+        Envelope -> envelopeInstructions
+        Harmonics -> harmonicsInstructions
 
        where
 
-        ahdsrInstructions =
+        envelopeInstructions =
           [ ConfigUI "Auto-release"
               [ mkChoice 0 $ case release of
                   AutoRelease -> "Yes"
@@ -171,29 +204,38 @@ instance UIInstructions SynthsGame where
               ]
           ]
 
-        mkChoice x v =
+        harmonicsInstructions = (:[]) . ConfigUI "Harmonics" $
+          map
+            (\(i,har) -> mkChoice i $ showFFloat (Just 3) (volume har) "")
+            (zip [0..] $ S.toList harmonics)
 
+        mkChoice x v =
           Choice $ UI.Choice (pack v) right left color
 
          where
 
           right
-            | x == idx `mod` countEditables = '>'
+            | x == idx = '>'
             | otherwise = ' '
           left
-            | x == idx `mod` countEditables = '<'
+            | x == idx = '<'
             | otherwise = ' '
+          idx = (editiontIndex edit) `mod` (countEditables mode)
 
       _ -> []
 
 
-countEditables :: Int
-countEditables = 9
+countEditables :: EditMode -> Int
+countEditables Envelope = 9
+countEditables Harmonics = 4
 
 predefinedAttackItp, predefinedDecayItp, predefinedReleaseItp :: Set Interpolation
 predefinedDecayItp = allInterpolations
 predefinedAttackItp = Set.delete ProportionaValueDerivative allInterpolations
 predefinedReleaseItp = predefinedAttackItp
+
+predefinedHarmonicsVolumes :: Set Float
+predefinedHarmonicsVolumes = Set.fromList [0, 0.01, 0.1, 1]
 
 predefinedAttack, predefinedHolds, predefinedDecays, predefinedReleases :: Set Int
 predefinedSustains :: Set Float
@@ -214,7 +256,7 @@ initialGame = do
   i <- loadInstrument
   let initialViewMode = LogView
   p <- flip EnvelopePlot initialViewMode . toParts initialViewMode <$> envelopeShape i
-  return $ SynthsGame mempty mempty mempty i p 0
+  return $ SynthsGame mempty mempty mempty i p mkEdition
 
 data SynthsMode =
     PlaySynth
@@ -268,6 +310,7 @@ instance Categorized SynthClientEvent
 data SynthsGameEvent =
     ChangeInstrument !Instrument
   | ChangeEditedFeature {-# UNPACK #-} !Int
+  | ToggleEditMode
   | ToggleEnvelopeViewMode
   | InsertPressedKey !GLFW.Key !InstrumentNote
   | RemovePressedKey !GLFW.Key
@@ -298,12 +341,14 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
   mapStateKey _ GLFW.Key'F4 GLFW.KeyState'Pressed _ _ _ =
     return [CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 4]
   mapStateKey _ GLFW.Key'F5 GLFW.KeyState'Pressed _ _ _ =
+    return [Evt $ AppEvent $ ToggleEditMode]
+  mapStateKey _ GLFW.Key'F6 GLFW.KeyState'Pressed _ _ _ =
     return [Evt $ AppEvent $ ToggleEnvelopeViewMode]
   mapStateKey _ GLFW.Key'F10 GLFW.KeyState'Pressed _ _ _ =
     return [CliEvt $ ClientAppEvt ForgetCurrentRecording]
   mapStateKey _ k st _ _ g = maybe
     (return [])
-    (\(SynthsGame _ _ pressed instr _ idx) -> maybe
+    (\(SynthsGame _ _ pressed instr _ edit@(Edition mode _ _)) -> maybe
       (return $ case st of
         GLFW.KeyState'Repeating -> []
         GLFW.KeyState'Pressed -> maybe
@@ -328,10 +373,36 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
            where
 
             configureInstrument = case dir of
-              LEFT  -> Evt $ AppEvent $ ChangeInstrument $ changeIntrumentValue instr idx (-1)
-              RIGHT -> Evt $ AppEvent $ ChangeInstrument $ changeIntrumentValue instr idx 1
+              LEFT  -> Evt $ AppEvent $ ChangeInstrument $ changeIntrumentValue (-1)
+              RIGHT -> Evt $ AppEvent $ ChangeInstrument $ changeIntrumentValue 1
               Up   -> Evt $ AppEvent $ ChangeEditedFeature $ idx - 1
               Down -> Evt $ AppEvent $ ChangeEditedFeature $ idx + 1
+             where
+              changeIntrumentValue inc =
+                case instr of
+                  SineSynthAHDSR harmonics release p@(AHDSR'Envelope a h d r ai di ri s) ->
+                    case mode of
+                      Envelope -> case idx of
+                        0 -> instr { releaseMode_ = cycleReleaseMode release }
+                        1 -> instr { envelope_ = p {ahdsrAttack = changeParam predefinedAttack a inc} }
+                        2 -> instr { envelope_ = p {ahdsrAttackItp = changeParam predefinedAttackItp ai inc} }
+                        3 -> instr { envelope_ = p {ahdsrHold = changeParam predefinedHolds h inc} }
+                        4 -> instr { envelope_ = p {ahdsrDecay = changeParam predefinedDecays d inc} }
+                        5 -> instr { envelope_ = p {ahdsrDecayItp = changeParam predefinedDecayItp di inc} }
+                        6 -> instr { envelope_ = p {ahdsrSustain = changeParam predefinedSustains s inc} }
+                        7 -> instr { envelope_ = p {ahdsrRelease = changeParam predefinedReleases r inc} }
+                        8 -> instr { envelope_ = p {ahdsrReleaseItp = changeParam predefinedReleaseItp ri inc} }
+                        _ -> error "logic"
+                      Harmonics ->
+                       let oldVolume
+                            | S.length harmonics <= idx = Nothing
+                            | otherwise = Just $ volume $ S.unsafeIndex harmonics idx
+                           newVolume = maybe 0 (\v -> changeParam predefinedHarmonicsVolumes v inc) oldVolume
+                        in instr { harmonics_ = harmonics S.// [(idx,HarmonicProperties 0 newVolume)] }
+                  _ -> instr
+
+
+            idx = (editiontIndex edit) `mod` (countEditables mode)
 
           _ -> [])
         $ isArrow k)
@@ -381,21 +452,6 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
       GLFW.Key'Equal -> Just $ InstrumentNote Solb $ noOctave + 1
       GLFW.Key'RightBracket -> Just $ InstrumentNote Sol $ noOctave + 1
       _ -> Nothing
-
-    changeIntrumentValue instr idx inc =
-      case instr of
-        SineSynthAHDSR release p@(AHDSR'Envelope a h d r ai di ri s) -> case idx `mod` countEditables of
-          0 -> SineSynthAHDSR (cycleReleaseMode release) p
-          1 -> SineSynthAHDSR release p {ahdsrAttack = changeParam predefinedAttack a inc}
-          2 -> SineSynthAHDSR release p {ahdsrAttackItp = changeParam predefinedAttackItp ai inc}
-          3 -> SineSynthAHDSR release p {ahdsrHold = changeParam predefinedHolds h inc}
-          4 -> SineSynthAHDSR release p {ahdsrDecay = changeParam predefinedDecays d inc}
-          5 -> SineSynthAHDSR release p {ahdsrDecayItp = changeParam predefinedDecayItp di inc}
-          6 -> SineSynthAHDSR release p {ahdsrSustain = changeParam predefinedSustains s inc}
-          7 -> SineSynthAHDSR release p {ahdsrRelease = changeParam predefinedReleases r inc}
-          8 -> SineSynthAHDSR release p {ahdsrReleaseItp = changeParam predefinedReleaseItp ri inc}
-          _ -> error "logic"
-        _ -> instr
 
 
 changeParam :: (Ord a) => Set a -> a -> Int -> a
@@ -453,7 +509,8 @@ instance GameLogic SynthsGame where
       }
       ToggleEnvelopeViewMode -> g {
         envelopePlot = EnvelopePlot (fromMaybe (error "logic") mayNewEnvMinMaxs) $ toggleView $ envViewMode $ envelopePlot g }
-      ChangeEditedFeature i -> g {editedIndex = i}
+      ToggleEditMode -> g {edition = toggleEditMode $ edition g}
+      ChangeEditedFeature i -> g {edition = setEditionIndex i $ edition g}
       InsertPressedKey k n -> g { clientPressedKeys = Map.insert k n pressed }
       RemovePressedKey k -> g { clientPressedKeys = Map.delete k pressed }
 

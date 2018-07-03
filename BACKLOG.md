@@ -1,4 +1,22 @@
-- make instrument with harmonics, and a single envelope per harmonic.
+- Support MIDI input
+- To optimize bandwidth usage, when sending an Instrument, the server could send:
+data HarmonicsRep =
+    Whole [HarmonicProperties] (Maybe Key)
+    -- ^ if Key is Just, the client is responsible for storing [HarmonicProperties]
+    -- and associate it with 'Key'
+  | Key
+    -- ^ The server must have sent once the 'Whole' to all clients to send this.
+    -- beware of reconnecting clients!
+
+And maybe we should include AHDSR in this logic.
+
+- add a paramater to synchronize attack start or attack end or to use the same attack for all
+(one envelope, taknig the max of durations)
+
+should loudness volume happen based on the first harmonic frequency, globally,
+or individually on every frequency?
+For now, it happens individually on each frequency, it seems ok. But memory-wise,
+since the parameters for volume are all the same we could store them once only.
 
 - [nice to have] allow unlimited polyphony on every instrument.
 .. if a given instrument is full, instantiate a second identical instrument:

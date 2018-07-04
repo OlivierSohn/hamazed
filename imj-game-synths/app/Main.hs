@@ -227,7 +227,7 @@ instance UIInstructions SynthsGame where
 
 countEditables :: EditMode -> Int
 countEditables Envelope = 9
-countEditables Harmonics = 4
+countEditables Harmonics = 10
 
 predefinedAttackItp, predefinedDecayItp, predefinedReleaseItp :: Set Interpolation
 predefinedDecayItp = allInterpolations
@@ -394,11 +394,13 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
                         8 -> instr { envelope_ = p {ahdsrReleaseItp = changeParam predefinedReleaseItp ri inc} }
                         _ -> error "logic"
                       Harmonics ->
-                       let oldVolume
-                            | S.length harmonics <= idx = Nothing
-                            | otherwise = Just $ volume $ S.unsafeIndex harmonics idx
-                           newVolume = maybe 0 (\v -> changeParam predefinedHarmonicsVolumes v inc) oldVolume
-                        in instr { harmonics_ = harmonics S.// [(idx,HarmonicProperties 0 newVolume)] }
+                        let h'
+                             | S.length harmonics <= idx =
+                                harmonics S.++ (S.fromList $ replicate (1 + idx - S.length harmonics) (HarmonicProperties 0 0))
+                             | otherwise = harmonics
+                            oldVolume = volume $ S.unsafeIndex h' idx
+                            newVolume = changeParam predefinedHarmonicsVolumes oldVolume inc
+                        in instr { harmonics_ = h' S.// [(idx,HarmonicProperties 0 newVolume)] }
                   _ -> instr
 
 

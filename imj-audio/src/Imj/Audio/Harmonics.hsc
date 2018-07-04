@@ -2,6 +2,7 @@
 {-# LANGUAGE CPP                      #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
+
 module Imj.Audio.Harmonics
       ( HarmonicProperties(..)
       ) where
@@ -33,24 +34,3 @@ instance Storable HarmonicProperties where
     peek p = return HarmonicProperties
              `ap` (#{peek harmonicProperties_t, phase} p)
              `ap` (#{peek harmonicProperties_t, volume} p)
-{-
-foreign import ccall "c.h harmonicProperties_test" crgbTest :: Ptr HarmonicProperties -> CSize -> IO ();
-
-rgbTest :: [RGB] -> IO [RGB]
-rgbTest rgbs = withArray rgbs $ \ptr ->
-               do
-                 crgbTest ptr (fromIntegral (length rgbs))
-                 peekArray (length rgbs) ptr
-
-rgbAlloc :: [RGB] -> IO (Ptr RGB)
-rgbAlloc rgbs = newArray rgbs
-
-rgbPeek :: Ptr RGB -> Int -> IO [RGB]
-rgbPeek rgbs l = peekArray l rgbs
-
-rgbTest2 :: Ptr RGB -> Int -> IO ()
-rgbTest2 ptr l =
-    do
-      crgbTest ptr (fromIntegral l)
-      return ()
--}

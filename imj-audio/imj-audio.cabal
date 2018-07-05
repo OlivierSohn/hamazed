@@ -96,7 +96,7 @@ Flag Assertions
 -- the main library builds c while converting an .hsc file to the corresponding
 -- .hs file.
 library imj-audio-cxx
-  hs-source-dirs:      src
+  hs-source-dirs:      srcDummy
   exposed-modules:     Imj.Audio.Dummy
   c-sources:           c/library.cpp
                      , c/memory.cpp

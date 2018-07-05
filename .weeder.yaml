@@ -1,0 +1,61 @@
+- package:
+  - name: imj-audio
+  - section:
+    - name: library
+    - message:
+      - name: Module not compiled
+      - module: Imj.Audio.Dummy
+    - message:
+      - name: Redundant build-depends entry
+      - depends: imj-audio-cxx
+- package:
+  - name: imj-base
+  - section:
+    - name: test:imj-base-test
+    - message:
+      - name: Excessive other-modules entry
+      - module: Test.Imj.Ease
+    - message:
+      - name: Weeds exported
+      - module:
+        - name: Test.Imj.Ease
+        - identifier: testEase
+      - module:
+        - name: Test.Imj.Interpolation
+        - identifier:
+          - testClock
+          - testCoords
+          - testInts
+          - testListCoords
+          - testListInts
+          - testSuccessiveInts
+- package:
+  - name: imj-measure-stdout
+  - section:
+    - name: exe:imj-measure-stdout-exe
+    - message:
+      - name: Weeds exported
+      - module:
+        - name: Imj.Measure.Stdout
+        - identifier: testStdoutSize
+- package:
+  - name: imj-time
+  - section:
+    - name: test:imj-time-test
+    - message:
+      - name: Weeds exported
+      - module:
+        - name: Test.Imj.Timing
+        - identifier:
+          - assertAlmostEq
+          - testAddSystemTime
+          - testAddSystemTime2
+          - testAddSystemTime3
+          - testDiffSystemTime
+          - testDiffSystemTime2
+          - testDiffSystemTime3
+          - testDuration
+          - testFromSecs
+          - testScale
+          - test___
+

@@ -82,7 +82,7 @@ Flag LogMem
 
 Flag Assertions
     Description: Enables assertions verifying program consistency. If an assertion
-                 fails at runtime, a log will be written, with the accertion content,
+                 fails at runtime, a log will be written, with the assertion content,
                  source file name and line number. Then, a stack trace will be written,
                  and the program will crash.
     Manual: True

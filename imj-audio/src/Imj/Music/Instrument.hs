@@ -100,11 +100,11 @@ instance Binary Instrument
 instance NFData Instrument
 
 defaultHarmonics :: S.Vector HarmonicProperties
-defaultHarmonics = S.fromList
- [ HarmonicProperties 0 1
- , HarmonicProperties 0 0.02
- , HarmonicProperties 0 0.005
- , HarmonicProperties 0 0.02]
+defaultHarmonics = S.fromList $ map (HarmonicProperties 0 ) $
+ [ 1
+ , 0.02
+ , 0.005
+ , 0.02]
 
 -- | A music note played by an 'Instrument'
 data InstrumentNote = InstrumentNote !NoteName {-# UNPACK #-} !Octave !Instrument

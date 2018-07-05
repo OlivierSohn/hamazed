@@ -1,17 +1,20 @@
 - Support MIDI input
-- To optimize bandwidth usage, when sending an Instrument, the server could send:
+- To optimize network bandwidth usage, when sending an Instrument, the server could send:
 data HarmonicsRep =
     Whole [HarmonicProperties] (Maybe Key)
     -- ^ if Key is Just, the client is responsible for storing [HarmonicProperties]
     -- and associate it with 'Key'
   | Key
-    -- ^ The server must have sent once the 'Whole' to all clients to send this.
-    -- beware of reconnecting clients!
+    -- ^ The server must have sent at least once a corresponding 'Whole' to the client
+    -- before sending this.
+    -- When the client disconnects, reconnects, the server should assume that the client
+    -- has lost all previous associations, so a 'Whole' should be sent once for every instrument.
 
-And maybe we should include AHDSR in this logic.
+And maybe we should include AHDSR in this logic, to avoid sending the same envelope
+data each time a note is played.
 
-- add a paramater to synchronize attack start or attack end or to use the same attack for all
-(one envelope, taknig the max of durations)
+- add a parameter to synchronize attack start or attack end or to use the same attack for all
+(one envelope, taking the max of durations)
 
 should loudness volume happen based on the first harmonic frequency, globally,
 or individually on every frequency?

@@ -204,10 +204,16 @@ instance UIInstructions SynthsGame where
               ]
           ]
 
-        harmonicsInstructions = (:[]) . ConfigUI "Harmonics" $
-          map
-            (\(i,har) -> mkChoice i $ showFFloat (Just 3) (volume har) "")
-            (zip [0..] $ S.toList harmonics)
+        firstPhaseIdx = quot (countEditables Harmonics) 2
+
+        harmonicsInstructions =
+          [ hInst "Harmonics" volume 0
+          , hInst "Phases" phase firstPhaseIdx]
+         where
+           hInst title f startIdx = ConfigUI title $
+            map
+             (\(i,har) -> mkChoice i $ showFFloat (Just 3) (f har) "")
+             (zip [startIdx..] $ S.toList harmonics)
 
         mkChoice x v =
           Choice $ UI.Choice (pack v) right left color
@@ -227,7 +233,7 @@ instance UIInstructions SynthsGame where
 
 countEditables :: EditMode -> Int
 countEditables Envelope = 9
-countEditables Harmonics = 10
+countEditables Harmonics = 2*10
 
 predefinedAttackItp, predefinedDecayItp, predefinedReleaseItp :: Set Interpolation
 predefinedDecayItp = allInterpolations
@@ -236,6 +242,9 @@ predefinedReleaseItp = predefinedAttackItp
 
 predefinedHarmonicsVolumes :: Set Float
 predefinedHarmonicsVolumes = Set.fromList [0, 0.01, 0.1, 1]
+
+predefinedHarmonicsPhases :: Set Float
+predefinedHarmonicsPhases = Set.fromList $ takeWhile (< 2) $ map ((*) 0.1 . fromIntegral) [0::Int ..]
 
 predefinedAttack, predefinedHolds, predefinedDecays, predefinedReleases :: Set Int
 predefinedSustains :: Set Float
@@ -394,13 +403,21 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
                         8 -> instr { envelope_ = p {ahdsrReleaseItp = changeParam predefinedReleaseItp ri inc} }
                         _ -> error "logic"
                       Harmonics ->
-                        let h'
-                             | S.length harmonics <= idx =
-                                harmonics S.++ (S.fromList $ replicate (1 + idx - S.length harmonics) (HarmonicProperties 0 0))
+                        let firstPhaseIdx = quot (countEditables Harmonics) 2
+                            idx'
+                             | idx >= firstPhaseIdx = idx - firstPhaseIdx
+                             | otherwise = idx
+                            h'
+                             | S.length harmonics <= idx' =
+                                harmonics S.++ (S.fromList $ replicate (1 + idx' - S.length harmonics) (HarmonicProperties 0 0))
                              | otherwise = harmonics
-                            oldVolume = volume $ S.unsafeIndex h' idx
-                            newVolume = changeParam predefinedHarmonicsVolumes oldVolume inc
-                        in instr { harmonics_ = h' S.// [(idx,HarmonicProperties 0 newVolume)] }
+                            oldVal = S.unsafeIndex h' idx'
+                            newVal
+                              | idx >= firstPhaseIdx =
+                                  oldVal { phase = changeParam predefinedHarmonicsPhases (phase oldVal) inc }
+                              | otherwise =
+                                  oldVal { volume = changeParam predefinedHarmonicsVolumes (volume oldVal) inc }
+                        in instr { harmonics_ = h' S.// [(idx', newVal)] }
                   _ -> instr
 
 

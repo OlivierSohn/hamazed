@@ -9,6 +9,7 @@ import           Control.Concurrent(threadDelay)
 import           Control.Monad(void)
 
 import           Imj.Audio
+import           Imj.Music.Compositions.Tech
 import           Imj.Music.Compositions.Tchaikovski
 import           Imj.Music.Compositions.Vivaldi
 
@@ -18,6 +19,9 @@ main = void $ usingAudioOutput -- WithMinLatency 0
      $ do
   --stressTest
   --threadDelay 10000
+  putStrLn "playing tech"
+  uncurry (flip playVoicesAtTempo techInstrument) tech >>= print
+  threadDelay 10000
   putStrLn "playing vivaldi summer presto"
   uncurry (flip playVoicesAtTempo simpleInstrument) vivaldiFourSeasonsSummerPresto >>= print
   threadDelay 10000

@@ -146,6 +146,7 @@ library
                      , Imj.Music.Alter
                      , Imj.Music.Compose
                      , Imj.Music.Compositions.Tchaikovski
+                     , Imj.Music.Compositions.Tech
                      , Imj.Music.Compositions.Vivaldi
                      , Imj.Music.Instruction
                      , Imj.Music.Instrument

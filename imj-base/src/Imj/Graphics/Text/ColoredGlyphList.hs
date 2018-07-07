@@ -111,7 +111,7 @@ instance DiscreteDistance ColoredGlyphList where
 
         (c1', remaining) = interpolateChars s1 s2 countTextChanges
         s1' = assert (remaining == 0) c1'
-        l = zipWith colorDist s1' s2 -- since color interpolation happends AFTER char changes,
+        l = zipWith colorDist s1' s2 -- since color interpolation happens AFTER char changes,
                                      -- we compare colors with result of char interpolation
         colorDistance = fromMaybe 1 $ maximumMaybe l
 

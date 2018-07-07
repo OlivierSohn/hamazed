@@ -180,31 +180,31 @@ play :: MusicalEvent
      -> IO Bool
      -- ^ 'True' if the call succeeds.
 play (StartNote n@(InstrumentNote _ _ i) (NoteVelocity v)) = case i of
-  SineSynthAHDSR harmonics e ahdsr -> midiNoteOnAHDSR (fromIntegral $ fromEnum e) ahdsr harmonics pitch vel
+  Synth osc harmonics e ahdsr -> midiNoteOnAHDSR (fromIntegral $ fromEnum osc) (fromIntegral $ fromEnum e) ahdsr harmonics pitch vel
   Wind k -> effectOn (fromIntegral k) pitch vel
  where
   (MidiPitch pitch) = instrumentNoteToMidiPitch n
   vel = CFloat v
 play (StopNote n@(InstrumentNote _ _ i)) = case i of
-  SineSynthAHDSR harmonics e ahdsr -> midiNoteOffAHDSR (fromIntegral $ fromEnum e) ahdsr harmonics pitch
+  Synth osc harmonics e ahdsr -> midiNoteOffAHDSR (fromIntegral $ fromEnum osc) (fromIntegral $ fromEnum e) ahdsr harmonics pitch
   Wind _ -> effectOff pitch
  where
   (MidiPitch pitch) = instrumentNoteToMidiPitch n
 
-midiNoteOffAHDSR :: CInt -> AHDSR'Envelope -> S.Vector HarmonicProperties -> CShort -> IO Bool
-midiNoteOnAHDSR :: CInt -> AHDSR'Envelope -> S.Vector HarmonicProperties -> CShort -> CFloat -> IO Bool
-midiNoteOffAHDSR t (AHDSR'Envelope a h d r ai di ri s) har i   =
+midiNoteOffAHDSR :: CInt -> CInt -> AHDSR'Envelope -> S.Vector HarmonicProperties -> CShort -> IO Bool
+midiNoteOnAHDSR :: CInt -> CInt -> AHDSR'Envelope -> S.Vector HarmonicProperties -> CShort -> CFloat -> IO Bool
+midiNoteOffAHDSR osc t (AHDSR'Envelope a h d r ai di ri s) har i   =
   withForeignPtr harPtr $ \harmonicsPtr ->
-    midiNoteOffAHDSR_ t
+    midiNoteOffAHDSR_ osc t
       (fromIntegral a) (interpolationToCInt ai) (fromIntegral h) (fromIntegral d) (interpolationToCInt di) (realToFrac s) (fromIntegral r) (interpolationToCInt ri)
       harmonicsPtr (fromIntegral harmonicsSz)
       i
  where
   (harPtr, harmonicsSz) = S.unsafeToForeignPtr0 har
 
-midiNoteOnAHDSR  t (AHDSR'Envelope a h d r ai di ri s) har i v =
+midiNoteOnAHDSR osc t (AHDSR'Envelope a h d r ai di ri s) har i v =
   withForeignPtr harPtr $ \harmonicsPtr ->
-    midiNoteOnAHDSR_  t
+    midiNoteOnAHDSR_ osc t
       (fromIntegral a) (interpolationToCInt ai) (fromIntegral h) (fromIntegral d) (interpolationToCInt di) (realToFrac s) (fromIntegral r) (interpolationToCInt ri)
       harmonicsPtr (fromIntegral harmonicsSz)
       i v
@@ -214,13 +214,13 @@ midiNoteOnAHDSR  t (AHDSR'Envelope a h d r ai di ri s) har i v =
 foreign import ccall "effectOn" effectOn :: CInt -> CShort -> CFloat -> IO Bool
 foreign import ccall "effectOff" effectOff :: CShort -> IO Bool
 foreign import ccall "midiNoteOnAHDSR_"
-  midiNoteOnAHDSR_ :: CInt
+  midiNoteOnAHDSR_ :: CInt -> CInt
                    -- ^ Envelope type
                    -> CInt -> CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CInt
                    -> Ptr HarmonicProperties -> CInt
                    -> CShort -> CFloat -> IO Bool
 foreign import ccall "midiNoteOffAHDSR_"
-  midiNoteOffAHDSR_ :: CInt
+  midiNoteOffAHDSR_ :: CInt -> CInt
                     -> CInt -> CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CInt
                     -> Ptr HarmonicProperties -> CInt
                     -> CShort -> IO Bool

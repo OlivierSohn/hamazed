@@ -19,19 +19,84 @@ namespace imajuscule {
 
     using AudioFloat = float;
 
-    template <typename Envel>
-    using VolumeAdjustedMultiOscillator =
-      FinalAudioElement<
-        MultiEnveloped<
-          VolumeAdjusted<
-            OscillatorAlgo<
-              typename Envel::FPT
-            , eNormalizePolicy::FAST
+    // in sync with the corresponding Haskel Enum instance
+    enum class OscillatorType {
+      SinusVolumeAdjusted,
+      Sinus,
+      Saw,
+      Square,
+      Triangle
+    };
+
+    template<template<OscillatorType> typename F>
+    void foreachOscillatorType() {
+      F<OscillatorType::SinusVolumeAdjusted>{}();
+      F<OscillatorType::Sinus>{}();
+      F<OscillatorType::Saw>{}();
+      F<OscillatorType::Square>{}();
+      F<OscillatorType::Triangle>{}();
+    }
+
+    template<OscillatorType o>
+    struct ToFOsc;
+
+    template <>
+    struct ToFOsc<OscillatorType::Saw> {
+      static constexpr auto convert = FOscillator::SAW;
+      static constexpr bool canConvert = true;
+    };
+    template <>
+    struct ToFOsc<OscillatorType::Square> {
+      static constexpr auto convert = FOscillator::SQUARE;
+      static constexpr bool canConvert = true;
+    };
+    template <>
+    struct ToFOsc<OscillatorType::Triangle> {
+      static constexpr auto convert = FOscillator::TRIANGLE;
+      static constexpr bool canConvert = true;
+    };
+    template <>
+    struct ToFOsc<OscillatorType::Sinus> {
+      static constexpr auto convert = FOscillator::SAW;
+      static constexpr bool canConvert = false;
+    };
+    template <>
+    struct ToFOsc<OscillatorType::SinusVolumeAdjusted> {
+      static constexpr auto convert = FOscillator::SAW;
+      static constexpr bool canConvert = false;
+    };
+
+    template<OscillatorType O, typename FPT>
+    struct GenericOscillator {
+      using type =
+        std::conditional_t<
+          O == OscillatorType::SinusVolumeAdjusted,
+            VolumeAdjusted< OscillatorAlgo< FPT, eNormalizePolicy::FAST > >,
+            std::conditional_t<
+              O == OscillatorType::Sinus,
+                OscillatorAlgo< FPT, eNormalizePolicy::FAST >,
+                FOscillatorAlgo< FPT, ToFOsc<O>::convert >
             >
-          >
-        , Envel
-        >
-      >;
+        >;
+    };
+
+    template<OscillatorType O, typename FPT>
+    using genericOscillator = typename GenericOscillator<O, FPT>::type;
+
+
+    template<OscillatorType O, typename Env>
+    struct AudioElementOf {
+      using type =
+        FinalAudioElement<
+          MultiEnveloped<
+              genericOscillator<O, typename Env::FPT>
+            , Env
+            >
+          >;
+    };
+
+    template<OscillatorType O, typename Env>
+    using audioElementOf = typename AudioElementOf<O, Env>::type;
 
     template<typename S>
     struct SetParam;
@@ -116,33 +181,16 @@ namespace imajuscule {
 
     Event mkNoteOff(int pitch);
 
-    namespace sine {
-      template <typename Env>
-      using SynthT = Synth <
-        Ctxt::policy
-      , Ctxt::nAudioOut
-      , XfadePolicy::SkipXfade
-      , audioelement::MultiOscillator<Env>
-      , audioelement::HasNoteOff<Env>::value
-      , EventIterator<IEventList>
-      , NoteOnEvent
-      , NoteOffEvent>;
-    }
-
-    namespace vasine {
-      template <typename Env>
-      using SynthT = Synth <
-        Ctxt::policy
-      , Ctxt::nAudioOut
-      , XfadePolicy::SkipXfade
-      , audioelement::VolumeAdjustedMultiOscillator<Env>
-      , audioelement::HasNoteOff<Env>::value
-      , EventIterator<IEventList>
-      , NoteOnEvent
-      , NoteOffEvent>;
-    }
-    namespace mySynth = imajuscule::audio::vasine;
-    //namespace mySynth = imajuscule::audio::sine;
+    template <typename Env, audioelement::OscillatorType Osc>
+    using synthOf = vasine::Synth <
+      Ctxt::policy
+    , Ctxt::nAudioOut
+    , XfadePolicy::SkipXfade
+    , audioelement::audioElementOf<Osc, Env>
+    , audioelement::HasNoteOff<Env>::value
+    , EventIterator<IEventList>
+    , NoteOnEvent
+    , NoteOffEvent>;
 
     template<typename T>
     struct withChannels {
@@ -212,9 +260,9 @@ namespace imajuscule {
       bool success;
     };
 
-    template <typename Envel>
+    template <typename Envel, audioelement::OscillatorType Osc>
     struct Synths {
-      using T = mySynth::SynthT<Envel>;
+      using T = synthOf<Envel, Osc>;
       using EnvelParamT = typename Envel::Param;
 
       struct K {
@@ -355,10 +403,41 @@ namespace imajuscule {
       }
     };
 
-    template<typename Env, typename HarmonicsArray>
+    template<audioelement::OscillatorType O>
+    struct FinalizeSynths {
+      void operator ()() {
+        using namespace audioelement;
+        static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
+        Synths<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::WaitForKeyRelease>, O>::finalize();
+        Synths<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>, O>::finalize();
+      }
+    };
+
+    template<typename Env, audioelement::OscillatorType osc, typename HarmonicsArray>
     onEventResult midiEvent(HarmonicsArray const & harmonics, typename Env::Param const & env, Event e) {
-      return Synths<Env>::get(harmonics, env).o.onEvent2(e, getAudioContext().getChannelHandler());
+      return Synths<Env, osc>::get(harmonics, env).o.onEvent2(e, getAudioContext().getChannelHandler());
     }
+
+    template<typename Env, typename HarmonicsArray>
+    onEventResult midiEvent_(audioelement::OscillatorType osc, HarmonicsArray const & harmonics, typename Env::Param const & p, Event n) {
+      using namespace audioelement;
+      switch(osc) {
+        case OscillatorType::Saw:
+          return midiEvent<Env, OscillatorType::Saw, HarmonicsArray>(harmonics, p, n);
+        case OscillatorType::Square:
+          return midiEvent<Env, OscillatorType::Square, HarmonicsArray>(harmonics, p, n);
+        case OscillatorType::Triangle:
+          return midiEvent<Env, OscillatorType::Triangle, HarmonicsArray>(harmonics, p, n);
+        case OscillatorType::Sinus:
+          return midiEvent<Env, OscillatorType::Sinus, HarmonicsArray>(harmonics, p, n);
+        case OscillatorType::SinusVolumeAdjusted:
+          return midiEvent<Env, OscillatorType::SinusVolumeAdjusted, HarmonicsArray>(harmonics, p, n);
+        default:
+          Assert(0);
+          return onEventResult::DROPPED_NOTE;
+      }
+    }
+
 
     using VoiceWindImpl = Voice<Ctxt::policy, Ctxt::nAudioOut, audio::SoundEngineMode::WIND, true>;
 

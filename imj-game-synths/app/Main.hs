@@ -140,7 +140,7 @@ data Edition = Edition {
   , envelopeIdx :: !Int
   -- ^ Index of the enveloppe parameter that will be edited on left/right arrows.
   , harmonicIdx :: !Int
-  -- ^ Index of the harmonic that will be edited on left/right arrows.
+  -- ^ Index of the harmonic parameter that will be edited on left/right arrows.
 } deriving(Show)
 
 mkEdition :: Edition
@@ -173,7 +173,7 @@ data SynthsGame = SynthsGame {
 instance UIInstructions SynthsGame where
   instructions color (SynthsGame _ _ _ instr _ edit@(Edition mode _ _)) =
     case instr of
-      SineSynthAHDSR harmonics release (AHDSR'Envelope a h d r ai di ri s) -> case mode of
+      Synth osc harmonics release (AHDSR'Envelope a h d r ai di ri s) -> case mode of
         Envelope -> envelopeInstructions
         Harmonics -> harmonicsInstructions
 
@@ -204,11 +204,12 @@ instance UIInstructions SynthsGame where
               ]
           ]
 
-        firstPhaseIdx = quot (countEditables Harmonics) 2
-
         harmonicsInstructions =
           [ hInst "Harmonics" volume 0
-          , hInst "Phases" phase firstPhaseIdx]
+          , hInst "Phases" phase firstPhaseIdx
+          , ConfigUI "Oscillator"
+              [ mkChoice firstOscillatorIdx $ show osc]
+              ]
          where
            hInst title f startIdx = ConfigUI title $
             map
@@ -231,9 +232,16 @@ instance UIInstructions SynthsGame where
       _ -> []
 
 
+countHarmonics :: Int
+countHarmonics = 10
+
 countEditables :: EditMode -> Int
 countEditables Envelope = 9
-countEditables Harmonics = 2*10
+countEditables Harmonics = 2*countHarmonics + 1
+
+firstPhaseIdx, firstOscillatorIdx :: Int
+firstPhaseIdx = countHarmonics
+firstOscillatorIdx = 2*firstPhaseIdx
 
 predefinedAttackItp, predefinedDecayItp, predefinedReleaseItp :: Set Interpolation
 predefinedDecayItp = allInterpolations
@@ -260,9 +268,16 @@ predefinedSustains =
   let l = 0.01:map (*1.3) l
   in Set.fromDistinctAscList $ 0:takeWhile (< 1) l ++ [1]
 
+withMinimumHarmonicsCount :: Instrument -> Instrument
+withMinimumHarmonicsCount i =
+  i { harmonics_ =
+        (harmonics_ i) S.++
+        (S.fromList $ replicate (countHarmonics - S.length (harmonics_ i)) (HarmonicProperties 0 0))
+    }
+
 initialGame :: IO SynthsGame
 initialGame = do
-  i <- loadInstrument
+  i <- withMinimumHarmonicsCount <$> loadInstrument
   let initialViewMode = LogView
   p <- flip EnvelopePlot initialViewMode . toParts initialViewMode <$> envelopeShape i
   return $ SynthsGame mempty mempty mempty i p mkEdition
@@ -374,7 +389,7 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
               , Evt $ AppEvent $ RemovePressedKey k])
             $ Map.lookup k pressed)
       (\dir -> return $ case instr of
-          SineSynthAHDSR{} -> case st of
+          Synth{} -> case st of
             GLFW.KeyState'Pressed -> [configureInstrument]
             GLFW.KeyState'Repeating -> [configureInstrument]
             _ -> []
@@ -389,7 +404,7 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
              where
               changeIntrumentValue inc =
                 case instr of
-                  SineSynthAHDSR harmonics release p@(AHDSR'Envelope a h d r ai di ri s) ->
+                  Synth osc harmonics release p@(AHDSR'Envelope a h d r ai di ri s) ->
                     case mode of
                       Envelope -> case idx of
                         0 -> instr { releaseMode_ = cycleReleaseMode release }
@@ -403,21 +418,24 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
                         8 -> instr { envelope_ = p {ahdsrReleaseItp = changeParam predefinedReleaseItp ri inc} }
                         _ -> error "logic"
                       Harmonics ->
-                        let firstPhaseIdx = quot (countEditables Harmonics) 2
-                            idx'
-                             | idx >= firstPhaseIdx = idx - firstPhaseIdx
-                             | otherwise = idx
-                            h'
-                             | S.length harmonics <= idx' =
-                                harmonics S.++ (S.fromList $ replicate (1 + idx' - S.length harmonics) (HarmonicProperties 0 0))
-                             | otherwise = harmonics
-                            oldVal = S.unsafeIndex h' idx'
-                            newVal
-                              | idx >= firstPhaseIdx =
-                                  oldVal { phase = changeParam predefinedHarmonicsPhases (phase oldVal) inc }
-                              | otherwise =
-                                  oldVal { volume = changeParam predefinedHarmonicsVolumes (volume oldVal) inc }
-                        in instr { harmonics_ = h' S.// [(idx', newVal)] }
+                        if idx == firstOscillatorIdx
+                          then
+                            instr { oscillator = cycleOscillator inc osc }
+                          else
+                            let idx'
+                                 | idx >= firstPhaseIdx = idx - firstPhaseIdx
+                                 | otherwise = idx
+                                h'
+                                 | S.length harmonics <= idx' =
+                                    harmonics S.++ (S.fromList $ replicate (1 + idx' - S.length harmonics) (HarmonicProperties 0 0))
+                                 | otherwise = harmonics
+                                oldVal = S.unsafeIndex h' idx'
+                                newVal
+                                  | idx >= firstPhaseIdx =
+                                      oldVal { phase = changeParam predefinedHarmonicsPhases (phase oldVal) inc }
+                                  | otherwise =
+                                      oldVal { volume = changeParam predefinedHarmonicsVolumes (volume oldVal) inc }
+                            in instr { harmonics_ = h' S.// [(idx', newVal)] }
                   _ -> instr
 
 

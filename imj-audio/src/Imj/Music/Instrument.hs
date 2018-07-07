@@ -12,10 +12,13 @@ module Imj.Music.Instrument
       , mkInstrumentNote
       , NoteVelocity(..)
       , mkNoteVelocity
+      , Oscillator(..)
+      , cycleOscillator
       -- * Analyze envelope
       , envelopeShape
       -- * Utilities
       , instrumentNoteToMidiPitch
+      , harmonicsFromVolumes
 -- * Some instruments
 -- | These instruments are used in
 -- <https://github.com/OlivierSohn/hamazed/tree/master/imj-game-hamazed Hamazed>.
@@ -38,6 +41,7 @@ import           Control.DeepSeq as Exported(NFData(..))
 import           Data.Data(Data(..))
 import           Data.Vector.Binary()
 
+import           Data.List(dropWhile, foldl')
 import           Data.Vector.Unboxed(Vector)
 import qualified Data.Vector.Storable as S
 import           GHC.Generics(Generic(..))
@@ -46,6 +50,40 @@ import           Imj.Audio.Envelope
 import           Imj.Audio.Harmonics
 import           Imj.Music.Instruction
 
+data Oscillator =
+    Sinus'VolumeAdjusted
+    -- ^ A sinusoïdal oscillator where the volume is adjusted to achieve
+    -- <https://en.wikipedia.org/wiki/Equal-loudness_contour equal-loudness>.
+  | Sinus
+    -- ^ A sinusoïdal oscillator.
+  | Saw
+    -- ^ A saw oscillator.
+  | Square
+    -- ^ A square oscillator.
+  | Triangle
+    -- ^ A triangular oscillator.
+  deriving(Generic, Ord, Data, Eq, Show, Bounded)
+-- in sync with the corresponding C enum
+instance Enum Oscillator where
+  fromEnum = \case
+    Sinus'VolumeAdjusted -> 0
+    Sinus -> 1
+    Saw -> 2
+    Square -> 3
+    Triangle -> 4
+  toEnum = \case
+    0 -> Sinus'VolumeAdjusted
+    1 -> Sinus
+    2 -> Saw
+    3 -> Square
+    4 -> Triangle
+    n -> error $ "out of range:" ++ show n
+instance NFData Oscillator
+instance Binary Oscillator
+
+cycleOscillator :: Int -> Oscillator -> Oscillator
+cycleOscillator n v =
+  toEnum $ ((fromEnum v) + n) `mod` (1 + (fromEnum $ (maxBound :: Oscillator)))
 
 data MusicalEvent =
      StartNote !InstrumentNote {-# UNPACK #-} !NoteVelocity
@@ -82,13 +120,14 @@ mkNoteVelocity i
 -- * The second list covers the end of sustain to the release phase.
 envelopeShape :: Instrument -> IO [Vector Float]
 envelopeShape = \case
-  SineSynthAHDSR _ e ahdsr -> analyzeAHDSREnvelope e ahdsr
+  Synth _ _ e ahdsr -> analyzeAHDSREnvelope e ahdsr
   Wind _ -> return []
 
 -- | A musical instrument (or musical effect).
 data Instrument =
-    SineSynthAHDSR {
-        harmonics_ :: !(S.Vector HarmonicProperties)
+    Synth {
+        oscillator :: !Oscillator
+      , harmonics_ :: !(S.Vector HarmonicProperties)
       , releaseMode_ :: !ReleaseMode
       , envelope_ :: !AHDSR'Envelope
     }
@@ -100,11 +139,22 @@ instance Binary Instrument
 instance NFData Instrument
 
 defaultHarmonics :: S.Vector HarmonicProperties
-defaultHarmonics = S.fromList $ map (HarmonicProperties 0 ) $
+defaultHarmonics = harmonicsFromVolumes
  [ 1
  , 0.02
  , 0.005
  , 0.02]
+
+-- | Also normalizes the volumes so that the sum of their absolute value is 1
+harmonicsFromVolumes :: [Float] -> S.Vector HarmonicProperties
+harmonicsFromVolumes allVolumes =
+  S.fromList $ map (HarmonicProperties 0 ) $ map (* normalizeFactor) volumes
+ where
+   volumes = reverse $ dropWhile (== 0) $ reverse allVolumes
+   sumAbs = foldl' (\v s -> s + abs v) 0 volumes
+   normalizeFactor = case sumAbs of
+     0 -> 1
+     _ -> recip sumAbs
 
 -- | A music note played by an 'Instrument'
 data InstrumentNote = InstrumentNote !NoteName {-# UNPACK #-} !Octave !Instrument
@@ -128,63 +178,63 @@ mkInstrumentNote pitch i =
 
 simpleInstrument, bellInstrument, organicInstrument, shortInstrument, testInstrument, stringsInstrument :: Instrument
 longInstrument, longBellInstrument, bell2Instrument :: Instrument
-simpleInstrument = SineSynthAHDSR defaultHarmonics KeyRelease $
+simpleInstrument = Synth Sinus'VolumeAdjusted defaultHarmonics KeyRelease $
   AHDSR'Envelope
     401 0 0 401
     Linear
     Linear
     Linear
     1
-bellInstrument = SineSynthAHDSR defaultHarmonics AutoRelease $
+bellInstrument = Synth Sinus'VolumeAdjusted defaultHarmonics AutoRelease $
   AHDSR'Envelope
     500 200 40000 30000
     Linear
     ProportionaValueDerivative
     Linear
     0.01
-bell2Instrument = SineSynthAHDSR defaultHarmonics AutoRelease $
+bell2Instrument = Synth Sinus'VolumeAdjusted defaultHarmonics AutoRelease $
   AHDSR'Envelope
     800 0 50 51200
     (Eased EaseIn Ord5)
     Linear
     (Eased EaseOut Sine)
     1.0
-organicInstrument = SineSynthAHDSR defaultHarmonics AutoRelease
+organicInstrument = Synth Sinus'VolumeAdjusted defaultHarmonics AutoRelease
   $ AHDSR'Envelope
       400 5120 50 12800
       (Eased EaseIn Sine)
       Linear
       (Eased EaseOut Circ)
       1.0
-shortInstrument = SineSynthAHDSR defaultHarmonics AutoRelease
+shortInstrument = Synth Sinus'VolumeAdjusted defaultHarmonics AutoRelease
   $ AHDSR'Envelope
       800 640 50 3200
       (Eased EaseOut Sine)
       Linear
       (Eased EaseIn Circ)
       1.0
-testInstrument = SineSynthAHDSR defaultHarmonics AutoRelease
+testInstrument = Synth Sinus'VolumeAdjusted defaultHarmonics AutoRelease
   $ AHDSR'Envelope
       800 160 3200 6400
       (Eased EaseInOut Sine)
       ProportionaValueDerivative
       (Eased EaseInOut Circ)
       0.865
-stringsInstrument = SineSynthAHDSR defaultHarmonics KeyRelease
+stringsInstrument = Synth Sinus'VolumeAdjusted defaultHarmonics KeyRelease
   $ AHDSR'Envelope
       12800 160 3200 6400
       Linear
       Linear
       (Eased EaseInOut Circ)
       1.0
-longInstrument = SineSynthAHDSR defaultHarmonics KeyRelease
+longInstrument = Synth Sinus'VolumeAdjusted defaultHarmonics KeyRelease
   $ AHDSR'Envelope
       50 160 102400 6400
       Linear
       ProportionaValueDerivative
       (Eased EaseInOut Circ)
       0.138
-longBellInstrument = SineSynthAHDSR defaultHarmonics AutoRelease
+longBellInstrument = Synth Sinus'VolumeAdjusted defaultHarmonics AutoRelease
   $ AHDSR'Envelope
       1600 160 102400 102400
       Linear
@@ -192,7 +242,7 @@ longBellInstrument = SineSynthAHDSR defaultHarmonics AutoRelease
       (Eased EaseOut Sine)
       0.138
 trapezoidalInstrument :: Int -> Instrument
-trapezoidalInstrument i = SineSynthAHDSR defaultHarmonics KeyRelease
+trapezoidalInstrument i = Synth Sinus'VolumeAdjusted defaultHarmonics KeyRelease
   $ AHDSR'Envelope
       i 0 0 i
       Linear

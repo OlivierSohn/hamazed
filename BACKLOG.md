@@ -1,4 +1,12 @@
 - Support MIDI input
+
+- Doc : volume is controlled by:
+chan_base_amplitude (0.3f)
+baseVolume (1.f to ...)
+
+- add a parameter to synchronize attack start or attack end or to use the same attack for all
+(one envelope, taking the max of durations)
+
 - To optimize network bandwidth usage, when sending an Instrument, the server could send:
 data HarmonicsRep =
     Whole [HarmonicProperties] (Maybe Key)
@@ -12,14 +20,6 @@ data HarmonicsRep =
 
 And maybe we should include AHDSR in this logic, to avoid sending the same envelope
 data each time a note is played.
-
-- add a parameter to synchronize attack start or attack end or to use the same attack for all
-(one envelope, taking the max of durations)
-
-should loudness volume happen based on the first harmonic frequency, globally,
-or individually on every frequency?
-For now, it happens individually on each frequency, it seems ok. But memory-wise,
-since the parameters for volume are all the same we could store them once only.
 
 - [nice to have] allow unlimited polyphony on every instrument.
 .. if a given instrument is full, instantiate a second identical instrument:

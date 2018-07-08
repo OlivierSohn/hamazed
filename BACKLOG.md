@@ -1,17 +1,36 @@
-- ultra high frequencies robustness: the synth should prevent aliasing :
-from 4 to 3 samples per sinus period, linearily decrease the volume from 1 to 0.
+- it seems there is a memory leak when using portmidi (either in the c library or in the haskell binding)
+
+- ultra high frequencies robustness: the envelopes (multi, one) should prevent aliasing :
+on sinus, square, triangle, aliasing starts when there are less than 2 samples per period.
+
+from 4 to 2 samples per sinus period, linearily decrease the volume from 1 to 0.
 
 1 second = 44100 samples.
 1 second = 44100 / 3 sinus periods = 14700 Hz
+
+callers of playComputableNoLock should check if the audioelement "handlesFrequencyAliasing":
+if not they should handle it by passing a scaled volume to the Request.
+
+make multi enveloppe handle it 9verify that we can change the volumes, because they are private.
+
+Note that for a frequency sweep, we could handle it dynamically.
+
+The easiest would be to have a volume per oscillator.
+template<>typename ALGO
+struct MuteFreqAliasing {
+  setAngleIncrements() {
+    multiplicator = ...
+  }
+  float multiplicator;
+}
+
+Maybe merge this with VolumeAdjusted stuff o have a simgle multiplicator instead of 2
 
 - in game synth, when all harmonics are 1, divide by the sum to avoid overflow.
 Rename to weight.
 
 - make the poll period configurable via cl setting
 - report midi poll period when a debugmidi flag is activated (average, min, max)
-
-- portmidi: do not allocate a buffer each time we read midi, use a pre-existing buffer
-(withForeignPtr)
 
 - Doc : volume is controlled by:
 chan_base_amplitude (0.3f)

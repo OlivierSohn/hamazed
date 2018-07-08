@@ -39,7 +39,10 @@ import           Data.Text(pack, Text)
 import           Data.Vector.Unboxed(Vector)
 import qualified Data.Vector.Unboxed as V
 import qualified Data.Vector.Storable as S
+import qualified Data.Vector.Storable.Mutable as SM
 import           Data.Proxy(Proxy(..))
+import           Foreign.ForeignPtr(withForeignPtr)
+import           Foreign.Marshal.Array(peekArray)
 import           GHC.Generics(Generic)
 import qualified Graphics.UI.GLFW as GLFW(Key(..), KeyState(..))
 import           Numeric(showFFloat)
@@ -590,12 +593,22 @@ saveInstrument i = do
   withFile instrumentFile WriteMode $ \h ->
     BL.hPutStr h (encode i)
 
+data MidiDeviceContext = MidiDeviceContext {
+    midiStream :: {-# UNPACK #-} !PortMidi.PMStream
+  , unsafeStorage :: !(S.Vector PortMidi.PMEvent)
+  -- ^ This buffer is used as static storage when reading midi events
+  -- from the c library @portmidi@. It may contain uninitialized / invalid elements.
+}
+
+mkMidiDeviceContext :: PortMidi.PMStream -> MidiDeviceContext
+mkMidiDeviceContext s = MidiDeviceContext s $ S.create $ SM.new 16
+
 instance GameLogic SynthsGame where
 
   type ServerT SynthsGame = SynthsServer
   type StatefullKeysT SynthsGame = SynthsStatefullKeys
   type ClientOnlyEvtT SynthsGame = SynthsGameEvent
-  type PollContextT SynthsGame = PortMidi.PMStream
+  type PollContextT SynthsGame = MidiDeviceContext
 
   produceEventsByPolling = EventProducerByPolling {
     -- Never returns 'Left', to let the app run in a degraded mode (pc-keyboard only)
@@ -627,37 +640,49 @@ instance GameLogic SynthsGame where
                   return $ Right Nothing)
                 (\res -> do
                   putStrLn "PortMidi: opened the device."
-                  return $ Right $ Just res)))
-    , produceEvents = \stream mayGame -> do
+                  return $ Right $ Just $ mkMidiDeviceContext res)))
+    , produceEvents = \(MidiDeviceContext stream buffer) mayGame -> do
       -- 100 microseconds is the minimal time between calls (measured using console prints).
       -- but this is achieved only by setting a lower value like so:
       let dt = fromSecs 0.000001
       PortMidi.poll stream >>= either
         (return . Left . pack . (++) "midi poll:" . show)
         (\case
-            PortMidi.NoError'NoData -> do
+            PortMidi.NoError'NoData ->
               return $ Right ([],[],Just dt)
             PortMidi.GotData -> do
-              -- even if mayGame is 'Nothing', we deque from the midi queue to avoid
-              -- overflow.
-              evts <- PortMidi.readEvents stream
-              return $ maybe
-                (Right ([],[],Just dt))
-                (\(SynthsGame _ _ _ instr _ _) ->
-                  (\l -> Right ([],map (ClientAppEvt . PlayNote) l,Just dt)) $
-                    catMaybes $
-                    map (maybe Nothing (\case
-                      NoteOff _ key _ ->
-                        Just $ StopNote $ mkInstrumentNote (fromIntegral key) instr
-                      NoteOn _ key 0 ->
-                        Just $ StopNote $ mkInstrumentNote (fromIntegral key) instr
-                      NoteOn _ key vel ->
-                        Just $ StartNote (mkInstrumentNote (fromIntegral key) instr) $ mkNoteVelocity vel
-                      _ ->
-                        Nothing
-                      ) . msgToMidi . PortMidi.decodeMsg . PortMidi.message)
-                      evts)
-                mayGame)
+              let (bufferPtr, bufferSz) = S.unsafeToForeignPtr0 buffer
+              withForeignPtr bufferPtr $ \ptr -> do
+                -- TODO if the number of events returned is equal to the size of the buffer,
+                -- call 'readEventsToBuffer' again as we may have more to read.
+                res <- PortMidi.readEventsToBuffer stream ptr $ fromIntegral bufferSz
+                maybe
+                  -- in that case, we don't use the events we just read,
+                  -- but reading them serves the purpose of not overflowing the queue.
+                  (return $ Right ([],[],Just dt))
+                  (\(SynthsGame _ _ _ instr _ _) ->
+                    either
+                      (\err -> do
+                        putStrLn $ "midi read error:" ++ show err
+                        return $ Right ([],[],Just dt)) -- fail silently
+                      (\n -> ((\l -> Right ([],map (ClientAppEvt . PlayNote) l,Just dt)) .
+                          catMaybes .
+                          map
+                            (maybe
+                              Nothing
+                              (\case
+                                  NoteOff _ key _ ->
+                                    Just $ StopNote $ mkInstrumentNote (fromIntegral key) instr
+                                  NoteOn _ key 0 ->
+                                    Just $ StopNote $ mkInstrumentNote (fromIntegral key) instr
+                                  NoteOn _ key vel ->
+                                    Just $ StartNote (mkInstrumentNote (fromIntegral key) instr) $ mkNoteVelocity vel
+                                  _ ->
+                                    Nothing)
+                              . msgToMidi . PortMidi.decodeMsg . PortMidi.message))
+                              <$> flip peekArray ptr (fromIntegral n))
+                      res)
+                  mayGame)
     , terminateProducer =
         const $ PortMidi.terminate >>= either (return . Left . pack . show) (const $ return $ Right ())
     }

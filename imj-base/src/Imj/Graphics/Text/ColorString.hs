@@ -43,7 +43,7 @@ str = colored \"Hello\" white <> colored \" World\" yellow
             , LayeredColor(..)
             ) where
 
-import           Imj.Prelude
+import           Imj.Prelude hiding(lefts)
 
 import           Control.Monad.Reader.Class(asks)
 import           Data.Char(isSpace, chr)

@@ -19,7 +19,7 @@ The music is shared between all players.
 module Main where
 
 import           Imj.Prelude
-import           Prelude(length)
+import           Prelude(length, putStrLn)
 
 import           Codec.Midi hiding(key)
 import           Control.Concurrent(forkIO, threadDelay)
@@ -598,15 +598,36 @@ instance GameLogic SynthsGame where
   type PollContextT SynthsGame = PortMidi.PMStream
 
   produceEventsByPolling = EventProducerByPolling {
+    -- Never returns 'Left', to let the app run in a degraded mode (pc-keyboard only)
+    --   when midi input is not available
     initializeProducer = do
+      putStrLn "PortMidi initializes."
       PortMidi.initialize >>= either
-        (return . Left . pack . (++) "midi initialize:" . show)
-        (const $ PortMidi.getDefaultInputDeviceID >>= maybe
-          (return $ Left "no default midi device")
-          (\did ->
-            PortMidi.openInput did >>= either
-            (return . Left . pack . (++) "open midi device:" . show)
-            (return . Right . Just)))
+        (\err -> do
+          putStrLn $ "PortMidi initialization failed:" ++ show err
+          putStrLn "PortMidi: You will be able to play sounds using your pc-keyboard only."
+          PortMidi.terminate >>= either (putStrLn . (++) "PortMidi termination failed:" . show) (const $ return ())
+          return $ Right Nothing)
+        (\_ -> do
+          putStrLn "PortMidi is looking for a default MIDI device."
+          PortMidi.getDefaultInputDeviceID >>= maybe
+            (do
+              putStrLn "PortMidi: No default midi device exists."
+              putStrLn "PortMidi: You will be able to play sounds using your pc-keyboard only."
+              PortMidi.terminate >>= either (putStrLn . (++) "PortMidi termination failed:" . show) (const $ return ())
+              return $ Right Nothing)
+            (\did -> do
+              PortMidi.getDeviceInfo did >>= putStrLn . (++) "Default midi device:" . show
+              putStrLn "PortMidi is opening the default MIDI device."
+              PortMidi.openInput did >>= either
+                (\err -> do
+                  putStrLn $ "PortMidi: Failed to open the device:" ++ show err
+                  putStrLn "PortMidi: You will be able to play sounds using your pc-keyboard only."
+                  PortMidi.terminate >>= either (putStrLn . (++) "PortMidi termination failed:" . show) (const $ return ())
+                  return $ Right Nothing)
+                (\res -> do
+                  putStrLn "PortMidi: opened the device."
+                  return $ Right $ Just res)))
     , produceEvents = \stream mayGame -> do
       -- 100 microseconds is the minimal time between calls (measured using console prints).
       -- but this is achieved only by setting a lower value like so:

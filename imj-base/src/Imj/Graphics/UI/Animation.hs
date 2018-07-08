@@ -11,7 +11,7 @@ module Imj.Graphics.UI.Animation
            , module Imj.Graphics.UI.Animation.Types
            ) where
 
-import           Imj.Prelude
+import           Imj.Prelude hiding(lefts)
 import qualified Prelude as Unsafe(head,last)
 
 import           Control.Monad.Reader.Class(MonadReader)

@@ -1,4 +1,3 @@
-- allow game synth to run without midi-keyboard
 
 - handle several midi events at once (server and client side).
 

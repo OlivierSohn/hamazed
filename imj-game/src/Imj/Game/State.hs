@@ -10,7 +10,6 @@ module Imj.Game.State
         createState
       -- * Modify
       , onEvent
-      , toggleRecordEvent
       , addIgnoredOverdues
       -- * reexports
       , module Imj.Game.Class
@@ -88,10 +87,11 @@ onEvent' :: (GameLogicT e ~ g, s ~ ServerT g
 onEvent' = maybe (handleEvent Nothing) -- if a rendergroup exists, render and reset the group
   (\case
     CliEvt e -> asks sendToServer' >>= \f -> f e
-    Evt ToggleEventRecording -> modify' toggleRecordEvent
     Evt    evt -> onUpdate $ Right evt
     SrvEvt evt -> onUpdate $ Left evt)
  where
+  onUpdate e@(Right ToggleEventRecording) =
+    handleEvent $ Just e
   onUpdate e = do
     gets appStateRecordEvents >>= \case
       Record -> modify' $ addEvent e
@@ -208,14 +208,6 @@ addEvent :: (GameLogic g)
 addEvent e s =
   s { eventHistory = addEventRepr (evtCategory e) $ eventHistory s }
 
-toggleRecordEvent :: AppState g -> AppState g
-toggleRecordEvent s@(AppState _ _ _ _ _ r _ _ _) =
-  s { eventHistory = mkEmptyOccurencesHist
-    , appStateRecordEvents = case r of
-       Record -> DontRecord
-       DontRecord -> Record
-    }
-
 addIgnoredOverdues :: MonadState (AppState g) m
                    => Int -> m ()
 addIgnoredOverdues n =
@@ -260,6 +252,3 @@ toColorStr' (Occurences n e) =
 mkOccurencesHist :: Occurences EventCategory -> OccurencesHist
 mkOccurencesHist o =
   OccurencesHist [o] mempty
-
-mkEmptyOccurencesHist :: OccurencesHist
-mkEmptyOccurencesHist = OccurencesHist [] mempty

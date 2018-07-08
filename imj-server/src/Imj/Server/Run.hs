@@ -164,6 +164,8 @@ handleIncomingEvent' :: (Server s, ServerClientHandler s, ServerInit s, ServerCl
                      => ClientEvent s
                      -> m ([MVar (ServerState s) -> IO ()])
 handleIncomingEvent' = \case
+  -- we don't log individual arguments, they have been logged as a whole already
+  SequenceOfCliEvts l -> mconcat <$> mapM handleIncomingEvent' l
   Connect _ i _ -> do
     handlerError $ "already connected : " ++ show i
     return []

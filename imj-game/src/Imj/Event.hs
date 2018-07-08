@@ -64,9 +64,11 @@ data Event e =
   | SendChatMessage
   -- ^ Send message or execute command if the message starts with a '/'
   | AppEvent !e
+  | SequenceOfEvents [Event e]
   deriving(Generic, Show, Eq)
 instance (Categorized e) => Categorized (Event e) where
   evtCategory = \case
+    SequenceOfEvents {} -> Command'
     Log _ _         -> Command'
     SendChatMessage -> Command'
     ChatCmd _       -> Command'

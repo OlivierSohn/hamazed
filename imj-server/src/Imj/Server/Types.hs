@@ -38,6 +38,8 @@ data ClientEvent s =
   | Connect !(Set MAC) !(Maybe (ConnectIdT s)) {-unpack sum-} !ServerOwnership
   | ExitedState {-unpack sum-} !(StateValue (StateValueT s))
   | OnCommand !(Command s)
+  | SequenceOfCliEvts [ClientEvent s]
+  -- ^ where the first elements in the list should be handled first
   deriving(Generic)
 instance (Server s, ServerClientHandler s) => Show (ClientEvent s) where
   show = \case
@@ -45,6 +47,7 @@ instance (Server s, ServerClientHandler s) => Show (ClientEvent s) where
     Connect x y z -> show ("Connect",x,y,z)
     ExitedState x -> show ("ExitedState",x)
     OnCommand x -> show ("OnCommand",x)
+    SequenceOfCliEvts l -> show ("Sequence", show l)
 instance (Server s, ServerClientHandler s) => Binary (ClientEvent s)
 instance (Server s, ServerClientHandler s) => WebSocketsData (ClientEvent s) where
   fromDataMessage (Text t _) =

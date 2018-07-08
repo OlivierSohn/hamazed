@@ -11,6 +11,7 @@
 module Imj.Game.Update
       ( updateAppState
       , putClientState
+      , mkEmptyOccurencesHist
       ) where
 
 import           Imj.Prelude
@@ -21,7 +22,7 @@ import           Control.Concurrent(forkIO, threadDelay)
 import           Control.Exception.Base(throwIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad.Reader(runReaderT)
-import           Control.Monad.State.Strict(gets)
+import           Control.Monad.State.Strict(gets, modify')
 import           Data.Attoparsec.Text(parseOnly)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -65,6 +66,17 @@ import           Imj.Iteration
 import           Imj.Log
 import           Imj.Server.Command
 
+
+toggleRecordEvent :: AppState g -> AppState g
+toggleRecordEvent s@(AppState _ _ _ _ _ r _ _ _) =
+  s { eventHistory = mkEmptyOccurencesHist
+    , appStateRecordEvents = case r of
+       Record -> DontRecord
+       DontRecord -> Record
+    }
+mkEmptyOccurencesHist :: OccurencesHist
+mkEmptyOccurencesHist = OccurencesHist [] mempty
+
 {-# INLINABLE updateAppState #-}
 updateAppState :: (g ~ GameLogicT e, s ~ ServerT g
                  , StateValueT s ~ GameStateValue
@@ -75,122 +87,132 @@ updateAppState :: (g ~ GameLogicT e, s ~ ServerT g
                => UpdateEvent g
                -- ^ The 'Event' that should be handled here.
                -> m ()
-updateAppState (Right evt) = case evt of
-  AppEvent e ->
-    onClientOnlyEvent e
-  ChatCmd chatCmd -> stateChat $ flip (,) () . runChat chatCmd
-  SendChatMessage -> onSendChatMessage
-  ToggleEventRecording ->
-    error "should be handled by caller"
-  Timeout (Deadline _ _ PollExternalEvents) ->
-    gets pollContext >>= maybe
-      (return ())
-      (\ctxt ->
-        getIGame >>= liftIO . (produceEvents produceEventsByPolling) ctxt >>= either
-          (error . (++) "external events polling:" . show)
-          (\(cliEvts, srvEvts, mayNextTime) ->
-            asks writeToClient' >>= \toClient -> asks sendToServer' >>= \toServer -> liftIO $ do
-              -- TODO send all events at once
-              now <- getSystemTime
-              unless (null srvEvts) (mapM_ toServer srvEvts)
-              unless (null cliEvts) (mapM_ toClient cliEvts)
-              maybe
-                (return ())
-                (\dt ->
-                  void $ forkIO $ do
-                    -- if we don't sleep here, glfw keyboard events will be handled with a very long delay.
-                    threadDelay $ max 1 $ fromIntegral $ toMicros dt
-                    -- note that the duration written in the 'Deadline' is not taken into account:
-                    --   if an element is in the queue, it is handled immediately.
-                    toClient $ FromClient $ Timeout $ Deadline (addDuration dt now) externalEventPriority PollExternalEvents
-                  )
-                mayNextTime
-              ))
-  Timeout (Deadline t _ (RedrawStatus f g)) ->
-    updateStatus (Just (f,g)) t
-  Timeout (Deadline t _ AnimateUI) -> do
-    _anim <$> getGameState >>= \a@(UIAnimation evolutions (UIAnimProgress _ it)) -> do
-      let nextIt@(Iteration _ nextFrame) = nextIteration it
-          worldAnimDeadline = fmap (flip addDuration t) $ getDeltaTime evolutions nextFrame
-      putAnimation $ a { getProgress = UIAnimProgress worldAnimDeadline nextIt }
-  Timeout (Deadline _ _ (AnimateParticleSystem key)) ->
-    fmap systemTimePointToParticleSystemTimePoint (liftIO getSystemTime) >>= \tps ->
-      gets game >>= \g ->
-        putGame (g {
-          gameParticleSystems =
-            Map.updateWithKey
-              (\_ (Prioritized p ps) -> fmap (Prioritized p) $ updateParticleSystem tps ps)
-              key
-              $ gameParticleSystems g })
-  CanvasSizeChanged ->
-    onTargetSize
-  RenderingTargetChanged ->
-    withAnim $ do -- to make the frame take its initial size
-      onTargetChanged >>= either (liftIO . putStrLn) return
-      onTargetSize
-  CycleRenderingOptions i j -> do
-    cycleRenderingOptions i j >>= either (liftIO . putStrLn) return
-    onTargetSize
-  ApplyPPUDelta deltaPPU -> do
-    -- the font calculation is done according to the current screen size,
-    -- so there may be some partial unit rectangles. If we wanted to have only
-    -- full unit rectangles, we could recompute the screen size based on preferred size and new ppu,
-    -- then adjust the font.
-    asks applyPPUDelta >>= \f -> f deltaPPU >>= either (liftIO . putStrLn) return
-    onTargetSize
-  ApplyFontMarginDelta d ->
-    asks applyFontMarginDelta >>= \f -> f d >>= either (liftIO . putStrLn) return
-  Log Error txt ->
-    error $ unpack txt
-  Log msgLevel txt ->
-    stateChat $ addMessage $ Information msgLevel txt
-updateAppState (Left evt) = case evt of
-  ServerAppEvt e ->
-    onServerEvent e
-  PlayMusic music ->
-    asks playMusic >>= \f -> f music
-  OnContent worldParameters ->
-    putServerContent worldParameters
-  RunCommand i cmd -> runClientCommand i cmd
-  CommandError cmd err ->
-    stateChat $ addMessage $ Information Warning $
-      pack (show cmd) <> " failed:" <> err
-  Reporting cmd ->
-    stateChat $ addMessage $ Information Info $ pack $ chatShow cmd
-  Warn msg ->
-    stateChat $ addMessage $ Information Warning msg
-  PlayerInfo notif i ->
-    stateChat . addMessage . ChatMessage =<< toTxt i notif
-  EnterState s ->
-    putClientState $ ClientState Ongoing s
-  ExitState s  ->
-    putClientState $ ClientState Over s
-  AllClients eplayers -> do
-    asks sendToServer' >>= \f -> f $ ExitedState Excluded
-    putClientState $ ClientState Over Excluded
-    let p = Map.map mkPlayer eplayers
-    putPlayers p
-    stateChat $ addMessage $ ChatMessage $ welcome p
-  ConnectionAccepted i -> do
-    withAnim $ -- to make the frame take its initial size
-      putGameConnection $ Right i
-  ConnectionRefused sn reason ->
-    putGameConnection $ Left $
-      "[" <>
-      pack (show sn) <>
-      "]" <>
-      pack " is invalid:" <>
-      reason
-  Disconnected (ClientShutdown (Right ())) ->
-    liftIO $ exitSuccess
-  Disconnected (ClientShutdown (Left txt)) ->
-    liftIO $ throwIO $ UnexpectedProgramEnd $ "Broken Client : " <> txt
-  Disconnected s@(ServerShutdown _) ->
-    liftIO $ throwIO $ UnexpectedProgramEnd $ "Disconnected by Server: " <> pack (show s)
-  ServerError txt ->
-    liftIO $ throwIO $ ErrorFromServer txt
-
+updateAppState (Right evt) = updateAddStateFromCliEvt evt
  where
+  updateAddStateFromCliEvt = \case
+    SequenceOfEvents l -> mapM_ updateAddStateFromCliEvt l
+    AppEvent e ->
+      onClientOnlyEvent e
+    ChatCmd chatCmd -> stateChat $ flip (,) () . runChat chatCmd
+    SendChatMessage -> onSendChatMessage
+    ToggleEventRecording ->
+      modify' toggleRecordEvent
+    Timeout (Deadline _ _ PollExternalEvents) ->
+      gets pollContext >>= maybe
+        (return ())
+        (\ctxt ->
+          getIGame >>= liftIO . (produceEvents produceEventsByPolling) ctxt >>= either
+            (error . (++) "external events polling:" . show)
+            (\(cliEvts, srvEvts, mayNextTime) ->
+              asks writeToClient' >>= \toClient -> asks sendToServer' >>= \toServer -> liftIO $ do
+                now <- getSystemTime
+                case srvEvts of
+                  [] -> return ()
+                  [one]   -> toServer one
+                  (_:_:_) -> toServer $ SequenceOfCliEvts srvEvts
+                case cliEvts of
+                  [] -> return ()
+                  [one]   -> toClient $ FromClient one
+                  (_:_:_) -> toClient $ FromClient $ SequenceOfEvents cliEvts
+                maybe
+                  (return ())
+                  (\dt ->
+                    void $ forkIO $ do
+                      -- if we don't sleep here, glfw keyboard events will be handled with a very long delay.
+                      threadDelay $ max 1 $ fromIntegral $ toMicros dt
+                      -- note that the duration written in the 'Deadline' is not taken into account:
+                      --   if an element is in the queue, it is handled immediately.
+                      toClient $ FromClient $ Timeout $ Deadline (addDuration dt now) externalEventPriority PollExternalEvents
+                    )
+                  mayNextTime
+                ))
+    Timeout (Deadline t _ (RedrawStatus f g)) ->
+      updateStatus (Just (f,g)) t
+    Timeout (Deadline t _ AnimateUI) -> do
+      _anim <$> getGameState >>= \a@(UIAnimation evolutions (UIAnimProgress _ it)) -> do
+        let nextIt@(Iteration _ nextFrame) = nextIteration it
+            worldAnimDeadline = fmap (flip addDuration t) $ getDeltaTime evolutions nextFrame
+        putAnimation $ a { getProgress = UIAnimProgress worldAnimDeadline nextIt }
+    Timeout (Deadline _ _ (AnimateParticleSystem key)) ->
+      fmap systemTimePointToParticleSystemTimePoint (liftIO getSystemTime) >>= \tps ->
+        gets game >>= \g ->
+          putGame (g {
+            gameParticleSystems =
+              Map.updateWithKey
+                (\_ (Prioritized p ps) -> fmap (Prioritized p) $ updateParticleSystem tps ps)
+                key
+                $ gameParticleSystems g })
+    CanvasSizeChanged ->
+      onTargetSize
+    RenderingTargetChanged ->
+      withAnim $ do -- to make the frame take its initial size
+        onTargetChanged >>= either (liftIO . putStrLn) return
+        onTargetSize
+    CycleRenderingOptions i j -> do
+      cycleRenderingOptions i j >>= either (liftIO . putStrLn) return
+      onTargetSize
+    ApplyPPUDelta deltaPPU -> do
+      -- the font calculation is done according to the current screen size,
+      -- so there may be some partial unit rectangles. If we wanted to have only
+      -- full unit rectangles, we could recompute the screen size based on preferred size and new ppu,
+      -- then adjust the font.
+      asks applyPPUDelta >>= \f -> f deltaPPU >>= either (liftIO . putStrLn) return
+      onTargetSize
+    ApplyFontMarginDelta d ->
+      asks applyFontMarginDelta >>= \f -> f d >>= either (liftIO . putStrLn) return
+    Log Error txt ->
+      error $ unpack txt
+    Log msgLevel txt ->
+      stateChat $ addMessage $ Information msgLevel txt
+updateAppState (Left evt) = updateAddStateFromServerEvt evt
+ where
+  updateAddStateFromServerEvt = \case
+    SequenceOfSrvEvts l -> mapM_ updateAddStateFromServerEvt l
+    ServerAppEvt e ->
+      onServerEvent e
+    PlayMusic music ->
+      asks playMusic >>= \f -> f music
+    OnContent worldParameters ->
+      putServerContent worldParameters
+    RunCommand i cmd -> runClientCommand i cmd
+    CommandError cmd err ->
+      stateChat $ addMessage $ Information Warning $
+        pack (show cmd) <> " failed:" <> err
+    Reporting cmd ->
+      stateChat $ addMessage $ Information Info $ pack $ chatShow cmd
+    Warn msg ->
+      stateChat $ addMessage $ Information Warning msg
+    PlayerInfo notif i ->
+      stateChat . addMessage . ChatMessage =<< toTxt i notif
+    EnterState s ->
+      putClientState $ ClientState Ongoing s
+    ExitState s  ->
+      putClientState $ ClientState Over s
+    AllClients eplayers -> do
+      asks sendToServer' >>= \f -> f $ ExitedState Excluded
+      putClientState $ ClientState Over Excluded
+      let p = Map.map mkPlayer eplayers
+      putPlayers p
+      stateChat $ addMessage $ ChatMessage $ welcome p
+    ConnectionAccepted i -> do
+      withAnim $ -- to make the frame take its initial size
+        putGameConnection $ Right i
+    ConnectionRefused sn reason ->
+      putGameConnection $ Left $
+        "[" <>
+        pack (show sn) <>
+        "]" <>
+        pack " is invalid:" <>
+        reason
+    Disconnected (ClientShutdown (Right ())) ->
+      liftIO $ exitSuccess
+    Disconnected (ClientShutdown (Left txt)) ->
+      liftIO $ throwIO $ UnexpectedProgramEnd $ "Broken Client : " <> txt
+    Disconnected s@(ServerShutdown _) ->
+      liftIO $ throwIO $ UnexpectedProgramEnd $ "Disconnected by Server: " <> pack (show s)
+    ServerError txt ->
+      liftIO $ throwIO $ ErrorFromServer txt
+
 
   toTxt i notif =
     (`mappend` colored (pack $ toTxt'' notif) chatMsgColor) . getPlayerUIName' <$> getPlayer i

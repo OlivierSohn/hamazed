@@ -55,12 +55,19 @@ sendAndHandleExceptions :: (MonadIO m
                         -> ClientId
                         -> m ()
 sendAndHandleExceptions [] _ _ = return () -- sendDataMessages throws on empty list
-sendAndHandleExceptions evts conn i =
-  liftIO (try $ sendDataMessages conn msgs) >>= either
-    (\(e :: SomeException) -> onBrokenClient "" (Just ("sending", "ServerEvent", evts)) e i)
+sendAndHandleExceptions [one] conn i =
+  liftIO (try $ sendDataMessages conn [msg]) >>= either
+    (\(e :: SomeException) -> onBrokenClient "" (Just ("sending", "ServerEvent", [one])) e i)
     return
  where
-  !msgs = map (Binary . toLazyByteString) evts
+  !msg = Binary $ toLazyByteString $ one
+sendAndHandleExceptions evts@(_:_:_) conn i =
+  liftIO (try $ sendDataMessages conn [msg]) >>= either
+    (\(e :: SomeException) -> onBrokenClient "" (Just ("sending", "ServerEvent", [aggregate])) e i)
+    return
+ where
+  aggregate = SequenceOfSrvEvts evts
+  !msg = Binary $ toLazyByteString $ aggregate
 
 
 -- It's important that this function doesn't throw any exception.

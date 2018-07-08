@@ -228,7 +228,7 @@ instance GameStatefullKeys g () where
 data EventProducerByPolling g = EventProducerByPolling {
     initializeProducer :: IO (Either Text (Maybe (PollContextT g)))
     -- ^ Called synchronously.
-  , produceEvents :: (PollContextT g -> Maybe g -> IO (Either Text ([EventForClient g], [ClientEvent (ServerT g)], Maybe (Time Duration System))))
+  , produceEvents :: (PollContextT g -> Maybe g -> IO (Either Text ([Event (ClientOnlyEvtT g)], [ClientEvent (ServerT g)], Maybe (Time Duration System))))
   -- ^ When 'Left' is returned (error), the game stops.
   --
   -- When 'Right' is returned, if the duration is 'Just', the next call will happen no
@@ -388,12 +388,12 @@ class DrawGroupMember e where
   -- | Any two events of the same 'EventGroup' must have non-overlapping 'exclusivityKeys'.
   --
   -- Returning an empty 'Set' ('mempty') will allow the event to be member of any 'EventGroup',
-  -- regardless of events already present in it, and it will not prevent any further event to be included
+  -- regardless of events already present in it, and it will allow further event to be included
   -- in the same 'EventGroup'.
   --
   -- WARNING : If the render backend of your game has a minimal duration @minDt@ between two rendered frames
   -- (which is the case with single buffered opengl rendering) and if an event for which this function
-  -- returns a non-empty set is generated continuously at a frequency bigger than the inverse of @minDt@::
+  -- returns a non-empty set is generated continuously at a frequency bigger than the inverse of @minDt@:
   --
   -- * player input will be ignored (TODO We could "parallelize" platform events consumption
   -- so that player input can still be handled correctly in that case and still keep the guarantee that
@@ -417,6 +417,7 @@ instance (DrawGroupMember e, DrawGroupMember f)
 instance DrawGroupMember e
   => DrawGroupMember (Event e) where
   exclusivityKeys = \case
+    SequenceOfEvents l -> mconcat $ map exclusivityKeys l
     (Timeout (Deadline _ _ (AnimateParticleSystem _))) -> mempty
     (Timeout (Deadline _ _ AnimateUI)) -> mempty
     (Timeout (Deadline _ _ RedrawStatus{})) -> Set.singleton RedrawStatusKey
@@ -435,6 +436,7 @@ instance DrawGroupMember e
 instance DrawGroupMember (ServerEventT e)
   => DrawGroupMember (ServerEvent e) where
   exclusivityKeys = \case
+    SequenceOfSrvEvts l -> mconcat $ map exclusivityKeys l
     ServerAppEvt x -> exclusivityKeys x
     PlayMusic {} -> mempty
     CommandError {} -> mempty

@@ -334,6 +334,8 @@ data ServerEvent s =
   | Warn !Text
   | ServerError !String
   -- ^ A non-recoverable error occured in the server: before crashing, the server sends the error to its clients.
+  | SequenceOfSrvEvts [ServerEvent s]
+  -- ^ where the first elements in the list should be handled first
   deriving(Generic)
 instance (Server s, ServerClientHandler s) => Show (ServerEvent s) where
   show = \case
@@ -352,6 +354,7 @@ instance (Server s, ServerClientHandler s) => Show (ServerEvent s) where
     ExitState x -> show ("ExitState",x)
     ServerError x -> show ("ServerError",x)
     Warn x -> show ("Warning",x)
+    SequenceOfSrvEvts l -> show ("Sequence",show l)
 instance (Server s, ServerClientHandler s) => Binary (ServerEvent s)
 instance (Server s, ServerClientHandler s) => WebSocketsData (ServerEvent s) where
   fromDataMessage (Text t _) =
@@ -378,6 +381,7 @@ instance (Server s, ServerClientHandler s) => Categorized (ServerEvent s) where
     EnterState _ -> EnterState'
     ExitState _ -> ExitState'
     Warn {} -> Chat'
+    SequenceOfSrvEvts{} -> Command'
     ServerAppEvt e -> evtCategory e
 
 data StateValue s =

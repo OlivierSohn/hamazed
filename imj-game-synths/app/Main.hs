@@ -21,12 +21,14 @@ module Main where
 import           Imj.Prelude
 import           Prelude(length)
 
+import           Codec.Midi hiding(key)
 import           Control.Concurrent(forkIO, threadDelay)
 import           Control.Concurrent.MVar.Strict(MVar, modifyMVar, modifyMVar_, newMVar, putMVar, takeMVar)
 import           Control.DeepSeq(NFData)
 import           Control.Monad.State.Strict(gets, execStateT)
 import           Control.Monad.Reader(asks)
 import           Data.Binary(Binary(..), encode, decodeOrFail)
+import           Data.Bits (shiftR, shiftL, (.&.))
 import qualified Data.ByteString.Lazy as BL
 import           Data.List(replicate, concat, take)
 import           Data.Map.Internal(Map(..))
@@ -41,6 +43,7 @@ import           Data.Proxy(Proxy(..))
 import           GHC.Generics(Generic)
 import qualified Graphics.UI.GLFW as GLFW(Key(..), KeyState(..))
 import           Numeric(showFFloat)
+import qualified Sound.PortMidi as PortMidi
 import           System.IO(withFile, IOMode(..))
 import           System.Directory(doesFileExist)
 
@@ -82,6 +85,71 @@ import           Imj.Timing
 
 main :: IO ()
 main = runGame (Proxy :: Proxy SynthsGame)
+
+
+-- TODO make a PortMidi example out of this for https://github.com/ninegua/PortMidi/issues/4
+{-
+main2 = usingAudioOutput readMidi
+readMidi :: IO ()
+readMidi = do
+  PortMidi.initialize >>= either
+    (\err -> putStrLn $ "midi initialize : " ++ show err)
+    (const $ return ())
+  PortMidi.getDefaultInputDeviceID >>= maybe
+    (error "no default device")
+    (\did -> do
+      PortMidi.getDeviceInfo did >>= print
+      PortMidi.openInput did >>= either
+        (\err -> error $ "open:" ++ show err)
+        (\stream -> do
+            let f =
+                  PortMidi.poll stream >>= either
+                    (\err -> error $ "poll:" ++ show err)
+                    (\case
+                        PortMidi.NoError'NoData -> f
+                        PortMidi.GotData ->
+                          PortMidi.readEvents stream >>= \evts -> do
+                            putStrLn ""
+                            print evts
+                            forM_ evts
+                              (maybe
+                                (putStrLn "unhandled")
+                                (\case
+                                    NoteOn _ key 0 -> onNoteOff key
+                                    NoteOn _ key vel -> do
+                                     let n = mkInstrumentNote (fromIntegral key) simpleInstrument
+                                     play (StartNote n $ mkNoteVelocity vel) >>= either (error . show) return
+                                    NoteOff _ key _ -> onNoteOff key
+                                    _ -> putStrLn "unhandled"
+                                    ) . msgToMidi . PortMidi.decodeMsg . PortMidi.message)
+                            f
+                           where
+                             onNoteOff k = do
+                               let n = mkInstrumentNote (fromIntegral k) simpleInstrument
+                               play (StopNote n) >>= either (error . show) return
+                            )
+            f)
+          )
+  PortMidi.terminate >>= either
+    (\err -> putStrLn $ "midi terminate : " ++ show err)
+    (const $ return ())
+-}
+
+-- from https://hackage.haskell.org/package/Euterpea-2.0.2/src/Euterpea/IO/MIDI/MidiIO.lhs
+msgToMidi :: PortMidi.PMMsg -> Maybe Message
+msgToMidi (PortMidi.PMMsg m d1 d2) =
+  let k = (m .&. 0xF0) `shiftR` 4
+      c = fromIntegral (m .&. 0x0F)
+  in case k of
+    0x8 -> Just $ NoteOff c (fromIntegral d1) (fromIntegral d2)
+    0x9 -> Just $ NoteOn  c (fromIntegral d1) (fromIntegral d2)
+    0xA -> Just $ KeyPressure c (fromIntegral d1) (fromIntegral d2)
+    0xB -> Just $ ControlChange c (fromIntegral d1) (fromIntegral d2)
+    0xC -> Just $ ProgramChange c (fromIntegral d1)
+    0xD -> Just $ ChannelPressure c (fromIntegral d1)
+    0xE -> Just $ PitchWheel c (fromIntegral (d1 + d2 `shiftL` 8))
+    0xF -> Nothing -- SysEx event not handled
+    _   -> Nothing
 
 data LoopId = LoopId {
     _loopCreator :: {-# UNPACK #-} !ClientId
@@ -166,7 +234,7 @@ data SynthsGame = SynthsGame {
   , pianoLoops :: !(Map SequencerId (Map LoopId PressedKeys))
   , clientPressedKeys :: !(Map GLFW.Key InstrumentNote)
   , instrument :: !Instrument
-  , envelopePlot :: EnvelopePlot
+  , envelopePlot :: !EnvelopePlot
   , edition :: !Edition
 } deriving(Show)
 
@@ -527,6 +595,51 @@ instance GameLogic SynthsGame where
   type ServerT SynthsGame = SynthsServer
   type StatefullKeysT SynthsGame = SynthsStatefullKeys
   type ClientOnlyEvtT SynthsGame = SynthsGameEvent
+  type PollContextT SynthsGame = PortMidi.PMStream
+
+  produceEventsByPolling = EventProducerByPolling {
+    initializeProducer = do
+      PortMidi.initialize >>= either
+        (return . Left . pack . (++) "midi initialize:" . show)
+        (const $ PortMidi.getDefaultInputDeviceID >>= maybe
+          (return $ Left "no default midi device")
+          (\did ->
+            PortMidi.openInput did >>= either
+            (return . Left . pack . (++) "open midi device:" . show)
+            (return . Right . Just)))
+    , produceEvents = \stream mayGame -> do
+      -- 100 microseconds is the minimal time between calls (measured using console prints).
+      -- but this is achieved only by setting a lower value like so:
+      let dt = fromSecs 0.000001
+      PortMidi.poll stream >>= either
+        (return . Left . pack . (++) "midi poll:" . show)
+        (\case
+            PortMidi.NoError'NoData -> do
+              return $ Right ([],[],Just dt)
+            PortMidi.GotData -> do
+              -- even if mayGame is 'Nothing', we deque from the midi queue to avoid
+              -- overflow.
+              evts <- PortMidi.readEvents stream
+              return $ maybe
+                (Right ([],[],Just dt))
+                (\(SynthsGame _ _ _ instr _ _) ->
+                  (\l -> Right ([],map (ClientAppEvt . PlayNote) l,Just dt)) $
+                    catMaybes $
+                    map (maybe Nothing (\case
+                      NoteOff _ key _ ->
+                        Just $ StopNote $ mkInstrumentNote (fromIntegral key) instr
+                      NoteOn _ key 0 ->
+                        Just $ StopNote $ mkInstrumentNote (fromIntegral key) instr
+                      NoteOn _ key vel ->
+                        Just $ StartNote (mkInstrumentNote (fromIntegral key) instr) $ mkNoteVelocity vel
+                      _ ->
+                        Nothing
+                      ) . msgToMidi . PortMidi.decodeMsg . PortMidi.message)
+                      evts)
+                mayGame)
+    , terminateProducer =
+        const $ PortMidi.terminate >>= either (return . Left . pack . show) (const $ return $ Right ())
+    }
 
   mapInterpretedKey _ _ _ = return []
 

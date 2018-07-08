@@ -2,6 +2,7 @@
 
 module Imj.Game.Priorities
         ( playerPriority
+        , externalEventPriority
         , animateUIPriority
         , redrawStatusPriority
         , continueMsgPriority
@@ -22,8 +23,10 @@ import           Imj.Prelude
 {-# INLINE particleSystLaserPriority #-}
 playerPriority, animateUIPriority, redrawStatusPriority, continueMsgPriority :: Int
 moveItemsPriority, particleSystDefaultPriority, particleSystLaserPriority :: Int
+externalEventPriority :: Int
 playerPriority              = maxBound -- player is above all other so that when the game goes very fast,
                                        --   the player can still send commands promptly
+externalEventPriority       = 0 --maxBound -- TODO restore
 animateUIPriority           = 60
 continueMsgPriority         = 50
 particleSystLaserPriority   = 45 -- so that the laser disappears promptly

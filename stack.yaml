@@ -42,6 +42,10 @@ packages:
     git: https://github.com/OlivierSohn/mwc-random.git
     commit: 89a5657db7cf0a6b95a6fba8467445208f9313e6
   extra-dep: true
+- location:
+    git: https://github.com/OlivierSohn/PortMidi.git
+    commit: 2db9b54ae43f6cb760e3a5361828aeb6027d8ee8
+  extra-dep: true
 
 extra-deps:
 - FTGL-2.1              # for all resolvers (not part of stackage)

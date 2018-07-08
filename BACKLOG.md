@@ -1,4 +1,18 @@
-- Support MIDI input
+- allow game synth to run without midi-keyboard
+
+- handle several midi events at once (server and client side).
+
+- make the poll period configurable via cl setting
+- report midi poll period when a debugmidi flag is activated (average, min, max)
+
+- ultra high frequencies robustness: the synth should prevent aliasing :
+from 4 to 3 samples per sinus period, linearily decrease the volume from 1 to 0.
+
+1 second = 44100 samples.
+1 second = 44100 / 3 sinus periods = 14700 Hz
+
+- portmidi: do not allocate a buffer each time we read midi, use a pre-existing buffer
+(withForeignPtr)
 
 - Doc : volume is controlled by:
 chan_base_amplitude (0.3f)

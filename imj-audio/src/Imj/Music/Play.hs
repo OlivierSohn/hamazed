@@ -78,11 +78,11 @@ playScoreOnceAtTempo tempo s =
     let (newScore, instructions) = stepScore score
     r <- mapM play instructions
     threadDelay pause
-    if any (==False) r
+    if null $ lefts r
       then
-        return $ Left ()
-      else
         go (n-1) newScore
+      else
+        return $ Left ()
 
   pause = round $ 1000*1000*60/tempo
 

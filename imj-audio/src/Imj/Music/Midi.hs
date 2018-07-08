@@ -89,7 +89,7 @@ firstStep = Step 0
 
 data PlayState a = PlayState {
     initialState :: !a
-  , onMidiEvent :: Evt.T -> a -> IO (a, Bool)
+  , onMidiEvent :: Evt.T -> a -> IO (a, Either () ())
   -- ^ Is called when 'runMidiPartitionWith' encounters a midi event.
   --  Returns 'True' to continue playing.
   , onMayRender :: a -> IO a
@@ -129,13 +129,13 @@ midiEventHandler'PlayAnd instrument onOtherEvent i onStart onStop mayRender =
             <$> play (StopNote $ mkInstrumentNote (fromIntegral $ Voice.fromPitch pitch) instrument)
         _ -> do
           onOtherEvent evt
-          return (s,True)
+          return (s,Right ())
       _ -> do
         onOtherEvent evt
-        return (s,True)
+        return (s,Right ())
     _ -> do
       onOtherEvent evt
-      return (s,True)
+      return (s,Right ())
 
 prettyShowChannels :: ActiveNotes -> String
 prettyShowChannels (AN an _ prevRenderedI) =
@@ -242,11 +242,11 @@ runMidiPartitionWith stateFuns part = do
       let duration = fromIntegral $ toMicros $ now...newTimeApprox
       when (duration > 0) $ threadDelay duration
       (state3, continue) <- onMidiEvent stateFuns whatToPlay state2
-      if continue
-        then
-          go rest newTime state3
-        else
-          return $ Left state3
+      either
+        (const $ return $ Left state3)
+        (const $ go rest newTime state3)
+        continue
+
 
 justifyR, justifyL :: Int -> String -> String
 justifyR n x =

@@ -17,9 +17,9 @@ import           Imj.Game.Class
 import           Imj.Server.Types
 
 
--- | Allows the client to communicate with the server asynchronously.
+-- | Enables asynchronous client server communication.
 data ClientQueues g = ClientQueues {
-    inputQueue :: {-# UNPACK #-} !(TQueue (EventsForClient g))
+    inputQueue :: {-# UNPACK #-} !(TQueue (EventForClient g))
   , outputQueue :: {-# UNPACK #-} !(TQueue (ClientEvent (ServerT g)))
 }
 

@@ -42,8 +42,9 @@ data DeadlineType = AnimateParticleSystem {-# UNPACK #-} !ParticleSystemKey
                   -- ^ Update one or more 'ParticleSystem's.
                   | AnimateUI
                   -- ^ Update the inter-level animation
-                  | RedrawStatus {-# UNPACK #-} !(Frame,Int)
-                  -- ^ The status is being progressively displayed, with line index.
+                  | RedrawStatus {-# UNPACK #-} !Frame {-# UNPACK #-} !Int
+                  -- ^ Draw the status at that 'Frame', using that line index.
+                  | PollExternalEvents
                   deriving(Eq, Show)
 
 data Event e =
@@ -71,7 +72,8 @@ instance (Categorized e) => Categorized (Event e) where
     ChatCmd _       -> Command'
     Timeout (Deadline _ _ (AnimateParticleSystem _)) -> AnimateParticleSystem'
     Timeout (Deadline _ _ AnimateUI)    -> AnimateUI'
-    Timeout (Deadline _ _ (RedrawStatus _)) -> AnimateUI'
+    Timeout (Deadline _ _ RedrawStatus {}) -> AnimateUI'
+    Timeout (Deadline _ _ PollExternalEvents) -> AnimateUI'
     ToggleEventRecording -> ToggleEventRecording'
     CanvasSizeChanged         -> CycleRenderingOptions'
     RenderingTargetChanged    -> CycleRenderingOptions'

@@ -12,13 +12,14 @@ module Imj.Game.Class
       (
       -- * Classes
         Client(..)
+      , EventProducerByPolling(..)
       , GameLogic(..)
       , GameExternalUI(..)
       , GameDraw(..)
       , GameStatefullKeys(..)
       , DrawGroupMember(..)
       -- * Client / GameLogic
-      , EventsForClient(..)
+      , EventForClient(..)
       , Game(..)
       , AnimatedLine(..)
       , GenEvent(..)
@@ -59,8 +60,8 @@ import           Imj.Prelude hiding(range)
 import           Prelude(length)
 
 import           Control.Concurrent.STM(TQueue)
-import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.Reader.Class(MonadReader)
+import           Control.Monad.State.Class(MonadState)
 import           Data.Set(Set)
 import qualified Data.Set as Set
 import           Data.Map.Strict(Map)
@@ -104,6 +105,7 @@ import           Imj.Game.Timing
 import           Imj.Graphics.Text.ColoredGlyphList
 import           Imj.Graphics.Text.ColorString
 
+
 class GameLogic (GameLogicT c)
   => Client c
  where
@@ -116,17 +118,17 @@ class GameLogic (GameLogicT c)
                 -> m ()
 
   -- | The queue containing events that should be handled by the client.
-  serverQueue :: c -> TQueue (EventsForClient (GameLogicT c))
+  serverQueue :: c -> TQueue (EventForClient (GameLogicT c))
 
   -- | Fill 'serverQueue'
   writeToClient' :: (MonadIO m)
-                 => c -> EventsForClient (GameLogicT c) -> m ()
+                 => c -> EventForClient (GameLogicT c) -> m ()
 
-data EventsForClient g =
+data EventForClient g =
     FromClient !(Event (ClientOnlyEvtT g))
   | FromServer !(ServerEvent (ServerT g))
   deriving(Generic)
-instance (GameLogic g) => Show (EventsForClient g) where
+instance (GameLogic g) => Show (EventForClient g) where
   show (FromClient e) = show ("FromClient", e)
   show (FromServer e) = show ("FromServer", e)
 
@@ -223,6 +225,27 @@ instance GameStatefullKeys g () where
   needsStatefullKeys _ = const False
   mapStateKey _ _ _ _ _ _ = return []
 
+data EventProducerByPolling g = EventProducerByPolling {
+    initializeProducer :: IO (Either Text (Maybe (PollContextT g)))
+    -- ^ Called synchronously.
+  , produceEvents :: (PollContextT g -> Maybe g -> IO (Either Text ([EventForClient g], [ClientEvent (ServerT g)], Maybe (Time Duration System))))
+  -- ^ When 'Left' is returned (error), the game stops.
+  --
+  -- When 'Right' is returned, if the duration is 'Just', the next call will happen no
+  -- sooner than this duration, if the duraiton is 'Nothing',
+  -- the function will never be called again.
+  , terminateProducer :: (PollContextT g -> IO (Either Text ()))
+  -- ^ Called on termination.
+}
+
+nilProducer :: EventProducerByPolling g
+nilProducer = EventProducerByPolling {
+    initializeProducer = (return $ Right Nothing)
+  -- since 'initializeProducer' returns a 'Nothing', these functions will never be called:
+  , produceEvents = undefined
+  , terminateProducer = undefined
+}
+
 -- | 'GameLogic' Formalizes the client-side logic of a multiplayer game.
 class (Show g
      , GameExternalUI g, GameDraw g
@@ -249,6 +272,10 @@ class (Show g
   type ClientOnlyEvtT g
   type ClientOnlyEvtT g = ()
 
+  -- | The context used by 'EventProducerByPolling' (see 'produceEventsByPolling')
+  type PollContextT g = (r :: *) | r -> g
+  type PollContextT g = ()
+
   -- | The colors used by a player
   type ColorThemeT g
   type ColorThemeT g = ()
@@ -256,6 +283,11 @@ class (Show g
   -- | Statefull key handling (i.e key press / key release / key repeat, modifiers).
   type StatefullKeysT g
   type StatefullKeysT g = () -- The () instance doesn't support stateful keys.
+
+  -- | Can be used to produce events from a third-party library (for example
+  -- handling the input of a midi-keyboard).
+  produceEventsByPolling :: EventProducerByPolling g
+  produceEventsByPolling = nilProducer
 
   onAnimFinished :: (GameLogicT e ~ g
                    , MonadState (AppState (GameLogicT e)) m
@@ -388,6 +420,7 @@ instance DrawGroupMember e
     (Timeout (Deadline _ _ (AnimateParticleSystem _))) -> mempty
     (Timeout (Deadline _ _ AnimateUI)) -> mempty
     (Timeout (Deadline _ _ RedrawStatus{})) -> Set.singleton RedrawStatusKey
+    (Timeout (Deadline _ _ PollExternalEvents)) -> mempty
     Log {} -> mempty
     ToggleEventRecording -> mempty
     CanvasSizeChanged -> mempty
@@ -517,6 +550,7 @@ data Occurences a = Occurences {
 data AppState g = AppState {
     timeAfterRender :: !(Time Point System)
   , game :: !(Game g)
+  , pollContext :: !(Maybe (PollContextT g))
   , eventsGroup :: !(EventGroup g)
   , eventHistory :: !OccurencesHist
   -- ^ Can record which events where handled, for debugging purposes.

@@ -35,7 +35,7 @@ instance Arg ColorScheme where
        (  long "colorScheme"
        <> short 'c'
        <> help (
-       "Defines a rgb color from which player colors are deduced, cycling through same intensity colors. " ++
+       "Defines a rgb color from which player colors are deduced, cycling through same-intensity colors. " ++
        "Possible values are: " ++
        descPredefinedColors ++
        ", " ++

@@ -14,9 +14,10 @@ module Imj.Game.Update
       ) where
 
 import           Imj.Prelude
-import           Prelude(length)
+import           Prelude(length, putStrLn)
 import qualified Prelude as Unsafe(last)
 
+import           Control.Concurrent(forkIO, threadDelay)
 import           Control.Exception.Base(throwIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad.Reader(runReaderT)
@@ -27,7 +28,6 @@ import qualified Data.Set as Set
 import           Data.Text(pack, unpack, strip, uncons)
 import qualified Data.Text as Text(length)
 import           System.Exit(exitSuccess)
-import           System.IO(putStrLn)
 
 import           Imj.Control.Concurrent.AsyncGroups.Class
 import           Imj.Game.Audio.Class
@@ -82,8 +82,32 @@ updateAppState (Right evt) = case evt of
   SendChatMessage -> onSendChatMessage
   ToggleEventRecording ->
     error "should be handled by caller"
-  Timeout (Deadline t _ (RedrawStatus f)) ->
-    updateStatus (Just f) t
+  Timeout (Deadline _ _ PollExternalEvents) ->
+    gets pollContext >>= maybe
+      (return ())
+      (\ctxt ->
+        getIGame >>= liftIO . (produceEvents produceEventsByPolling) ctxt >>= either
+          (error . (++) "external events polling:" . show)
+          (\(cliEvts, srvEvts, mayNextTime) ->
+            asks writeToClient' >>= \toClient -> asks sendToServer' >>= \toServer -> liftIO $ do
+              -- TODO send all events at once
+              now <- getSystemTime
+              unless (null srvEvts) (mapM_ toServer srvEvts)
+              unless (null cliEvts) (mapM_ toClient cliEvts)
+              maybe
+                (return ())
+                (\dt ->
+                  void $ forkIO $ do
+                    -- if we don't sleep here, glfw keyboard events will be handled with a very long delay.
+                    threadDelay $ max 1 $ fromIntegral $ toMicros dt
+                    -- note that the duration written in the 'Deadline' is not taken into account:
+                    --   if an element is in the queue, it is handled immediately.
+                    toClient $ FromClient $ Timeout $ Deadline (addDuration dt now) externalEventPriority PollExternalEvents
+                  )
+                mayNextTime
+              ))
+  Timeout (Deadline t _ (RedrawStatus f g)) ->
+    updateStatus (Just (f,g)) t
   Timeout (Deadline t _ AnimateUI) -> do
     _anim <$> getGameState >>= \a@(UIAnimation evolutions (UIAnimProgress _ it)) -> do
       let nextIt@(Iteration _ nextFrame) = nextIteration it
@@ -276,7 +300,7 @@ updateStatus mayFrame t = gets game >>= \(Game state (Screen _ ref) _ _ drawnSta
                       significantDeadline (succ f) $ Just newDuration)
               $ getDeltaTimeToNextFrame recordEvolution f
             (deadlineFrame, deadlineGap) = significantDeadline frame Nothing
-            deadline = fmap (\d -> Deadline (addDuration d t) redrawStatusPriority $ RedrawStatus (deadlineFrame,i)) deadlineGap
+            deadline = fmap (\d -> Deadline (addDuration d t) redrawStatusPriority $ RedrawStatus deadlineFrame i) deadlineGap
         return (str, AnimatedLine recordEvolution frame deadline))
       >>= putDrawnState
   recordFromStrs ref (ColorString [(txt,_)])

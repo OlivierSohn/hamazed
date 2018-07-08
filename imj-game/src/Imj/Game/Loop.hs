@@ -106,7 +106,7 @@ triggerRenderOr readInput = visible <$> gets eventsGroup >>= \needsRender ->
                 stopWaiting
                 -- workaround for <https://github.com/glfw/glfw/issues/1281 this glfw bug>:
                 -- due to a race condition between stopWaiting and waitEvts, we need to call stopWaiting one more time.
-                -- Note that we could activate this workaround on linux/X11 only.
+                -- Note that we could disable this workaround when not on linux/X11.
                 async $ threadDelay 1000 >> stopWaiting
               return (res,asy))
             (\a -> do

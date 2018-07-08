@@ -124,7 +124,7 @@ addUpdateTime :: MonadState (AppState g) m
               => Time Duration System -> m ()
 addUpdateTime add =
   modify' $
-    \s@(AppState _ _ e@(EventGroup _ _ prevT _) _ _ _ _ _) ->
+    \s@(AppState _ _ _ e@(EventGroup _ _ prevT _) _ _ _ _ _) ->
       s { eventsGroup = e { evtGroupUpdateDuration = add |+| prevT} }
 
 {-# INLINABLE addToCurrentGroupOrRenderAndStartNewGroup #-}
@@ -136,7 +136,7 @@ addToCurrentGroupOrRenderAndStartNewGroup :: (GameLogicT e ~ g
                                             , MonadIO m)
                                           => Maybe (UpdateEvent g) -> m ()
 addToCurrentGroupOrRenderAndStartNewGroup evt =
-  get >>= \(AppState prevTime _ prevGroup _ _ _ _ _) -> do
+  get >>= \(AppState prevTime _ _ prevGroup _ _ _ _ _) -> do
     let onRender = do
           gets appStateDebug >>= \case
             (Debug True) -> liftIO $ putStr $ groupStats prevGroup
@@ -197,7 +197,7 @@ renderAll = do
 getEvtStrs :: MonadState (AppState g) m
               => m [ColorString]
 getEvtStrs =
-  get >>= \(AppState _ _ _ h r _ _ _) ->
+  get >>= \(AppState _ _ _ _ h r _ _ _) ->
     return $ case r of
       Record -> multiLine 150 $ toColorStr h -- TODO screen width should be dynamic
       DontRecord -> []
@@ -209,7 +209,7 @@ addEvent e s =
   s { eventHistory = addEventRepr (evtCategory e) $ eventHistory s }
 
 toggleRecordEvent :: AppState g -> AppState g
-toggleRecordEvent s@(AppState _ _ _ _ r _ _ _) =
+toggleRecordEvent s@(AppState _ _ _ _ _ r _ _ _) =
   s { eventHistory = mkEmptyOccurencesHist
     , appStateRecordEvents = case r of
        Record -> DontRecord
@@ -220,7 +220,7 @@ addIgnoredOverdues :: MonadState (AppState g) m
                    => Int -> m ()
 addIgnoredOverdues n =
   modify' $
-    \s@(AppState _ _ _ hist _ _ _ _) ->
+    \s@(AppState _ _ _ _ hist _ _ _ _) ->
       s { eventHistory = iterate (addEventRepr IgnoredOverdue) hist !! n }
 
 toColorStr :: OccurencesHist -> ColorString
@@ -242,11 +242,12 @@ createState :: Screen
             -> Debug
             -> Maybe (ConnectIdT (ServerT g))
             -> ServerView (ValuesT (ServerT g))
-            -> IO (AppState g)
-createState screen dbg a b = do
-  let g  = Game (ClientState Ongoing Excluded) screen (GameState Nothing mkZeroAnimation) mempty [] mempty a b Nothing mkChat
-  t <- getSystemTime
-  return $ AppState t g mkEmptyGroup mkEmptyOccurencesHist DontRecord (ParticleSystemKey 0) dbg mempty
+            -> Time Point System
+            -> Maybe (PollContextT g)
+            -> AppState g
+createState screen dbg a b t mpc =
+  let g = Game (ClientState Ongoing Excluded) screen (GameState Nothing mkZeroAnimation) mempty [] mempty a b Nothing mkChat
+  in AppState t g mpc mkEmptyGroup mkEmptyOccurencesHist DontRecord (ParticleSystemKey 0) dbg mempty
 
 toColorStr' :: Occurences EventCategory -> ColorString
 toColorStr' (Occurences n e) =

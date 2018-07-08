@@ -177,15 +177,14 @@ foreign import ccall "teardownAudioOutput"
 -- run with 'usingAudioOutput' or 'usingAudioOutputWithMinLatency'.
 -- If this is not the case, it hans no effect and returns 'False'.
 play :: MusicalEvent
-     -> IO Bool
-     -- ^ 'True' if the call succeeds.
-play (StartNote n@(InstrumentNote _ _ i) (NoteVelocity v)) = case i of
+     -> IO (Either () ())
+play (StartNote n@(InstrumentNote _ _ i) (NoteVelocity v)) = bool (Left ()) (Right ()) <$> case i of
   Synth osc harmonics e ahdsr -> midiNoteOnAHDSR (fromIntegral $ fromEnum osc) (fromIntegral $ fromEnum e) ahdsr harmonics pitch vel
   Wind k -> effectOn (fromIntegral k) pitch vel
  where
   (MidiPitch pitch) = instrumentNoteToMidiPitch n
   vel = CFloat v
-play (StopNote n@(InstrumentNote _ _ i)) = case i of
+play (StopNote n@(InstrumentNote _ _ i)) = bool (Left ()) (Right ()) <$> case i of
   Synth osc harmonics e ahdsr -> midiNoteOffAHDSR (fromIntegral $ fromEnum osc) (fromIntegral $ fromEnum e) ahdsr harmonics pitch
   Wind _ -> effectOff pitch
  where

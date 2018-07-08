@@ -41,11 +41,12 @@ import           Imj.Game.Exceptions
 import           Imj.Game.Env
 import           Imj.Game.Configuration
 import           Imj.Game.Internal.ArgParse
+import           Imj.Game.KeysMaps
+import           Imj.Game.Loop
 import           Imj.Game.Modify
 import           Imj.Game.Network
 import           Imj.Game.Network.ClientQueues
-import           Imj.Game.KeysMaps
-import           Imj.Game.Loop
+import           Imj.Game.Priorities
 import           Imj.Game.State
 import           Imj.Game.Status
 import           Imj.Geo.Discrete.Types
@@ -228,16 +229,26 @@ runWith au debug queues srv player backend =
     flip withDefaultPolicies backend $ \drawEnv -> do
       screen <- mkScreen <$> getDiscreteSize backend
       env <- mkEnv drawEnv backend queues face au
-      void $ createState screen debug player srv >>=
-        withAudio au . runStateT (runReaderT
+      pollCtxt <- initializeProducer produceEventsByPolling >>= either (error . show) return
+      t <- getSystemTime
+      void $ withAudio au $ flip runStateT (createState screen debug player srv t pollCtxt)
+        (runReaderT
           (do
             stateChat $ addMessage $ ChatMessage $ colored
               ("Please wait, we're waking the server up. " <>
               "If the server is hosted on the free plan of Heroku, this operation can take up-to 30 seconds.")
               (rgb 1 3 2)
-            -- initialize rendering
-            asks writeToClient' >>= \f -> f (FromClient RenderingTargetChanged)
-            onEvent Nothing -- trigger the first rendering
+            asks writeToClient' >>= \f -> do
+              -- initialize rendering
+              f (FromClient RenderingTargetChanged)
+              -- trigger the first rendering
+              onEvent Nothing
+              -- initialize event polling
+              maybe
+                (return ()) -- we won't use event polling.
+                (const $ f (FromClient $ Timeout $ Deadline t externalEventPriority PollExternalEvents))
+                pollCtxt
+
             loop (translatePlatformEvent (audioToProx au)) onEvent) env)
 
  where

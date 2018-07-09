@@ -1,4 +1,61 @@
-- it seems there is a memory leak when using portmidi (either in the c library or in the haskell binding)
+- MIDI Parametrizable behaviours (command line args):
+
+0. "Realtime events" Today, we ignore MIDI timestamps and handle each MIDI event as if it
+were realtime. This has 2 consequences:
+  1) some notes are silenced, when note on and note off are read in the same batch
+  2) Note starts are quantized according to the polling frequency.
+  3) Perceived latency varies in an interval of span "polling period"
+
+1. "Accurate short durations"
+When a noteOff is detected to be in the same batch as a note On, we could make
+the note duration accurate by delaying the keyRelease.
+
+2. "Perfect timing"
+We could delay start and end of notes, so that the MIDI latency is always the same,
+regardless of if the note arrived soon or late in the queue.
+
+Note that 2. is stronger than 1.
+
+We would need an envelope "delayed keypress, delayed keyRelease" feature which says
+"attack at this time, release at this time". Internally, "attack at this time" will be converted to
+"attack in n samples", provided that when the function is enqueued, it has access to
+the time at which the current buffer will be played.
+
+Auto calibration: at each played notes, the audio engine
+sees which delay exists (between MIDI timestamp and the time at which audio will be played)
+so that it can, over time best adapt how the interpretation of midi events is done.
+(Maybe after a few tens notes, it can decide which to use, and then change it if there is a really
+  big observed change, but avoid changing it by small values, after the "calibration phase", to keep a constant delay)
+The noteOff event will use the same delay as the noteon event to avoid the possibility
+of those events crossing each other, and also this gives the nice property that notes durations
+are conserved even during calibration.
+
+The timestamps must be sent to the server to be redistributed, and the audioengine
+must support several sources of midi timestamps (each client connected to a server
+  has a different time reference!)
+
+Once 2. works, use it to read a MIDI file, instead of sleeping to wait which is not as accurate.
+
+
+----------------
+First step :
+  assume the audioengine delay is user-configured.
+
+- Every played note stores 2 InstrumentNote in each of which is a copy of the Instrument
+containing a vector of harmonics, and an envelope... that's a lot of redundant info!
+
+work using a key:
+... the server sends either the full instrument+key or just the key
+... the client sends either the full instrument if it's a new one, or just the key
+    if the server already assigned a key for that instrument.
+    That will also optimize network bandwith usage.
+    The server keeps track of "which client knows about which instrument"
+      and on disconnection / reconnection, the memory is flushed.
+
+- in ghc 8.2.2 we use much more memory than in ghc 8.4.3.
+
++RTS -h : to generates a .hp file
+hp2ps -c file.hp : to generate the .ps
 
 - ultra high frequencies robustness: the envelopes (multi, one) should prevent aliasing :
 on sinus, square, triangle, aliasing starts when there are less than 2 samples per period.
@@ -29,7 +86,6 @@ Maybe merge this with VolumeAdjusted stuff o have a simgle multiplicator instead
 - in game synth, when all harmonics are 1, divide by the sum to avoid overflow.
 Rename to weight.
 
-- make the poll period configurable via cl setting
 - report midi poll period when a debugmidi flag is activated (average, min, max)
 
 - Doc : volume is controlled by:
@@ -38,20 +94,6 @@ baseVolume (1.f to ...)
 
 - add a parameter to synchronize attack start or attack end or to use the same attack for all
 (one envelope, taking the max of durations)
-
-- To optimize network bandwidth usage, when sending an Instrument, the server could send:
-data HarmonicsRep =
-    Whole [HarmonicProperties] (Maybe Key)
-    -- ^ if Key is Just, the client is responsible for storing [HarmonicProperties]
-    -- and associate it with 'Key'
-  | Key
-    -- ^ The server must have sent at least once a corresponding 'Whole' to the client
-    -- before sending this.
-    -- When the client disconnects, reconnects, the server should assume that the client
-    -- has lost all previous associations, so a 'Whole' should be sent once for every instrument.
-
-And maybe we should include AHDSR in this logic, to avoid sending the same envelope
-data each time a note is played.
 
 - [nice to have] allow unlimited polyphony on every instrument.
 .. if a given instrument is full, instantiate a second identical instrument:
@@ -95,6 +137,7 @@ Played notes are stored in a Recording:
   if multiline Sequence n exists : insert the current Recording in the sequence.
     If the current Recording is longer than the existing sequence, multiple instances of it will be played at the same time.
     Note that this could lead to sound saturation if the Sequence period is short w.r.t the length of the Recording.
+* Pressing 'f5' toggles the view between 'Tone' and 'Envelope'.
 * Pressing 'f10' empties the current Recording.
 
 - size of UI should adapt:

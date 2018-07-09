@@ -226,7 +226,7 @@ instance GameStatefullKeys g () where
   mapStateKey _ _ _ _ _ _ = return []
 
 data EventProducerByPolling g = EventProducerByPolling {
-    initializeProducer :: IO (Either Text (Maybe (PollContextT g)))
+    initializeProducer :: Maybe (ClientArgsT g) -> IO (Either Text (Maybe (PollContextT g)))
     -- ^ Called synchronously.
   , produceEvents :: (PollContextT g -> Maybe g -> IO (Either Text ([Event (ClientOnlyEvtT g)], [ClientEvent (ServerT g)], Maybe (Time Duration System))))
   -- ^ When 'Left' is returned (error), the game stops.
@@ -240,22 +240,22 @@ data EventProducerByPolling g = EventProducerByPolling {
 
 nilProducer :: EventProducerByPolling g
 nilProducer = EventProducerByPolling {
-    initializeProducer = (return $ Right Nothing)
-  -- since 'initializeProducer' returns a 'Nothing', these functions will never be called:
+    initializeProducer = const $ return $ Right Nothing
+  -- 'initializeProducer' returns a 'Nothing',
+  -- so these functions will never be called:
   , produceEvents = undefined
   , terminateProducer = undefined
 }
 
 -- | 'GameLogic' Formalizes the client-side logic of a multiplayer game.
 class (Show g
+     , Arg (ClientArgsT g), Show (ClientArgsT g)
      , GameExternalUI g, GameDraw g
      , Server (ServerT g), ServerClientHandler (ServerT g)
      , Audio (AudioT g), Arg (AudioT g), Show (AudioT g)
      , GameStatefullKeys g (StatefullKeysT g)
-     , Categorized (ClientOnlyEvtT g)
-     , Show (ClientOnlyEvtT g)
-     , ColorTheme (ColorThemeT g)
-     , Binary (ColorThemeT g)
+     , Categorized (ClientOnlyEvtT g), Show (ClientOnlyEvtT g)
+     , ColorTheme (ColorThemeT g), Binary (ColorThemeT g)     
      )
       =>
      GameLogic g
@@ -267,6 +267,10 @@ class (Show g
   -- | Audio backend
   type AudioT g = (r :: *) | r -> g
   type AudioT g = WithAudio -- enable audio by default (use '()' to disable it)
+
+  -- | Command-line arguments
+  type ClientArgsT g
+  type ClientArgsT g = ()
 
   -- | Events generated on the client and handled by the client.
   type ClientOnlyEvtT g
@@ -580,6 +584,7 @@ data GameArgs g = GameArgs
   !(Maybe ArgServerPort)
   !(Maybe ServerLogs)
   !(Maybe ColorScheme)
+  !(Maybe (ClientArgsT g))
   !(Maybe (ServerArgsT (ServerT g)))
   !(Maybe (ConnectIdT (ServerT g)))
   !(Maybe BackendType)

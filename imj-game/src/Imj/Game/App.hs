@@ -129,7 +129,7 @@ run :: (GameLogic g
 run prox
   (GameArgs
     (ServerOnly serverOnly)
-    maySrvName mayArgSrvPort maySrvLogs mayConfig maySrvArgs mayConnectId maybeBackend mayPPU mayScreenSize debug mayAudioConf) = do
+    maySrvName mayArgSrvPort maySrvLogs mayConfig mayClientArgs maySrvArgs mayConnectId maybeBackend mayPPU mayScreenSize debug mayAudioConf) = do
   maySrvPort <- maybe (return Nothing) (fmap Just . getServerPort) mayArgSrvPort
   let printServerArgs = putStr $ List.unlines $ showArray (Just ("Server Arg", ""))
         [ ("Server-only", show serverOnly)
@@ -203,12 +203,12 @@ run prox
             useAudio = fromMaybe defaultAudioConf mayAudioConf
         case backend of
           Console ->
-            newConsoleBackend >>= runWith useAudio debug queues srv mayConnectId
+            newConsoleBackend >>= runWith mayClientArgs useAudio debug queues srv mayConnectId
           OpenGLWindow ->
             newOpenGLBackend (gameWindowTitle prox)
               (fromMaybe defaultPPU mayPPU)
               (fromMaybe (FixedScreenSize $ Size 600 1400) mayScreenSize)
-              >>= either error (runWith useAudio debug queues srv mayConnectId)
+              >>= either error (runWith mayClientArgs useAudio debug queues srv mayConnectId)
 
 {-# INLINABLE runWith #-}
 runWith :: (GameLogic g, s ~ ServerT g
@@ -217,19 +217,20 @@ runWith :: (GameLogic g, s ~ ServerT g
           , ServerCmdParser s
           , StateValueT (ServerT g) ~ GameStateValue
           , PlayerInput i, DeltaRenderBackend i)
-        => AudioT g
+        => Maybe (ClientArgsT g)
+        -> AudioT g
         -> Debug
         -> ClientQueues g
         -> ServerView (ValuesT (ServerT g))
         -> Maybe (ConnectIdT (ServerT g))
         -> i
         -> IO ()
-runWith au debug queues srv player backend =
+runWith mayClientArgs au debug queues srv player backend =
   withTempFontFile font fontname $ \path -> withFreeType $ withSizedFace path (Size 16 16) $ \face ->
     flip withDefaultPolicies backend $ \drawEnv -> do
       screen <- mkScreen <$> getDiscreteSize backend
       env <- mkEnv drawEnv backend queues face au
-      pollCtxt <- initializeProducer produceEventsByPolling >>= either (error . show) return
+      pollCtxt <- initializeProducer produceEventsByPolling mayClientArgs >>= either (error . show) return
       t <- getSystemTime
       void $ withAudio au $ flip runStateT (createState screen debug player srv t pollCtxt)
         (runReaderT

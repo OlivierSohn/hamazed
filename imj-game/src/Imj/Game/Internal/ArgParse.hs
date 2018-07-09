@@ -55,6 +55,7 @@ parserGameArgs p = GameArgs
   <*> parserSrvLogs
   <*> parserSrvColorScheme
   <*> maybe (NilP $ Just Nothing) optional parseArg
+  <*> maybe (NilP $ Just Nothing) optional parseArg
   <*> parseConnectId
   <*> parserBackend
   <*> parserPPU

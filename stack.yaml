@@ -4,7 +4,7 @@
 #
 #   8.4.3:  nightly-2018-06-26
 #   8.2.2:  lts-11.9
-resolver: lts-11.9
+resolver: nightly-2018-06-26
 
 image:
   containers:
@@ -43,8 +43,8 @@ packages:
     commit: 89a5657db7cf0a6b95a6fba8467445208f9313e6
   extra-dep: true
 - location:
-    git: https://github.com/OlivierSohn/PortMidi.git
-    commit: 7314d7483d83ac5bafdd9a9d58221442d3961741
+    git: https://github.com/ninegua/PortMidi.git
+    commit: fae3710f4d1eeecf021b806a9b95ba54e869c51a
   extra-dep: true
 
 extra-deps:

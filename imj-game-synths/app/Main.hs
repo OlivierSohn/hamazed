@@ -46,10 +46,13 @@ import           Foreign.Marshal.Array(peekArray)
 import           GHC.Generics(Generic)
 import qualified Graphics.UI.GLFW as GLFW(Key(..), KeyState(..))
 import           Numeric(showFFloat)
+import           Options.Applicative(ReadM, str, option, long, help, readerError)
 import qualified Sound.PortMidi as PortMidi
 import           System.IO(withFile, IOMode(..))
 import           System.Directory(doesFileExist)
+import           Text.Read(readMaybe)
 
+import           Imj.Arg.Class
 import           Imj.Audio
 import           Imj.Audio.Harmonics
 import           Imj.Categorized
@@ -578,7 +581,7 @@ loadInstrument = doesFileExist instrumentFile >>= bool
     bl <- BL.readFile instrumentFile
     let len = BL.length bl
     either
-      (\(_,offset,str) -> fail $ "The file '" ++ instrumentFile ++ "' is corrupt:" ++ show (offset,str))
+      (\(_,offset,msg) -> fail $ "The file '" ++ instrumentFile ++ "' is corrupt:" ++ show (offset,msg))
       (\(_,offset,res :: Instrument) ->
         if fromIntegral len == offset
           then
@@ -595,16 +598,44 @@ saveInstrument i = do
 
 data MidiDeviceContext = MidiDeviceContext {
     midiStream :: {-# UNPACK #-} !PortMidi.PMStream
+  , pollPeriod :: {-# UNPACK #-} !MIDIPollPeriod
   , unsafeStorage :: !(S.Vector PortMidi.PMEvent)
   -- ^ This buffer is used as static storage when reading midi events
   -- from the c library @portmidi@. It may contain uninitialized / invalid elements.
 }
 
-mkMidiDeviceContext :: PortMidi.PMStream -> MidiDeviceContext
-mkMidiDeviceContext s = MidiDeviceContext s $ S.create $ SM.new 16
+mkMidiDeviceContext :: PortMidi.PMStream -> MIDIPollPeriod -> MidiDeviceContext
+mkMidiDeviceContext s p = MidiDeviceContext s p $ S.create $ SM.new 16
+
+
+newtype MIDIPollPeriod = MIDIPollPeriod { unMIDIPollPeriod :: Int64 }
+  deriving(Num, Integral, Real, Enum, Show, Eq, Ord)
+defaultMidiPollPeriod :: MIDIPollPeriod
+defaultMidiPollPeriod = 1
+
+data SynthsClientArgs = SynthsClientArgs { midiPollPeriod :: !MIDIPollPeriod }
+  deriving(Show)
+instance Arg SynthsClientArgs where
+  parseArg = Just $ (SynthsClientArgs <$>
+    option midiPollPeriodArg
+       (  long "midiPollPeriod"
+       <> help (
+       "[Client MIDI] The period (in microseconds) at which the MIDI events are polled." ++
+       " Defaults to \"" ++ show (unMIDIPollPeriod defaultMidiPollPeriod) ++ "\". " ++
+       "Notes with a time-span shorter than this period may be silenced, because MIDI timestamps " ++
+       "are ignored."
+       )))
+
+midiPollPeriodArg :: ReadM MIDIPollPeriod
+midiPollPeriodArg =
+  str >>= maybe
+    (readerError "Encountered an unreadable MIDI poll period. This should be a number")
+    (\(i :: Int64) -> return $ fromIntegral i)
+    . readMaybe
 
 instance GameLogic SynthsGame where
 
+  type ClientArgsT SynthsGame = SynthsClientArgs
   type ServerT SynthsGame = SynthsServer
   type StatefullKeysT SynthsGame = SynthsStatefullKeys
   type ClientOnlyEvtT SynthsGame = SynthsGameEvent
@@ -613,7 +644,8 @@ instance GameLogic SynthsGame where
   produceEventsByPolling = EventProducerByPolling {
     -- Never returns 'Left', to let the app run in a degraded mode (pc-keyboard only)
     --   when midi input is not available
-    initializeProducer = do
+    initializeProducer = \mayClientArg -> do
+      let period = fromMaybe defaultMidiPollPeriod $ fmap midiPollPeriod mayClientArg
       putStrLn "PortMidi initializes."
       PortMidi.initialize >>= either
         (\err -> do
@@ -640,11 +672,11 @@ instance GameLogic SynthsGame where
                   return $ Right Nothing)
                 (\res -> do
                   putStrLn "PortMidi: opened the device."
-                  return $ Right $ Just $ mkMidiDeviceContext res)))
-    , produceEvents = \(MidiDeviceContext stream buffer) mayGame -> do
+                  return $ Right $ Just $ mkMidiDeviceContext res period)))
+    , produceEvents = \(MidiDeviceContext stream period buffer) mayGame -> do
       -- 100 microseconds is the minimal time between calls (measured using console prints).
       -- but this is achieved only by setting a lower value like so:
-      let dt = fromSecs 0.000001
+      let dt = fromMicros $ fromIntegral period
       PortMidi.poll stream >>= either
         (return . Left . pack . (++) "midi poll:" . show)
         (\case
@@ -758,7 +790,7 @@ instance GameDraw SynthsGame where
       let maxL = fromMaybe 0 $ maximumMaybe $ map CS.countChars allStrs
           right = move (quot maxL 2) RIGHT $ Coords r centerC
       (Alignment _ res) <- foldM
-        (\a str -> drawAligned str a)
+        (\a s -> drawAligned s a)
         (mkRightAlign right)
         allStrs
       return res

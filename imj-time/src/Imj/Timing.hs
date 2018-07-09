@@ -54,6 +54,7 @@ module Imj.Timing
     , getCurrentSecond
     , getDurationFromNowTo
     , toMicros
+    , fromMicros
     , strictlyNegative
     , unsafeGetTimeSpec
     , unsafeFromTimeSpec
@@ -180,6 +181,9 @@ addDuration (Time dt) (Time t) =
 toMicros :: Time Duration System -> Int64
 toMicros (Time (TimeSpec seconds nanos)) =
   10^(6::Int) * seconds + quot nanos (10^(3::Int))
+
+fromMicros :: Int64 -> Time Duration System
+fromMicros n = Time $ fromIntegral $ 1000 * n
 
 {-# INLINE unsafeToSecs #-}
 unsafeToSecs :: Time Duration a -> Double

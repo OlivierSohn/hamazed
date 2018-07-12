@@ -35,6 +35,7 @@ import           System.Info(os)
 import           System.IO(hFlush, stdout)
 
 import           Imj.Arg.Class
+import           Imj.Audio.Midi
 import           Imj.Event
 import           Imj.Game.Audio.Class
 import           Imj.Game.Exceptions
@@ -129,7 +130,8 @@ run :: (GameLogic g
 run prox
   (GameArgs
     (ServerOnly serverOnly)
-    maySrvName mayArgSrvPort maySrvLogs mayConfig mayClientArgs maySrvArgs mayConnectId maybeBackend mayPPU mayScreenSize debug mayAudioConf) = do
+    maySrvName mayArgSrvPort maySrvLogs mayConfig mayClientArgs maySrvArgs
+    mayConnectId maybeBackend mayPPU mayScreenSize debug mayAudioConf mayMaxMIDIJitter) = do
   maySrvPort <- maybe (return Nothing) (fmap Just . getServerPort) mayArgSrvPort
   let printServerArgs = putStr $ List.unlines $ showArray (Just ("Server Arg", ""))
         [ ("Server-only", show serverOnly)
@@ -140,11 +142,12 @@ run prox
         , ("CustomArgs", show maySrvArgs)
         ]
       printClientArgs = putStr $ List.unlines $ showArray (Just ("Client Arg", ""))
-        [ ("Client Rendering", show maybeBackend)
-        , ("PPU             ", show mayPPU)
-        , ("Player name     ", show mayConnectId)
-        , ("Client Debug    ", show debug)
-        , ("Client Audio    ", show mayAudioConf)
+        [ ("Client rendering      ", show maybeBackend)
+        , ("PPU                   ", show mayPPU)
+        , ("Player name           ", show mayConnectId)
+        , ("Client debug          ", show debug)
+        , ("Client audio          ", show mayAudioConf)
+        , ("Client max MIDI jitter", show mayMaxMIDIJitter)
         ]
   printServerArgs
   hFlush stdout
@@ -203,12 +206,12 @@ run prox
             useAudio = fromMaybe defaultAudioConf mayAudioConf
         case backend of
           Console ->
-            newConsoleBackend >>= runWith mayClientArgs useAudio debug queues srv mayConnectId
+            newConsoleBackend >>= runWith mayClientArgs useAudio mayMaxMIDIJitter debug queues srv mayConnectId
           OpenGLWindow ->
             newOpenGLBackend (gameWindowTitle prox)
               (fromMaybe defaultPPU mayPPU)
               (fromMaybe (FixedScreenSize $ Size 600 1400) mayScreenSize)
-              >>= either error (runWith mayClientArgs useAudio debug queues srv mayConnectId)
+              >>= either error (runWith mayClientArgs useAudio mayMaxMIDIJitter debug queues srv mayConnectId)
 
 {-# INLINABLE runWith #-}
 runWith :: (GameLogic g, s ~ ServerT g
@@ -219,22 +222,24 @@ runWith :: (GameLogic g, s ~ ServerT g
           , PlayerInput i, DeltaRenderBackend i)
         => Maybe (ClientArgsT g)
         -> AudioT g
+        -> Maybe MaxMIDIJitter
         -> Debug
         -> ClientQueues g
         -> ServerView (ValuesT (ServerT g))
         -> Maybe (ConnectIdT (ServerT g))
         -> i
         -> IO ()
-runWith mayClientArgs au debug queues srv player backend =
+runWith mayClientArgs au mayMaxMIDIJitter debug queues srv player backend =
   withTempFontFile font fontname $ \path -> withFreeType $ withSizedFace path (Size 16 16) $ \face ->
     flip withDefaultPolicies backend $ \drawEnv -> do
       screen <- mkScreen <$> getDiscreteSize backend
       env <- mkEnv drawEnv backend queues face au
-      pollCtxt <- initializeProducer produceEventsByPolling mayClientArgs >>= either (error . show) return
-      t <- getSystemTime
-      void $ withAudio au $ flip runStateT (createState screen debug player srv t pollCtxt)
-        (runReaderT
-          (do
+      void $ withAudio au (fromMaybe defaultMaxMIDIJitter mayMaxMIDIJitter) $ do
+        -- For the use case where the producer generates MIDI events,
+        -- we start polling after audio has started, so as to prevent MIDI timing issues
+        pollCtxt <- initializeProducer produceEventsByPolling mayClientArgs >>= either (error . show) return
+        t <- getSystemTime
+        flip runStateT (createState screen debug player srv t pollCtxt) $ flip runReaderT env $ do
             stateChat $ addMessage $ ChatMessage $ colored
               ("Please wait, we're waking the server up. " <>
               "If the server is hosted on the free plan of Heroku, this operation can take up-to 30 seconds.")
@@ -250,7 +255,7 @@ runWith mayClientArgs au debug queues srv player backend =
                 (const $ f (FromClient $ Timeout $ Deadline t externalEventPriority PollExternalEvents))
                 pollCtxt
 
-            loop (translatePlatformEvent (audioToProx au)) onEvent) env)
+            loop (translatePlatformEvent (audioToProx au)) onEvent
 
  where
 

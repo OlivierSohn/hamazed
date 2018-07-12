@@ -147,11 +147,11 @@ stepVoice (Voice i cur v inst) =
         Extend -> error "logic"
         (Note n o) -> case nextNote of
           Extend -> Nothing
-          _ -> Just $ StopNote (InstrumentNote n o inst))
+          _ -> Just $ StopNote Nothing (InstrumentNote n o inst))
       cur
 
   mayStartNext = case nextNote of
-    (Note n o) -> Just $ StartNote (InstrumentNote n o inst) 1
+    (Note n o) -> Just $ StartNote Nothing (InstrumentNote n o inst) 1
     _ -> Nothing
 
   len = V.length v
@@ -169,7 +169,7 @@ stopVoice (Voice _ cur l i) =
  where
   noteChange = maybe Nothing (\case
     Rest -> Nothing
-    Note n o -> Just $ StopNote $ InstrumentNote n o i
+    Note n o -> Just $ StopNote Nothing $ InstrumentNote n o i
     Extend -> error "logic") cur
 
 -- | Like 'stepNVoice' but also uses 'stopVoice' to finalize the music.

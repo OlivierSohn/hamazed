@@ -29,6 +29,8 @@ module Imj.Audio.Output
       ( -- * Bracketed init / teardown
         usingAudioOutput
       , usingAudioOutputWithMinLatency
+      -- * Avoiding MIDI jitter
+      , setMaxMIDIJitter
       -- * Playing music
       , play
       , MusicalEvent(..)
@@ -84,13 +86,14 @@ import           Control.Monad.IO.Unlift(MonadUnliftIO, liftIO)
 import           Data.Bool(bool)
 import           Data.Text(Text)
 import qualified Data.Vector.Storable as S
-import           Foreign.C(CInt(..), CShort(..), CFloat(..))
+import           Foreign.C(CInt(..), CULLong(..), CShort(..), CFloat(..))
 import           Foreign.ForeignPtr(withForeignPtr)
 import           Foreign.Ptr(Ptr)
 import           UnliftIO.Exception(bracket)
 
 import           Imj.Audio.Envelope
 import           Imj.Audio.Harmonics
+import           Imj.Audio.Midi
 import           Imj.Music.Instruction
 import           Imj.Music.Instrument
 import           Imj.Timing
@@ -166,6 +169,15 @@ foreign import ccall "initializeAudioOutput"
 foreign import ccall "teardownAudioOutput"
   teardownAudioOutput :: IO ()
 
+
+foreign import ccall "setMaxMIDIJitter"
+  setMaxMIDIJitter_ :: CULLong -> IO ()
+
+-- TODO should this be per-source? every source can have a different polling setting,
+-- and different connection characteristics with the server.
+setMaxMIDIJitter :: MaxMIDIJitter -> IO ()
+setMaxMIDIJitter = setMaxMIDIJitter_ . (*1000) . fromIntegral
+
 -- | Plays a 'MusicalEvent'.
 --
 -- If a 'StopNote' is played less than @audio latency@ milliseconds after
@@ -178,37 +190,44 @@ foreign import ccall "teardownAudioOutput"
 -- If this is not the case, it hans no effect and returns 'False'.
 play :: MusicalEvent
      -> IO (Either () ())
-play (StartNote n@(InstrumentNote _ _ i) (NoteVelocity v)) = bool (Left ()) (Right ()) <$> case i of
-  Synth osc harmonics e ahdsr -> midiNoteOnAHDSR (fromIntegral $ fromEnum osc) (fromIntegral $ fromEnum e) ahdsr harmonics pitch vel
+play (StartNote mayMidi n@(InstrumentNote _ _ i) (NoteVelocity v)) = bool (Left ()) (Right ()) <$> case i of
+  Synth osc harmonics e ahdsr -> midiNoteOnAHDSR (fromIntegral $ fromEnum osc) (fromIntegral $ fromEnum e) ahdsr harmonics pitch vel mayMidi
   Wind k -> effectOn (fromIntegral k) pitch vel
  where
   (MidiPitch pitch) = instrumentNoteToMidiPitch n
   vel = CFloat v
-play (StopNote n@(InstrumentNote _ _ i)) = bool (Left ()) (Right ()) <$> case i of
-  Synth osc harmonics e ahdsr -> midiNoteOffAHDSR (fromIntegral $ fromEnum osc) (fromIntegral $ fromEnum e) ahdsr harmonics pitch
+play (StopNote mayMidi n@(InstrumentNote _ _ i)) = bool (Left ()) (Right ()) <$> case i of
+  Synth osc harmonics e ahdsr -> midiNoteOffAHDSR (fromIntegral $ fromEnum osc) (fromIntegral $ fromEnum e) ahdsr harmonics pitch mayMidi
   Wind _ -> effectOff pitch
  where
   (MidiPitch pitch) = instrumentNoteToMidiPitch n
 
-midiNoteOffAHDSR :: CInt -> CInt -> AHDSR'Envelope -> S.Vector HarmonicProperties -> CShort -> IO Bool
-midiNoteOnAHDSR :: CInt -> CInt -> AHDSR'Envelope -> S.Vector HarmonicProperties -> CShort -> CFloat -> IO Bool
-midiNoteOffAHDSR osc t (AHDSR'Envelope a h d r ai di ri s) har i   =
+midiNoteOffAHDSR :: CInt -> CInt -> AHDSR'Envelope -> S.Vector HarmonicProperties -> CShort -> Maybe MidiInfo -> IO Bool
+midiNoteOnAHDSR :: CInt -> CInt -> AHDSR'Envelope -> S.Vector HarmonicProperties -> CShort -> CFloat -> Maybe MidiInfo -> IO Bool
+midiNoteOffAHDSR osc t (AHDSR'Envelope a h d r ai di ri s) har i mayMidi =
   withForeignPtr harPtr $ \harmonicsPtr ->
     midiNoteOffAHDSR_ osc t
       (fromIntegral a) (interpolationToCInt ai) (fromIntegral h) (fromIntegral d) (interpolationToCInt di) (realToFrac s) (fromIntegral r) (interpolationToCInt ri)
       harmonicsPtr (fromIntegral harmonicsSz)
       i
+      src time
  where
   (harPtr, harmonicsSz) = S.unsafeToForeignPtr0 har
+  src  = fromIntegral $ maybe (-1 :: CInt) (fromIntegral . unMidiSourceIdx . source) mayMidi
+  time = fromIntegral $ maybe 0 timestamp mayMidi
 
-midiNoteOnAHDSR osc t (AHDSR'Envelope a h d r ai di ri s) har i v =
+midiNoteOnAHDSR osc t (AHDSR'Envelope a h d r ai di ri s) har i v mayMidi =
   withForeignPtr harPtr $ \harmonicsPtr ->
     midiNoteOnAHDSR_ osc t
       (fromIntegral a) (interpolationToCInt ai) (fromIntegral h) (fromIntegral d) (interpolationToCInt di) (realToFrac s) (fromIntegral r) (interpolationToCInt ri)
       harmonicsPtr (fromIntegral harmonicsSz)
       i v
+      src time
  where
   (harPtr, harmonicsSz) = S.unsafeToForeignPtr0 har
+  -- -1 encodes "no source"
+  src  = fromIntegral $ maybe (-1 :: CInt) (fromIntegral . unMidiSourceIdx . source) mayMidi
+  time = fromIntegral $ maybe 0 timestamp mayMidi
 
 foreign import ccall "effectOn" effectOn :: CInt -> CShort -> CFloat -> IO Bool
 foreign import ccall "effectOff" effectOff :: CShort -> IO Bool
@@ -217,9 +236,13 @@ foreign import ccall "midiNoteOnAHDSR_"
                    -- ^ Envelope type
                    -> CInt -> CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CInt
                    -> Ptr HarmonicProperties -> CInt
-                   -> CShort -> CFloat -> IO Bool
+                   -> CShort -> CFloat
+                   -> CInt -> CULLong
+                   -> IO Bool
 foreign import ccall "midiNoteOffAHDSR_"
   midiNoteOffAHDSR_ :: CInt -> CInt
                     -> CInt -> CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CInt
                     -> Ptr HarmonicProperties -> CInt
-                    -> CShort -> IO Bool
+                    -> CShort
+                    -> CInt -> CULLong
+                    -> IO Bool

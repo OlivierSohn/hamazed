@@ -42,8 +42,10 @@ newtype ServerOnly = ServerOnly Bool
 newtype WithAudio = WithAudio Bool
   deriving (Show)
 instance Audio WithAudio where
-  withAudio (WithAudio yes) x
-    | yes = usingAudioOutput x >>= either (fail . show) return
+  withAudio (WithAudio yes) maxMidiJitter x
+    | yes = do
+        liftIO $ setMaxMIDIJitter maxMidiJitter
+        usingAudioOutput x >>= either (fail . show) return
     | otherwise = x
 
   triggerLaserSound (WithAudio useAudio)

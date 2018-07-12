@@ -20,17 +20,17 @@ module Main where
 
 import           Imj.Prelude
 import           Prelude(length, putStrLn)
-
-import           Codec.Midi hiding(key)
+--import Debug.Trace(traceShow, trace)
+import           Codec.Midi hiding(key, Key)
 import           Control.Concurrent(forkIO, threadDelay)
 import           Control.Concurrent.MVar.Strict(MVar, modifyMVar, modifyMVar_, newMVar, putMVar, takeMVar)
 import           Control.DeepSeq(NFData)
-import           Control.Monad.State.Strict(gets, execStateT)
+import           Control.Monad.State.Strict(gets, execStateT, state)
 import           Control.Monad.Reader(asks)
 import           Data.Binary(Binary(..), encode, decodeOrFail)
 import           Data.Bits (shiftR, shiftL, (.&.))
 import qualified Data.ByteString.Lazy as BL
-import           Data.List(replicate, concat, take)
+import           Data.List(replicate, concat, take, foldl')
 import           Data.Map.Internal(Map(..))
 import qualified Data.Map.Strict as Map
 import           Data.Set(Set)
@@ -55,6 +55,7 @@ import           Text.Read(readMaybe)
 import           Imj.Arg.Class
 import           Imj.Audio
 import           Imj.Audio.Harmonics
+import           Imj.Audio.Midi
 import           Imj.Categorized
 import           Imj.ClientView.Types
 import           Imj.Event
@@ -238,14 +239,15 @@ setEditionIndex idx (Edition mode i j) = case mode of
 data SynthsGame = SynthsGame {
     pianos :: !(Map ClientId PressedKeys)
   , pianoLoops :: !(Map SequencerId (Map LoopId PressedKeys))
-  , clientPressedKeys :: !(Map GLFW.Key InstrumentNote)
+  , clientPressedKeys :: !(Map Key InstrumentNote)
   , instrument :: !Instrument
   , envelopePlot :: !EnvelopePlot
   , edition :: !Edition
+  , sourceIdx :: !(Maybe MidiSourceIdx)
 } deriving(Show)
 
 instance UIInstructions SynthsGame where
-  instructions color (SynthsGame _ _ _ instr _ edit@(Edition mode _ _)) =
+  instructions color (SynthsGame _ _ _ instr _ edit@(Edition mode _ _) _) =
     case instr of
       Synth osc harmonics release (AHDSR'Envelope a h d r ai di ri s) -> case mode of
         Envelope -> envelopeInstructions
@@ -306,6 +308,13 @@ instance UIInstructions SynthsGame where
       _ -> []
 
 
+data Key =
+    GLFWKey !GLFW.Key
+    -- ^ A key pressed from the PC-keyboard
+  | MIDIKey {-# UNPACK #-} !MidiPitch -- TODO include channel once we handle several midi channels
+    -- ^ A key pressed from a MIDI device
+ deriving(Show, Ord, Eq)
+
 countHarmonics :: Int
 countHarmonics = 10
 
@@ -354,7 +363,7 @@ initialGame = do
   i <- withMinimumHarmonicsCount <$> loadInstrument
   let initialViewMode = LogView
   p <- flip EnvelopePlot initialViewMode . toParts initialViewMode <$> envelopeShape i
-  return $ SynthsGame mempty mempty mempty i p mkEdition
+  return $ SynthsGame mempty mempty mempty i p mkEdition Nothing
 
 data SynthsMode =
     PlaySynth
@@ -364,6 +373,7 @@ data SynthsMode =
 data SynthsServer = SynthsServer {
     srvSequencers :: !(Map SequencerId (MVar (Sequencer LoopId)))
   , nextSeqId :: !SequencerId
+  , nextMIDISourceIdx :: !MidiSourceIdx
 } deriving(Generic)
 instance NFData SynthsServer
 
@@ -383,9 +393,11 @@ thePianoValue (SynthsClientView x _ _) = x
 data SynthsServerEvent =
     PianoValue !(Either ClientId (SequencerId, LoopId)) !PressedKeys
   | NewLine {-# UNPACK #-} !SequencerId {-# UNPACK #-} !LoopId
+  | AssignedSourceIdx {-# UNPACK #-} !MidiSourceIdx
   deriving(Generic, Show)
 instance DrawGroupMember SynthsServerEvent where
   exclusivityKeys = \case
+    AssignedSourceIdx {} -> mempty
     NewLine {} -> mempty
     PianoValue {} -> mempty -- we do this is so that interleaving 'PianoValue' events with 'PlayMusic' events
                            -- will still allow multiple play music events to be part of the same frame.
@@ -410,8 +422,8 @@ data SynthsGameEvent =
   | ChangeEditedFeature {-# UNPACK #-} !Int
   | ToggleEditMode
   | ToggleEnvelopeViewMode
-  | InsertPressedKey !GLFW.Key !InstrumentNote
-  | RemovePressedKey !GLFW.Key
+  | InsertPressedKey !Key !InstrumentNote
+  | RemovePressedKey !Key
   deriving(Show)
 instance Categorized SynthsGameEvent
 instance DrawGroupMember SynthsGameEvent where
@@ -446,22 +458,22 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
     return [CliEvt $ ClientAppEvt ForgetCurrentRecording]
   mapStateKey _ k st _ _ g = maybe
     (return [])
-    (\(SynthsGame _ _ pressed instr _ edit@(Edition mode _ _)) -> maybe
+    (\(SynthsGame _ _ pressed instr _ edit@(Edition mode _ _) _) -> maybe
       (return $ case st of
         GLFW.KeyState'Repeating -> []
         GLFW.KeyState'Pressed -> maybe
             []
             (\noteSpec ->
               let spec = noteSpec instr
-              in [CliEvt $ ClientAppEvt $ PlayNote $ StartNote spec 1
-                , Evt $ AppEvent $ InsertPressedKey k spec])
+              in [CliEvt $ ClientAppEvt $ PlayNote $ StartNote Nothing spec 1
+                , Evt $ AppEvent $ InsertPressedKey (GLFWKey k) spec])
             $ keyToNote k
         GLFW.KeyState'Released -> maybe
             []
             (\spec ->
-               [CliEvt $ ClientAppEvt $ PlayNote $ StopNote spec
-              , Evt $ AppEvent $ RemovePressedKey k])
-            $ Map.lookup k pressed)
+               [CliEvt $ ClientAppEvt $ PlayNote $ StopNote Nothing spec
+              , Evt $ AppEvent $ RemovePressedKey $ GLFWKey k])
+            $ Map.lookup (GLFWKey k) pressed)
       (\dir -> return $ case instr of
           Synth{} -> case st of
             GLFW.KeyState'Pressed -> [configureInstrument]
@@ -605,32 +617,38 @@ data MidiDeviceContext = MidiDeviceContext {
 }
 
 mkMidiDeviceContext :: PortMidi.PMStream -> MIDIPollPeriod -> MidiDeviceContext
-mkMidiDeviceContext s p = MidiDeviceContext s p $ S.create $ SM.new 16
+mkMidiDeviceContext s p = MidiDeviceContext s p $ S.create $ SM.new 256
 
 
+-- | The period, in microseconds, at which the midi events are polled.
 newtype MIDIPollPeriod = MIDIPollPeriod { unMIDIPollPeriod :: Int64 }
   deriving(Num, Integral, Real, Enum, Show, Eq, Ord)
 defaultMidiPollPeriod :: MIDIPollPeriod
 defaultMidiPollPeriod = 1
 
-data SynthsClientArgs = SynthsClientArgs { midiPollPeriod :: !MIDIPollPeriod }
-  deriving(Show)
+data SynthsClientArgs = SynthsClientArgs {
+    midiPollPeriod :: {-# UNPACK #-} !MIDIPollPeriod
+} deriving(Show)
 instance Arg SynthsClientArgs where
   parseArg = Just $ (SynthsClientArgs <$>
-    option midiPollPeriodArg
-       (  long "midiPollPeriod"
-       <> help (
-       "[Client MIDI] The period (in microseconds) at which the MIDI events are polled." ++
-       " Defaults to \"" ++ show (unMIDIPollPeriod defaultMidiPollPeriod) ++ "\". " ++
-       "Notes with a time-span shorter than this period may be silenced, because MIDI timestamps " ++
-       "are ignored."
-       )))
+      option midiPollPeriodArg
+         (  long "midiPollPeriod"
+         <> help (
+         "[Client MIDI] The period (in microseconds) at which the MIDI events are polled." ++
+         " Defaults to \"" ++ show (unMIDIPollPeriod defaultMidiPollPeriod) ++ "\"."
+         )))
+
 
 midiPollPeriodArg :: ReadM MIDIPollPeriod
 midiPollPeriodArg =
   str >>= maybe
-    (readerError "Encountered an unreadable MIDI poll period. This should be a number")
-    (\(i :: Int64) -> return $ fromIntegral i)
+    (readerError "Encountered an unreadable MIDI poll period. This should be a positive number")
+    (\(i :: Int64) ->
+      if i < 0
+        then
+          readerError "Encountered a negative MIDI poll period."
+        else
+          return $ fromIntegral i)
     . readMaybe
 
 instance GameLogic SynthsGame where
@@ -684,37 +702,62 @@ instance GameLogic SynthsGame where
               return $ Right ([],[],Just dt)
             PortMidi.GotData -> do
               let (bufferPtr, bufferSz) = S.unsafeToForeignPtr0 buffer
-              withForeignPtr bufferPtr $ \ptr -> do
-                -- TODO if the number of events returned is equal to the size of the buffer,
-                -- call 'readEventsToBuffer' again as we may have more to read.
-                res <- PortMidi.readEventsToBuffer stream ptr $ fromIntegral bufferSz
-                maybe
-                  -- in that case, we don't use the events we just read,
-                  -- but reading them serves the purpose of not overflowing the queue.
-                  (return $ Right ([],[],Just dt))
-                  (\(SynthsGame _ _ _ instr _ _) ->
-                    either
-                      (\err -> do
-                        putStrLn $ "midi read error:" ++ show err
-                        return $ Right ([],[],Just dt)) -- fail silently
-                      (\n -> ((\l -> Right ([],map (ClientAppEvt . PlayNote) l,Just dt)) .
-                          catMaybes .
-                          map
-                            (maybe
-                              Nothing
-                              (\case
-                                  NoteOff _ key _ ->
-                                    Just $ StopNote $ mkInstrumentNote (fromIntegral key) instr
-                                  NoteOn _ key 0 ->
-                                    Just $ StopNote $ mkInstrumentNote (fromIntegral key) instr
-                                  NoteOn _ key vel ->
-                                    Just $ StartNote (mkInstrumentNote (fromIntegral key) instr) $ mkNoteVelocity vel
-                                  _ ->
-                                    Nothing)
-                              . msgToMidi . PortMidi.decodeMsg . PortMidi.message))
-                              <$> flip peekArray ptr (fromIntegral n))
-                      res)
-                  mayGame)
+                  go = withForeignPtr bufferPtr $ \ptr -> do
+                        res <- PortMidi.readEventsToBuffer stream ptr $ fromIntegral bufferSz
+                        nReads <- fromIntegral <$> either
+                          (\err -> do
+                            putStrLn $ "midi read error:" ++ show err
+                            return 0)
+                          return
+                          res
+                        (l1,l2) <- maybe
+                          -- in that case, we don't use the events we just read,
+                          -- but reading them serves the purpose of not overflowing the queue.
+                          (return ([],[]))
+                          (\(SynthsGame _ _ pressed instr _ _ maySourceIdx) -> maybe
+                            (return ([],[])) -- should not happen once connected.
+                            (\srcIdx ->
+                              (foldl' (\(a,b) (c,d) -> (a++c, b++d)) ([],[]).
+                                  map
+                                    (\(PortMidi.PMEvent msg time) ->
+                                    -- Portmidi time is in milliseconds, we convert it to nanoseconds.
+                                    let mi = Just $ MidiInfo (fromIntegral $ time * 1000000) srcIdx
+                                        off k =
+                                          let key = MIDIKey k
+                                          in maybe
+                                              ([],[])
+                                              (\spec ->
+                                                ([AppEvent $ RemovePressedKey key]
+                                                ,[ClientAppEvt $ PlayNote $ StopNote mi spec]))
+                                              $ Map.lookup key pressed
+                                        on k v =
+                                          let i = mkInstrumentNote k instr
+                                          in ([AppEvent $ InsertPressedKey (MIDIKey k) i]
+                                            , [ClientAppEvt $ PlayNote $ StartNote mi i $ mkNoteVelocity v])
+                                    in maybe
+                                        ([],[])
+                                        (\m -> {- traceShow (time,m) $-} case m of
+                                          NoteOff _ key _ -> off $ fromIntegral key
+                                          NoteOn _ key 0 -> off $ fromIntegral key
+                                          NoteOn _ key vel -> on (fromIntegral key) vel
+                                          _ -> ([],[]))
+                                        $ msgToMidi $ PortMidi.decodeMsg msg))
+                                      <$> flip peekArray ptr nReads)
+                            maySourceIdx)
+                          mayGame
+                        return (l1,l2,nReads)
+                  go' a b = do
+                    -- read until there is nothing to read.
+                    (l1,l2,nEvtsRead) <- go
+                    let newA = a ++ l1
+                        newB = b ++ l2
+                    if nEvtsRead == bufferSz
+                      then
+                        go' newA {-$ trace "another read is needed"-} newB
+                      else
+                        return (newA, newB)
+              (l1,l2) <- go' [] []
+              return $ Right (l1,l2,Just dt))
     , terminateProducer =
         const $ PortMidi.terminate >>= either (return . Left . pack . show) (const $ return $ Right ())
     }
@@ -723,14 +766,14 @@ instance GameLogic SynthsGame where
 
   onClientOnlyEvent e = do
     mayNewEnvMinMaxs <-
-      getIGame >>= maybe (liftIO initialGame) return >>= \(SynthsGame _ _ _ instr (EnvelopePlot _ viewmode) _) ->
+      getIGame >>= maybe (liftIO initialGame) return >>= \(SynthsGame _ _ _ instr (EnvelopePlot _ viewmode) _ _) ->
         case e of
           ChangeInstrument i -> do
             liftIO $ saveInstrument i
             Just . toParts viewmode <$> liftIO (envelopeShape i)
           ToggleEnvelopeViewMode -> Just . toParts (toggleView viewmode) <$> liftIO (envelopeShape instr)
           _ -> return Nothing
-    getIGame >>= maybe (liftIO initialGame) return >>= \g@(SynthsGame _ _ pressed _ _ _) -> withAnim $ putIGame $ case e of
+    getIGame >>= maybe (liftIO initialGame) return >>= \g@(SynthsGame _ _ pressed _ _ _ _) -> withAnim $ putIGame $ case e of
       ChangeInstrument i -> g {
           instrument = i
         , envelopePlot = EnvelopePlot (fromMaybe (error "logic") mayNewEnvMinMaxs) $ envViewMode $ envelopePlot g
@@ -746,6 +789,7 @@ instance GameLogic SynthsGame where
   onServerEvent e =
     -- TODO force withAnim when using putIGame ?
     getIGame >>= maybe (liftIO initialGame) return >>= \g -> withAnim $ putIGame $ case e of
+      AssignedSourceIdx s -> g { sourceIdx = Just s}
       NewLine seqId loopId ->
         g { pianoLoops = Map.insertWith Map.union seqId (Map.singleton loopId mkEmptyPressedKeys) $ pianoLoops g }
       PianoValue creator x -> either
@@ -757,7 +801,7 @@ instance GameLogic SynthsGame where
 
 instance GameDraw SynthsGame where
 
-  drawBackground (Screen _ center@(Coords _ centerC)) g@(SynthsGame pianoClients pianoLoops_ _ _ (EnvelopePlot curves _) _) = do
+  drawBackground (Screen _ center@(Coords _ centerC)) g@(SynthsGame pianoClients pianoLoops_ _ _ (EnvelopePlot curves _) _ _) = do
     drawInstructions Horizontally (Just 15) g (mkCentered $ move 21 Up center) >>= \(Alignment _ ref) -> do
       ref2 <- case curves of
         [] -> return ref
@@ -826,7 +870,12 @@ instance ServerInit SynthsServer where
 
   type ClientViewT SynthsServer = SynthsClientView
 
-  mkInitialState _ = return ((), SynthsServer mempty $ SequencerId 10) -- the first 9 sequencers are reserved
+  mkInitialState _ =
+    return (()
+          , SynthsServer
+              mempty
+              (SequencerId 10) $ -- the 9 first sequencers are reserved
+              mkMidiSourceIdx 0)
 
   mkInitialClient = SynthsClientView mkEmptyPressedKeys mkEmptyRecording 0
 
@@ -837,6 +886,11 @@ instance Server SynthsServer where
 
   type ServerEventT SynthsServer = SynthsServerEvent
 
+  greetNewcomer =
+    (:[]) . AssignedSourceIdx <$>
+      state
+        (\s -> case unServerState s of
+          server@(SynthsServer _ _ i) -> (i, s{ unServerState = server{nextMIDISourceIdx = mkMidiSourceIdx $ succ $ fromIntegral $ unMidiSourceIdx i}}))
   greetNewcomer' =
     -- Send the currently started notes so that the newcomer
     -- hears exactly what other players are hearing.
@@ -950,9 +1004,9 @@ instance ServerClientHandler SynthsServer where
           return [])
         (\sequencerV -> do
           sequencer <- liftIO $ newMVar sequencerV
-          seqId <- modifyState' $ \(SynthsServer m i) ->
+          seqId <- modifyState' $ \(SynthsServer m i n) ->
             let (sid,succI) = maybe (i,succ i) (\j -> (j,i)) maySeqId
-            in (sid,SynthsServer (Map.insert sid sequencer m) succI)
+            in (sid,SynthsServer (Map.insert sid sequencer m) succI n)
           notifyEveryone $ NewLine seqId loopId
           return
             [ (\v -> forever $ do
@@ -995,7 +1049,8 @@ pianoEvts idx v@(PressedKeys m) =
   ServerAppEvt (PianoValue idx v) :
   concatMap
     (\(note,n) ->
-      replicate n $ PlayMusic (StartNote note 1))
+    -- TODO the server could be the "0" midisource, and generate its own midi timestamps
+      replicate n $ PlayMusic (StartNote Nothing note 1))
     (Map.assocs m)
 
 instance ServerCmdParser SynthsServer

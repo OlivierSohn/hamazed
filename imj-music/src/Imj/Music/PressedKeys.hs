@@ -36,9 +36,12 @@ removeNote n (PressedKeys s) =
 -- | Returns the [MusicalEvent] such that the piano plays no note.
 releaseAllKeys :: PressedKeys -> [MusicalEvent]
 releaseAllKeys (PressedKeys m) =
-  concatMap (\(n,i) -> replicate i (StopNote n)) $ Map.assocs m
+  concatMap (\(n,i) -> replicate i (StopNote Nothing n)) $ Map.assocs m
 
-onMusic :: MusicalEvent -> PressedKeys -> (Int,PressedKeys) -- ^ returns the number of changed notes (added or removed)
+onMusic :: MusicalEvent
+        -> PressedKeys
+        -> (Int,PressedKeys)
+        -- ^ returns the number of changed notes (added or removed)
 onMusic n = case n of
-  StartNote spec _ -> addNote spec
-  StopNote spec -> removeNote spec
+  StartNote _ spec _ -> addNote spec
+  StopNote _ spec -> removeNote spec

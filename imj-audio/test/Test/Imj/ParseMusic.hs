@@ -129,72 +129,72 @@ testParseMonoVoice = do
   let i = bellInstrument
 
   (allMusic i [voice|do ré mi|]) `shouldBe`
-    [ [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
-    , [StopNote (InstrumentNote Do (Octave 6) i), StartNote (InstrumentNote Ré (Octave 6) i) (NoteVelocity 1.0)]
-    , [StopNote (InstrumentNote Ré (Octave 6) i), StartNote (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
-    , [StopNote (InstrumentNote Mi (Octave 6) i)]
+    [ [StartNote Nothing (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote Nothing (InstrumentNote Do (Octave 6) i), StartNote Nothing (InstrumentNote Ré (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote Nothing (InstrumentNote Ré (Octave 6) i), StartNote Nothing (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote Nothing (InstrumentNote Mi (Octave 6) i)]
     ]
 
   (allMusic i [voice|do - mi|]) `shouldBe`
-    [ [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
+    [ [StartNote Nothing (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
     , []
-    , [StopNote (InstrumentNote Do (Octave 6) i), StartNote (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
-    , [StopNote (InstrumentNote Mi (Octave 6) i)]
+    , [StopNote Nothing (InstrumentNote Do (Octave 6) i), StartNote Nothing (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote Nothing (InstrumentNote Mi (Octave 6) i)]
     ]
 
   (allMusic i [voice|do - - mi|]) `shouldBe`
-    [ [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
+    [ [StartNote Nothing (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
     , []
     , []
-    , [StopNote (InstrumentNote Do (Octave 6) i), StartNote (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
-    , [StopNote (InstrumentNote Mi (Octave 6) i)]
+    , [StopNote Nothing (InstrumentNote Do (Octave 6) i), StartNote Nothing (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote Nothing (InstrumentNote Mi (Octave 6) i)]
     ]
 
   (allMusic i [voice|do - . mi|]) `shouldBe`
-    [ [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
+    [ [StartNote Nothing (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
     , []
-    , [StopNote (InstrumentNote Do (Octave 6) i)]
-    , [StartNote (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
-    , [StopNote (InstrumentNote Mi (Octave 6) i)]
+    , [StopNote Nothing (InstrumentNote Do (Octave 6) i)]
+    , [StartNote Nothing (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote Nothing (InstrumentNote Mi (Octave 6) i)]
     ]
 
   (allMusic i [voice|do . - mi|]) `shouldBe`
-    [ [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
-    , [StopNote (InstrumentNote Do (Octave 6) i)]
+    [ [StartNote Nothing (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote Nothing (InstrumentNote Do (Octave 6) i)]
     , []
-    , [StartNote (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
-    , [StopNote (InstrumentNote Mi (Octave 6) i)]
+    , [StartNote Nothing (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote Nothing (InstrumentNote Mi (Octave 6) i)]
     ]
 
   (allMusic i [voice|do . . mi|]) `shouldBe`
-    [ [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
-    , [StopNote (InstrumentNote Do (Octave 6) i)]
+    [ [StartNote Nothing (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote Nothing (InstrumentNote Do (Octave 6) i)]
     , []
-    , [StartNote (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
-    , [StopNote (InstrumentNote Mi (Octave 6) i)]
+    , [StartNote Nothing (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote Nothing (InstrumentNote Mi (Octave 6) i)]
     ]
 
   (allMusic i [voice|do . mi|]) `shouldBe`
-    [ [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
-    , [StopNote (InstrumentNote Do (Octave 6) i)]
-    , [StartNote (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
-    , [StopNote (InstrumentNote Mi (Octave 6) i)]
+    [ [StartNote Nothing (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote Nothing (InstrumentNote Do (Octave 6) i)]
+    , [StartNote Nothing (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote Nothing (InstrumentNote Mi (Octave 6) i)]
     ]
 
   (allMusic i [voice|- do . mi|]) `shouldBe`
     [ []
-    , [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
-    , [StopNote (InstrumentNote Do (Octave 6) i)]
-    , [StartNote (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
-    , [StopNote (InstrumentNote Mi (Octave 6) i)]
+    , [StartNote Nothing (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote Nothing (InstrumentNote Do (Octave 6) i)]
+    , [StartNote Nothing (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote Nothing (InstrumentNote Mi (Octave 6) i)]
     ]
 
   (allMusic i [voice|. do . mi|]) `shouldBe`
     [ []
-    , [StartNote (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
-    , [StopNote (InstrumentNote Do (Octave 6) i)]
-    , [StartNote (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
-    , [StopNote (InstrumentNote Mi (Octave 6) i)]
+    , [StartNote Nothing (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote Nothing (InstrumentNote Do (Octave 6) i)]
+    , [StartNote Nothing (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0)]
+    , [StopNote Nothing (InstrumentNote Mi (Octave 6) i)]
     ]
 
 testParseMonoVoiceWithComments :: IO ()

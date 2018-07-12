@@ -120,13 +120,13 @@ midiEventHandler'PlayAnd instrument onOtherEvent i onStart onStop mayRender =
         Voice.NoteOn pitch vel ->
           (,)
             (onStart channel pitch vel s)
-            <$> play (StartNote
+            <$> play (StartNote Nothing
                   (mkInstrumentNote (fromIntegral $ Voice.fromPitch pitch) instrument)
                   $ mkNoteVelocity $ Voice.fromVelocity vel)
         Voice.NoteOff pitch _ ->
           (,)
             (onStop channel pitch s)
-            <$> play (StopNote $ mkInstrumentNote (fromIntegral $ Voice.fromPitch pitch) instrument)
+            <$> play (StopNote Nothing $ mkInstrumentNote (fromIntegral $ Voice.fromPitch pitch) instrument)
         _ -> do
           onOtherEvent evt
           return (s,Right ())

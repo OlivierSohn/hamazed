@@ -69,6 +69,7 @@ import           Data.Proxy(Proxy(..))
 import qualified Graphics.UI.GLFW as GLFW(Key(..), KeyState(..), ModifierKeys(..))
 
 import           Imj.Arg.Class
+import           Imj.Audio.Midi
 import           Imj.Categorized
 import           Imj.ClientView.Types
 import           Imj.Control.Concurrent.AsyncGroups.Class
@@ -255,7 +256,7 @@ class (Show g
      , Audio (AudioT g), Arg (AudioT g), Show (AudioT g)
      , GameStatefullKeys g (StatefullKeysT g)
      , Categorized (ClientOnlyEvtT g), Show (ClientOnlyEvtT g)
-     , ColorTheme (ColorThemeT g), Binary (ColorThemeT g)     
+     , ColorTheme (ColorThemeT g), Binary (ColorThemeT g)
      )
       =>
      GameLogic g
@@ -592,3 +593,4 @@ data GameArgs g = GameArgs
   !(Maybe PreferredScreenSize)
   !Debug
   !(Maybe (AudioT g))
+  !(Maybe MaxMIDIJitter)

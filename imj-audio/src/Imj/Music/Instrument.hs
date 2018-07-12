@@ -48,6 +48,7 @@ import           GHC.Generics(Generic(..))
 
 import           Imj.Audio.Envelope
 import           Imj.Audio.Harmonics
+import           Imj.Audio.Midi
 import           Imj.Music.Instruction
 
 data Oscillator =
@@ -86,9 +87,9 @@ cycleOscillator n v =
   toEnum $ ((fromEnum v) + n) `mod` (1 + (fromEnum $ (maxBound :: Oscillator)))
 
 data MusicalEvent =
-     StartNote !InstrumentNote {-# UNPACK #-} !NoteVelocity
+     StartNote !(Maybe MidiInfo) !InstrumentNote {-# UNPACK #-} !NoteVelocity
      -- ^ Start playing a note at the given volume
-   | StopNote !InstrumentNote
+   | StopNote !(Maybe MidiInfo) !InstrumentNote
      -- ^ Stop playing a note
   deriving(Generic,Show, Eq)
 instance Binary MusicalEvent

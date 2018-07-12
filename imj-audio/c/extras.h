@@ -125,7 +125,7 @@ namespace imajuscule {
       Env e;
       e.setAHDSR(envParams);
       // emulate a key-press
-      e.onKeyPressed();
+      e.onKeyPressed(0);
       int splitAt = -1;
 
       std::vector<float> v, v2;
@@ -137,7 +137,7 @@ namespace imajuscule {
           splitAt = v.size();
           if constexpr (Env::Release == EnvelopeRelease::WaitForKeyRelease) {
             // emulate a key-release
-            e.onKeyReleased();
+            e.onKeyReleased(0);
           }
           break;
         }
@@ -200,8 +200,8 @@ namespace imajuscule {
       }
 
       template<typename Out>
-      auto onEvent2(Event e, Out & out) {
-        return obj.onEvent2(e, out, chans);
+      auto onEvent2(Event e, Out & out, Optional<MIDITimestampAndSource> maybeMts) {
+        return obj.onEvent2(e, out, chans, maybeMts);
       }
 
       void finalize() {
@@ -414,24 +414,24 @@ namespace imajuscule {
     };
 
     template<typename Env, audioelement::OscillatorType osc, typename HarmonicsArray>
-    onEventResult midiEvent(HarmonicsArray const & harmonics, typename Env::Param const & env, Event e) {
-      return Synths<Env, osc>::get(harmonics, env).o.onEvent2(e, getAudioContext().getChannelHandler());
+    onEventResult midiEvent(HarmonicsArray const & harmonics, typename Env::Param const & env, Event e, Optional<MIDITimestampAndSource> maybeMts) {
+      return Synths<Env, osc>::get(harmonics, env).o.onEvent2(e, getAudioContext().getChannelHandler(), maybeMts);
     }
 
     template<typename Env, typename HarmonicsArray>
-    onEventResult midiEvent_(audioelement::OscillatorType osc, HarmonicsArray const & harmonics, typename Env::Param const & p, Event n) {
+    onEventResult midiEvent_(audioelement::OscillatorType osc, HarmonicsArray const & harmonics, typename Env::Param const & p, Event n, Optional<MIDITimestampAndSource> maybeMts) {
       using namespace audioelement;
       switch(osc) {
         case OscillatorType::Saw:
-          return midiEvent<Env, OscillatorType::Saw, HarmonicsArray>(harmonics, p, n);
+          return midiEvent<Env, OscillatorType::Saw, HarmonicsArray>(harmonics, p, n, maybeMts);
         case OscillatorType::Square:
-          return midiEvent<Env, OscillatorType::Square, HarmonicsArray>(harmonics, p, n);
+          return midiEvent<Env, OscillatorType::Square, HarmonicsArray>(harmonics, p, n, maybeMts);
         case OscillatorType::Triangle:
-          return midiEvent<Env, OscillatorType::Triangle, HarmonicsArray>(harmonics, p, n);
+          return midiEvent<Env, OscillatorType::Triangle, HarmonicsArray>(harmonics, p, n, maybeMts);
         case OscillatorType::Sinus:
-          return midiEvent<Env, OscillatorType::Sinus, HarmonicsArray>(harmonics, p, n);
+          return midiEvent<Env, OscillatorType::Sinus, HarmonicsArray>(harmonics, p, n, maybeMts);
         case OscillatorType::SinusVolumeAdjusted:
-          return midiEvent<Env, OscillatorType::SinusVolumeAdjusted, HarmonicsArray>(harmonics, p, n);
+          return midiEvent<Env, OscillatorType::SinusVolumeAdjusted, HarmonicsArray>(harmonics, p, n, maybeMts);
         default:
           Assert(0);
           return onEventResult::DROPPED_NOTE;

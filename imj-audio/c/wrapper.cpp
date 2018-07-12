@@ -65,14 +65,15 @@ namespace imajuscule::audioelement {
   }
 
   audio::onEventResult midiEventAHDSR(OscillatorType osc, EnvelopeRelease t,
-                                      CConstArray<harmonicProperties_t> const & harmonics, AHDSR p, audio::Event n) {
+                                      CConstArray<harmonicProperties_t> const & harmonics,
+                                      AHDSR p, audio::Event n, Optional<audio::MIDITimestampAndSource> maybeMts) {
     using namespace audio;
     static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
     switch(t) {
       case EnvelopeRelease::ReleaseAfterDecay:
-        return midiEvent_<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>>(osc, harmonics, p, n);
+        return midiEvent_<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>>(osc, harmonics, p, n, maybeMts);
       case EnvelopeRelease::WaitForKeyRelease:
-        return midiEvent_<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::WaitForKeyRelease>>(osc, harmonics, p, n);
+        return midiEvent_<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::WaitForKeyRelease>>(osc, harmonics, p, n, maybeMts);
       default:
       Assert(0);
       return onEventResult::DROPPED_NOTE;
@@ -164,6 +165,17 @@ extern "C" {
     if(!getAudioContext().Init(minLatencySeconds)) {
       return false;
     }
+
+    {
+      auto & d = midiDelays(); // to allocate the static inside
+      if(d.empty()) {
+        LG(ERR, "empty midi delays");
+      }
+      else if(d[0].get()) {
+        LG(ERR, "wrong midi delays initilization");
+      }
+    }
+
     // On macOS 10.13.5, this delay is necessary to be able to play sound,
     //   it might be a bug in portaudio where Pa_StartStream doesn't wait for the
     //   stream to be up and running.
@@ -223,11 +235,16 @@ extern "C" {
     getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade().clear();
   }
 
+  void setMaxMIDIJitter(uint64_t v) {
+    using namespace imajuscule::audio;
+    maxMIDIJitter() = v;
+  }
+
   bool midiNoteOnAHDSR_(imajuscule::audioelement::OscillatorType osc,
                         imajuscule::audioelement::EnvelopeRelease t,
                        int a, int ai, int h, int d, int di, float s, int r, int ri,
                        harmonicProperties_t * hars, int har_sz,
-                       int16_t pitch, float velocity) {
+                       int16_t pitch, float velocity, int midiSource, uint64_t maybeMIDITime) {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;
@@ -236,13 +253,16 @@ extern "C" {
     }
     auto p = AHDSR{a,itp::toItp(ai),h,d,itp::toItp(di),r,itp::toItp(ri),s};
     auto n = mkNoteOn(pitch,velocity);
-    return convert(midiEventAHDSR(osc, t, {hars, har_sz}, p, n));
+    auto maybeMts = (midiSource >= 0) ?
+      Optional<MIDITimestampAndSource>{{maybeMIDITime, static_cast<uint64_t>(midiSource)}} :
+      Optional<MIDITimestampAndSource>{};
+    return convert(midiEventAHDSR(osc, t, {hars, har_sz}, p, n, maybeMts));
   }
   bool midiNoteOffAHDSR_(imajuscule::audioelement::OscillatorType osc,
                          imajuscule::audioelement::EnvelopeRelease t,
                          int a, int ai, int h, int d, int di, float s, int r, int ri,
                          harmonicProperties_t * hars, int har_sz,
-                         int16_t pitch) {
+                         int16_t pitch, int midiSource, uint64_t maybeMIDITime) {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;
@@ -251,7 +271,10 @@ extern "C" {
     }
     auto p = AHDSR{a,itp::toItp(ai),h,d,itp::toItp(di),r,itp::toItp(ri),s};
     auto n = mkNoteOff(pitch);
-    return convert(midiEventAHDSR(osc, t, {hars, har_sz}, p, n));
+    auto maybeMts = (midiSource >= 0) ?
+      Optional<MIDITimestampAndSource>{{maybeMIDITime, static_cast<uint64_t>(midiSource)}} :
+      Optional<MIDITimestampAndSource>{};
+    return convert(midiEventAHDSR(osc, t, {hars, har_sz}, p, n, maybeMts));
   }
 
   float* analyzeAHDSREnvelope_(imajuscule::audioelement::EnvelopeRelease t, int a, int ai, int h, int d, int di, float s, int r, int ri, int*nElems, int*splitAt) {

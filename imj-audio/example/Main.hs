@@ -22,6 +22,9 @@ main = void $ usingAudioOutput -- WithMinLatency 0
   putStrLn "playing tech"
   uncurry (flip playVoicesAtTempo techInstrument) tech >>= print
   threadDelay 10000
+  putStrLn "playing tech2"
+  uncurry (flip playVoicesAtTempo techInstrument) tech2 >>= print
+  threadDelay 10000
   putStrLn "playing vivaldi summer presto"
   uncurry (flip playVoicesAtTempo simpleInstrument) vivaldiFourSeasonsSummerPresto >>= print
   threadDelay 10000

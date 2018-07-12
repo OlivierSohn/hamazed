@@ -28,6 +28,7 @@ import           Options.Applicative.Types(Parser(..))
 import           Text.Read(readMaybe)
 
 import           Imj.Arg.Class
+import           Imj.Audio.Midi
 import           Imj.Network
 import           Imj.Server.Class
 import           Imj.Server.Color
@@ -62,6 +63,7 @@ parserGameArgs p = GameArgs
   <*> parserScreenSize
   <*> parserDebug
   <*> parserAudio
+  <*> parserAudioMaxMIDIJitter
 
  where
 
@@ -79,6 +81,16 @@ parserGameArgs p = GameArgs
             "'opengl': play in an opengl window (default value)." ++
             renderHelp)
             ))
+
+  parserAudioMaxMIDIJitter =
+    optional $
+      option maxMIDIJitterArg
+       (  long "maxMIDIJitter"
+       <> help (
+       "[Client MIDI] Size, in microseconds, of the MIDI event buffer used to " ++
+       "avoid MIDI jitter. " ++
+       "Defaults to \"" ++ show (unMaxMIDIJitter defaultMaxMIDIJitter) ++ "\"."
+       ))
 
 
 parserSrvColorScheme

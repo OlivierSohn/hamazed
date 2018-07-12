@@ -6,6 +6,7 @@ module Imj.Game.Audio.Class
 
 import           Imj.Prelude
 import           Control.Monad.IO.Unlift(MonadUnliftIO)
+import           Imj.Audio.Midi
 import           Imj.Music.Types
 
 class Audio e where
@@ -15,7 +16,7 @@ class Audio e where
 
   withAudio
     :: (MonadUnliftIO m)
-    => e -> m a -> m a
+    => e -> MaxMIDIJitter -> m a -> m a
 
   triggerLaserSound
     :: (MonadIO m)
@@ -28,7 +29,7 @@ class Audio e where
 -- | Muted audio
 instance Audio () where
   defaultAudio = ()
-  withAudio _ = id
+  withAudio _ _ = id
   triggerLaserSound _ = return ()
   playMusic _ _ = return ()
   {-# INLINE defaultAudio #-}

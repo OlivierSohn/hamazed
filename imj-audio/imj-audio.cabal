@@ -142,6 +142,7 @@ library
   exposed-modules:     Imj.Audio
                      , Imj.Audio.Envelope
                      , Imj.Audio.Harmonics
+                     , Imj.Audio.Midi
                      , Imj.Audio.Output
                      , Imj.Music.Alter
                      , Imj.Music.Compose
@@ -172,6 +173,7 @@ library
                      , unliftio-core ==0.1.*
                      , vector >= 0.12.0.1 && < 0.13
                      , vector-binary-instances ==0.2.*
+  default-language:    Haskell2010
 
 executable imj-audio-exe
   hs-source-dirs:      example

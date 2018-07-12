@@ -3,6 +3,7 @@
 
 module Imj.Music.Compositions.Tech
       ( tech
+      , tech2
       , techInstrument
       ) where
 
@@ -47,4 +48,120 @@ tech = (bpm,part)
 
     la . . mi . . fa . . sol . . . . .
     ^^do . . ^sol . . ^la . . ^si . . . . .
+  |]
+
+
+tech2 :: (Float,[[Instruction]])
+tech2 = (bpm,part)
+ where
+  bpm = 440
+
+  part = [voices|
+    sol .
+    mib .
+    do .
+
+    do . do . do . do . do .
+
+    sol . fa  .
+    mib . mib .
+    do  . do  .
+
+    do . do . do . do . do . do .
+
+    fa  . fa  .
+    mib . mib .
+    do  . do  .
+
+    do . do . do . do . do . do .
+
+    fa  .
+    mib . mib .
+    do  . do  .
+
+    do . do . do . do . do . do .
+
+    mib . mib .
+    do  . do  .
+
+
+    do . do . do . do . do . do .
+
+    mib . ré .
+    do  . do .
+
+    do .
+
+    ré .
+    do .
+
+    do .
+
+    mib .
+    do .
+
+    do .
+
+    fa .
+    do .
+
+    do . do .
+
+    sib .
+    sol .
+    mib .
+    do .
+
+    do . do . do . do . do .
+
+    sib . la  .
+    sol . fa  .
+    mib . mib .
+    do  . do  .
+
+    do . do . do . do . do . do .
+
+    la  . la  .
+    fa  . fa  .
+    mib . mib .
+    do  . do  .
+
+    do . do . do . do . do . do .
+
+    la  . sol .
+    fa  .
+    mib . mib .
+    do  . do  .
+
+    do . do . do . do . do . do .
+
+    sol . sol .
+    mib . mib .
+    do  . do  .
+
+    do . do . do . do . do . do .
+
+    sol . fa .
+    mib . ré .
+    do  . do .
+
+    do .
+
+    fa .
+    ré .
+    do .
+
+    do .
+
+    sol .
+    mib .
+    do .
+
+    do .
+
+    sol .
+    fa .
+    do .
+
+    do . do .
   |]

@@ -1,47 +1,30 @@
-- MIDI Parametrizable behaviours (command line args):
+- use rotating knobs to control envelope, harmonics
 
-0. "Realtime events" Today, we ignore MIDI timestamps and handle each MIDI event as if it
-were realtime. This has 2 consequences:
-  1) some notes are silenced, when note on and note off are read in the same batch
-  2) Note starts are quantized according to the polling frequency.
-  3) Perceived latency varies in an interval of span "polling period"
+- change the sound in real time, when harmonics change.
 
-1. "Accurate short durations"
-When a noteOff is detected to be in the same batch as a note On, we could make
-the note duration accurate by delaying the keyRelease.
+- When playing a loop, the server should offset the miditimestamps by
+period of the loop * loop number, else jitter compensation will not work.
+Also, for loops, the server should send timestamped events in advance, so as to
+be able to ignore network latencies (the client will buffer the event). Maybe
+we need to declare some sources having fixed delays (else, here, the latency compensation
+  will try to adapt to the server sending events earlier)
 
-2. "Perfect timing"
-We could delay start and end of notes, so that the MIDI latency is always the same,
-regardless of if the note arrived soon or late in the queue.
+- report "midi was too late" errors to the console, from the nrt thread using a flag.
 
-Note that 2. is stronger than 1.
+- implement EngineAndRamps as a Computable (see TODOs in voice)
+it will make "perfect MIDI timing" easier to implement, and will allow
+using the envelopes instead of the channel to xfade.
+We will need one (single-request) channel per ramp, instead of one multi-request channel for all.
 
-We would need an envelope "delayed keypress, delayed keyRelease" feature which says
-"attack at this time, release at this time". Internally, "attack at this time" will be converted to
-"attack in n samples", provided that when the function is enqueued, it has access to
-the time at which the current buffer will be played.
+Support delays in soundengine:
+'onKeyPressed' / 'onKeyRelease' of EngineAndRamps should tell the soundengine how much delay
+there is.
 
-Auto calibration: at each played notes, the audio engine
-sees which delay exists (between MIDI timestamp and the time at which audio will be played)
-so that it can, over time best adapt how the interpretation of midi events is done.
-(Maybe after a few tens notes, it can decide which to use, and then change it if there is a really
-  big observed change, but avoid changing it by small values, after the "calibration phase", to keep a constant delay)
-The noteOff event will use the same delay as the noteon event to avoid the possibility
-of those events crossing each other, and also this gives the nice property that notes durations
-are conserved even during calibration.
+- adapt Music.Midi to use timestamps for more accurate timing, instead of relying on sleep.
+(rely on sleep, too, but wake up earlier and schedule note on / note off)
+- make effectOn / effectOff MIDI-aware ?
 
-The timestamps must be sent to the server to be redistributed, and the audioengine
-must support several sources of midi timestamps (each client connected to a server
-  has a different time reference!)
-
-Once 2. works, use it to read a MIDI file, instead of sleeping to wait which is not as accurate.
-
-
-----------------
-First step :
-  assume the audioengine delay is user-configured.
-
-- Every played note stores 2 InstrumentNote in each of which is a copy of the Instrument
+- Every played note stores 2 InstrumentNote, in each of which is a copy of the Instrument
 containing a vector of harmonics, and an envelope... that's a lot of redundant info!
 
 work using a key:
@@ -57,9 +40,9 @@ work using a key:
 +RTS -h : to generates a .hp file
 hp2ps -c file.hp : to generate the .ps
 
-- in game synth, use harmonics floats as weights, and normalize.
+- in game synth, make an instrument volume?
 
-- report midi poll period when a debugmidi flag is activated (average, min, max)
+- report effective midi poll period when a debugmidi flag is activated (average, min, max)
 
 - Doc : volume is controlled by:
 chan_base_amplitude (0.3f)

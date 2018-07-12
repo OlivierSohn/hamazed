@@ -50,7 +50,7 @@ library
                      , imj-space ==0.1.*
                      , imj-prelude ==0.1.*
                      , imj-time ==0.1.*
-                     , JuicyPixels ==3.2.*
+                     , JuicyPixels >=3.2 && < 3.4
                      , mwc-random ==0.13.*
                      , random ==1.1.*
                      , strict-concurrency ==0.2.*

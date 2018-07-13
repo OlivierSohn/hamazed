@@ -5,6 +5,7 @@
 
 module Imj.Audio.Harmonics
       ( HarmonicProperties(..)
+      , scaleVolume
       ) where
 
 import           Foreign
@@ -34,3 +35,6 @@ instance Storable HarmonicProperties where
     peek p = return HarmonicProperties
              `ap` (#{peek harmonicProperties_t, phase} p)
              `ap` (#{peek harmonicProperties_t, volume} p)
+
+scaleVolume :: Float -> HarmonicProperties -> HarmonicProperties
+scaleVolume s p = p { volume = s * volume p}

@@ -13,13 +13,14 @@ module Imj.Music.Instrument
       , NoteVelocity(..)
       , mkNoteVelocity
       , Oscillator(..)
-      , cycleOscillator
+      , cycleOscillator, countOscillators
       -- * Analyze envelope
       , envelopeShape
       -- * Utilities
       , instrumentNoteToMidiPitch
       , harmonicsFromVolumes
 -- * Some instruments
+      , marimba
 -- | These instruments are used in
 -- <https://github.com/OlivierSohn/hamazed/tree/master/imj-game-hamazed Hamazed>.
       , simpleInstrument
@@ -82,9 +83,12 @@ instance Enum Oscillator where
 instance NFData Oscillator
 instance Binary Oscillator
 
+countOscillators :: Int
+countOscillators = 1 + (fromEnum $ (maxBound :: Oscillator))
+
 cycleOscillator :: Int -> Oscillator -> Oscillator
 cycleOscillator n v =
-  toEnum $ ((fromEnum v) + n) `mod` (1 + (fromEnum $ (maxBound :: Oscillator)))
+  toEnum $ ((fromEnum v) + n) `mod` countOscillators
 
 data MusicalEvent =
      StartNote !(Maybe MidiInfo) !InstrumentNote {-# UNPACK #-} !NoteVelocity
@@ -146,16 +150,20 @@ defaultHarmonics = harmonicsFromVolumes
  , 0.005
  , 0.02]
 
--- | Also normalizes the volumes so that the sum of their absolute value is 1
-harmonicsFromVolumes :: [Float] -> S.Vector HarmonicProperties
-harmonicsFromVolumes allVolumes =
-  S.fromList $ map (HarmonicProperties 0 ) $ map (* normalizeFactor) volumes
+-- | Normalizes the volumes so that the sum of their absolute value is 1
+mkHarmonics :: [HarmonicProperties] -> S.Vector HarmonicProperties
+mkHarmonics allProps =
+  S.fromList $ map (scaleVolume normalizeFactor) props
  where
-   volumes = reverse $ dropWhile (== 0) $ reverse allVolumes
-   sumAbs = foldl' (\v s -> s + abs v) 0 volumes
+   props = reverse $ dropWhile ((==) 0 . volume) $ reverse allProps
+   sumAbs = foldl' (\s p -> s + abs (volume p)) 0 props
    normalizeFactor = case sumAbs of
      0 -> 1
      _ -> recip sumAbs
+
+-- | Normalizes the volumes so that the sum of their absolute value is 1
+harmonicsFromVolumes :: [Float] -> S.Vector HarmonicProperties
+harmonicsFromVolumes = mkHarmonics . map (HarmonicProperties 0)
 
 -- | A music note played by an 'Instrument'
 data InstrumentNote = InstrumentNote !NoteName {-# UNPACK #-} !Octave !Instrument
@@ -175,6 +183,16 @@ mkInstrumentNote pitch i =
  where
   (n,o) = midiPitchToNoteAndOctave pitch
 
+
+marimba :: Instrument
+marimba = Synth Sinus'VolumeAdjusted (mkHarmonics $ map (uncurry HarmonicProperties) $ zip [1,0,0,0,0,1] [1.5,0,0,0,0,0.5])
+  AutoRelease $
+  AHDSR'Envelope
+    1600 320 100 25600
+    (Eased EaseOut Exp)
+    Linear
+    (Eased EaseOut Circ)
+    1
 
 
 simpleInstrument, bellInstrument, organicInstrument, shortInstrument, testInstrument, stringsInstrument :: Instrument

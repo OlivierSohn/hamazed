@@ -20,7 +20,7 @@ module Main where
 
 import           Imj.Prelude
 import           Prelude(length, putStrLn)
---import Debug.Trace(traceShow, trace)
+--import Debug.Trace(traceShow)
 import           Codec.Midi hiding(key, Key)
 import           Control.Concurrent(forkIO, threadDelay)
 import           Control.Concurrent.MVar.Strict(MVar, modifyMVar, modifyMVar_, newMVar, putMVar, takeMVar)
@@ -146,7 +146,7 @@ readMidi = do
 msgToMidi :: PortMidi.PMMsg -> Maybe Message
 msgToMidi (PortMidi.PMMsg m d1 d2) =
   let k = (m .&. 0xF0) `shiftR` 4
-      c = fromIntegral (m .&. 0x0F)
+      c = fromIntegral (m .&. 0x0F) -- channel
   in case k of
     0x8 -> Just $ NoteOff c (fromIntegral d1) (fromIntegral d2)
     0x9 -> Just $ NoteOn  c (fromIntegral d1) (fromIntegral d2)
@@ -212,7 +212,7 @@ data EditMode = Harmonics | Envelope
 
 data Edition = Edition {
     editMode :: !EditMode
-  , envelopeIdx :: !Int
+  , envelopeIdx :: !EnvelopeParamIndex
   -- ^ Index of the enveloppe parameter that will be edited on left/right arrows.
   , harmonicIdx :: !Int
   -- ^ Index of the harmonic parameter that will be edited on left/right arrows.
@@ -226,15 +226,21 @@ toggleEditMode e = case editMode e of
   Harmonics -> e {editMode = Envelope}
   Envelope -> e {editMode = Harmonics}
 
-editiontIndex :: Edition -> Int
-editiontIndex (Edition mode i j) = case mode of
-  Envelope -> i
-  Harmonics -> j
-
 setEditionIndex :: Int -> Edition -> Edition
 setEditionIndex idx (Edition mode i j) = case mode of
-  Envelope -> Edition mode idx j
+  Envelope -> Edition mode (fromIntegral idx) j
   Harmonics -> Edition mode i idx
+
+getEditionIndex :: Edition -> Int
+getEditionIndex (Edition mode i j) =
+  editiontIndex `mod` (countEditables mode)
+ where
+  editiontIndex = case mode of
+    Envelope -> fromIntegral i
+    Harmonics -> j
+
+  countEditables Envelope = 9
+  countEditables Harmonics = 2*countHarmonics + 1
 
 data SynthsGame = SynthsGame {
     pianos :: !(Map ClientId PressedKeys)
@@ -256,27 +262,27 @@ instance UIInstructions SynthsGame where
        where
 
         envelopeInstructions =
-          [ ConfigUI "Auto-release"
-              [ mkChoice 0 $ case release of
-                  AutoRelease -> "Yes"
-                  KeyRelease -> "No"
-              ]
-          , ConfigUI "Attack"
-              [ mkChoice 1 $ show a
-              , mkChoice 2 $ show ai
+          [ ConfigUI "Attack"
+              [ mkChoice 0 $ show a
+              , mkChoice 1 $ show ai
               ]
           , ConfigUI "Hold"
-              [ mkChoice 3 $ show h]
+              [ mkChoice 2 $ show h]
           , ConfigUI "Decay"
-              [ mkChoice 4 $ show d
-              , mkChoice 5 $ show di
+              [ mkChoice 3 $ show d
+              , mkChoice 4 $ show di
               ]
           , ConfigUI "Sustain"
-              [ mkChoice 6 $ showFFloat (Just 3) s ""
+              [ mkChoice 5 $ showFFloat (Just 3) s ""
               ]
           , ConfigUI "Release"
-              [ mkChoice 7 $ show r
-              , mkChoice 8 $ show ri
+              [ mkChoice 6 $ show r
+              , mkChoice 7 $ show ri
+              ]
+          , ConfigUI "Auto-release"
+              [ mkChoice 8 $ case release of
+                  AutoRelease -> "Yes"
+                  KeyRelease -> "No"
               ]
           ]
 
@@ -303,7 +309,7 @@ instance UIInstructions SynthsGame where
           left
             | x == idx = '<'
             | otherwise = ' '
-          idx = (editiontIndex edit) `mod` (countEditables mode)
+          idx = getEditionIndex edit
 
       _ -> []
 
@@ -317,10 +323,6 @@ data Key =
 
 countHarmonics :: Int
 countHarmonics = 10
-
-countEditables :: EditMode -> Int
-countEditables Envelope = 9
-countEditables Harmonics = 2*countHarmonics + 1
 
 firstPhaseIdx, firstOscillatorIdx :: Int
 firstPhaseIdx = countHarmonics
@@ -437,6 +439,76 @@ instance GameExternalUI SynthsGame where
   getViewport _ (Screen _ center) SynthsGame{} =
     mkCenteredRectContainer center $ Size 45 100
 
+changeInstrumentValue :: SynthsGame -> Int -> Instrument
+changeInstrumentValue (SynthsGame _ _ _ instr _ edit@(Edition mode _ _) _) inc =
+  case instr of
+    Synth osc _ _ _ ->
+      case mode of
+        Envelope ->
+          changeInstrumentEnvelopeIndexedValue instr (fromIntegral idx) inc
+        Harmonics ->
+          if idx == firstOscillatorIdx
+            then
+              instr { oscillator = cycleOscillator inc osc }
+            else
+              changeInstrumentHarmonic idx instr inc
+    _ -> instr
+ where
+  idx = getEditionIndex edit
+
+controlToIndex :: Int -> Maybe EnvelopeParamIndex
+controlToIndex = \case
+  102 -> Just 0
+  103 -> Just 1
+  104 -> Just 2
+  106 -> Just 3
+  107 -> Just 4
+  108 -> Just 5
+  110 -> Just 6
+  111 -> Just 7
+  112 -> Just 8
+  _ -> Nothing
+
+newtype EnvelopeParamIndex = EnvelopeParamIndex Int
+  deriving (Num, Eq, Show, Integral, Real, Ord, Enum)
+
+changeInstrumentEnvelopeIndexedValue :: Instrument -> EnvelopeParamIndex -> Int -> Instrument
+changeInstrumentEnvelopeIndexedValue i@(Wind _) _ _ = i
+changeInstrumentEnvelopeIndexedValue instr@(Synth _ _ release p@(AHDSR'Envelope a h d r ai di ri s)) idx inc =
+  case idx of
+    0 -> instr { envelope_ = p {ahdsrAttack = changeParam predefinedAttack a inc} }
+    1 -> instr { envelope_ = p {ahdsrAttackItp = changeParam predefinedAttackItp ai inc} }
+    2 -> instr { envelope_ = p {ahdsrHold = changeParam predefinedHolds h inc} }
+    3 -> instr { envelope_ = p {ahdsrDecay = changeParam predefinedDecays d inc} }
+    4 -> instr { envelope_ = p {ahdsrDecayItp = changeParam predefinedDecayItp di inc} }
+    5 -> instr { envelope_ = p {ahdsrSustain = changeParam predefinedSustains s inc} }
+    6 -> instr { envelope_ = p {ahdsrRelease = changeParam predefinedReleases r inc} }
+    7 -> instr { envelope_ = p {ahdsrReleaseItp = changeParam predefinedReleaseItp ri inc} }
+    8 -> instr { releaseMode_ = cycleReleaseMode release }
+    _ -> error "logic"
+
+changeInstrumentHarmonic :: Int -> Instrument -> Int -> Instrument
+changeInstrumentHarmonic _ instr@(Wind _ ) _ = instr
+changeInstrumentHarmonic idx instr@(Synth _ harmonics _ _) inc =
+  instr { harmonics_ = h' S.// [(idx', newVal)] }
+ where
+  idx'
+   | idx >= firstPhaseIdx = idx - firstPhaseIdx
+   | otherwise = idx
+
+  h'
+   | S.length harmonics <= idx' =
+      harmonics S.++ (S.fromList $ replicate (1 + idx' - S.length harmonics) (HarmonicProperties 0 0))
+   | otherwise = harmonics
+
+  oldVal = S.unsafeIndex h' idx'
+
+  newVal
+    | idx >= firstPhaseIdx =
+        oldVal { phase = changeParam predefinedHarmonicsPhases (phase oldVal) inc }
+    | otherwise =
+        oldVal { volume = changeParam predefinedHarmonicsVolumes (volume oldVal) inc }
+
 data SynthsStatefullKeys
 instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
 
@@ -458,7 +530,7 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
     return [CliEvt $ ClientAppEvt ForgetCurrentRecording]
   mapStateKey _ k st _ _ g = maybe
     (return [])
-    (\(SynthsGame _ _ pressed instr _ edit@(Edition mode _ _) _) -> maybe
+    (\ga@(SynthsGame _ _ pressed instr _ edit _) -> maybe
       (return $ case st of
         GLFW.KeyState'Repeating -> []
         GLFW.KeyState'Pressed -> maybe
@@ -483,49 +555,12 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
            where
 
             configureInstrument = case dir of
-              LEFT  -> Evt $ AppEvent $ ChangeInstrument $ changeIntrumentValue (-1)
-              RIGHT -> Evt $ AppEvent $ ChangeInstrument $ changeIntrumentValue 1
+              LEFT  -> Evt $ AppEvent $ ChangeInstrument $ changeInstrumentValue ga (-1)
+              RIGHT -> Evt $ AppEvent $ ChangeInstrument $ changeInstrumentValue ga 1
               Up   -> Evt $ AppEvent $ ChangeEditedFeature $ idx - 1
               Down -> Evt $ AppEvent $ ChangeEditedFeature $ idx + 1
-             where
-              changeIntrumentValue inc =
-                case instr of
-                  Synth osc harmonics release p@(AHDSR'Envelope a h d r ai di ri s) ->
-                    case mode of
-                      Envelope -> case idx of
-                        0 -> instr { releaseMode_ = cycleReleaseMode release }
-                        1 -> instr { envelope_ = p {ahdsrAttack = changeParam predefinedAttack a inc} }
-                        2 -> instr { envelope_ = p {ahdsrAttackItp = changeParam predefinedAttackItp ai inc} }
-                        3 -> instr { envelope_ = p {ahdsrHold = changeParam predefinedHolds h inc} }
-                        4 -> instr { envelope_ = p {ahdsrDecay = changeParam predefinedDecays d inc} }
-                        5 -> instr { envelope_ = p {ahdsrDecayItp = changeParam predefinedDecayItp di inc} }
-                        6 -> instr { envelope_ = p {ahdsrSustain = changeParam predefinedSustains s inc} }
-                        7 -> instr { envelope_ = p {ahdsrRelease = changeParam predefinedReleases r inc} }
-                        8 -> instr { envelope_ = p {ahdsrReleaseItp = changeParam predefinedReleaseItp ri inc} }
-                        _ -> error "logic"
-                      Harmonics ->
-                        if idx == firstOscillatorIdx
-                          then
-                            instr { oscillator = cycleOscillator inc osc }
-                          else
-                            let idx'
-                                 | idx >= firstPhaseIdx = idx - firstPhaseIdx
-                                 | otherwise = idx
-                                h'
-                                 | S.length harmonics <= idx' =
-                                    harmonics S.++ (S.fromList $ replicate (1 + idx' - S.length harmonics) (HarmonicProperties 0 0))
-                                 | otherwise = harmonics
-                                oldVal = S.unsafeIndex h' idx'
-                                newVal
-                                  | idx >= firstPhaseIdx =
-                                      oldVal { phase = changeParam predefinedHarmonicsPhases (phase oldVal) inc }
-                                  | otherwise =
-                                      oldVal { volume = changeParam predefinedHarmonicsVolumes (volume oldVal) inc }
-                            in instr { harmonics_ = h' S.// [(idx', newVal)] }
-                  _ -> instr
 
-
-            idx = (editiontIndex edit) `mod` (countEditables mode)
+            idx = getEditionIndex edit
 
           _ -> [])
         $ isArrow k)
@@ -714,7 +749,7 @@ instance GameLogic SynthsGame where
                           -- in that case, we don't use the events we just read,
                           -- but reading them serves the purpose of not overflowing the queue.
                           (return ([],[]))
-                          (\(SynthsGame _ _ pressed instr _ _ maySourceIdx) -> maybe
+                          (\g@(SynthsGame _ _ pressed instr _ edit maySourceIdx) -> maybe
                             (return ([],[])) -- should not happen once connected.
                             (\srcIdx ->
                               (foldl' (\(a,b) (c,d) -> (a++c, b++d)) ([],[]).
@@ -734,12 +769,45 @@ instance GameLogic SynthsGame where
                                           let i = mkInstrumentNote k instr
                                           in ([AppEvent $ InsertPressedKey (MIDIKey k) i]
                                             , [ClientAppEvt $ PlayNote $ StartNote mi i $ mkNoteVelocity v])
+                                        ctrl control value
+                                          | control == 12 =
+                                              (AppEvent . ChangeEditedFeature . (+ (getEditionIndex edit))) <$>
+                                                relativeValue (Just 1) value
+                                          | control == 13 =
+                                              (AppEvent . ChangeInstrument . (changeInstrumentValue g)) <$>
+                                                relativeValue (Just 1) value
+                                          | control == 24 =
+                                              Just $ AppEvent $ ChangeInstrument $ instr { oscillator = toEnum $ value `mod` countOscillators }
+                                          | control >= 14 && control <= 23 =
+                                              (AppEvent . ChangeInstrument . changeInstrumentHarmonic (control - 14) instr) <$>
+                                                relativeValue (Just 1) value
+                                          | control >= 52 && control <= 61 =
+                                              (AppEvent . ChangeInstrument . changeInstrumentHarmonic (firstPhaseIdx + control - 52) instr) <$>
+                                                relativeValue (Just 1) value
+                                          | otherwise =
+                                              maybe
+                                                Nothing
+                                                (\i ->
+                                                  (AppEvent . ChangeInstrument . changeInstrumentEnvelopeIndexedValue instr i) <$>
+                                                    relativeValue (Just 1) value) $
+                                                controlToIndex control
+                                          where
+                                            relativeValue _ 64 = Nothing
+                                            relativeValue mayMaxChange x
+                                              | x > 64 = Just $ min maxChange $ x-64
+                                              | otherwise = Just $ negate $ min maxChange $ (64-x)
+                                              where maxChange = fromMaybe maxBound mayMaxChange
                                     in maybe
                                         ([],[])
-                                        (\m -> {- traceShow (time,m) $-} case m of
+                                        (\m -> {-traceShow (time,m) $ -} case m of
                                           NoteOff _ key _ -> off $ fromIntegral key
                                           NoteOn _ key 0 -> off $ fromIntegral key
                                           NoteOn _ key vel -> on (fromIntegral key) vel
+                                          ControlChange _ control value ->
+                                            maybe
+                                              ([],[])
+                                              (flip (,) [] . (:[]))
+                                              $ ctrl control value
                                           _ -> ([],[]))
                                         $ msgToMidi $ PortMidi.decodeMsg msg))
                                       <$> flip peekArray ptr nReads)
@@ -770,6 +838,7 @@ instance GameLogic SynthsGame where
         case e of
           ChangeInstrument i -> do
             liftIO $ saveInstrument i
+            -- we could omit this for harmonic changes:
             Just . toParts viewmode <$> liftIO (envelopeShape i)
           ToggleEnvelopeViewMode -> Just . toParts (toggleView viewmode) <$> liftIO (envelopeShape instr)
           _ -> return Nothing

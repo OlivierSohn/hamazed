@@ -1,6 +1,6 @@
-- use rotating knobs to control envelope, harmonics
-
 - change the sound in real time, when harmonics change.
+.. enqueue parameter changes :
+   change frequency of harmonic 6 to ...
 
 - When playing a loop, the server should offset the miditimestamps by
 period of the loop * loop number, else jitter compensation will not work.

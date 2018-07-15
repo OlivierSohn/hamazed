@@ -1,6 +1,8 @@
 - change the sound in real time, when harmonics change.
 .. enqueue parameter changes :
-   change frequency of harmonic 6 to ...
+   change volume / phase of harmonic 6 to ...
+the changes should be linearily smoothed over a long time so that there is
+  no sound discontinuity
 
 - When playing a loop, the server should offset the miditimestamps by
 period of the loop * loop number, else jitter compensation will not work.
@@ -9,11 +11,15 @@ be able to ignore network latencies (the client will buffer the event). Maybe
 we need to declare some sources having fixed delays (else, here, the latency compensation
   will try to adapt to the server sending events earlier)
 
+see comments on 'playOnceFrom' and 'playOnce'
+
 - report "midi was too late" errors to the console, from the nrt thread using a flag.
 
 - implement EngineAndRamps as a Computable (see TODOs in voice)
 it will make "perfect MIDI timing" easier to implement, and will allow
 using the envelopes instead of the channel to xfade.
+It will also make the orchestrator's job easier because it will be possible to schedule
+envelopes precisely.
 We will need one (single-request) channel per ramp, instead of one multi-request channel for all.
 
 Support delays in soundengine:

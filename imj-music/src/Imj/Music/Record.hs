@@ -55,6 +55,10 @@ insertRecording (Recording r@(_:_)) k (Sequencer curPeriodStart periodLength ls)
   refTime = addDuration recordingTimeShift curPeriodStart
   v = V.fromList $ map (\(ATM m t) -> RTM m $ refTime...t) rr
 
+-- TODO pass the MIDI offset (in nanoseconds) to apply to notes.
+-- TODO when notes have midi timestamps, instead of waiting all the way,
+-- wait just a litle (up to half a second before the note) and send the event
+-- with its midi timestamp.
 playOnceFrom :: MonadIO m
              => (MusicalEvent -> m ())
              -- ^ Will be called for each generated 'MusicalEvent'

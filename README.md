@@ -31,10 +31,8 @@ You can even create your own multi-player game, starting from the [tutorial-game
 
 # Supported platforms
 
-Officially supported client platforms are (recent versions of) macOS and Ubuntu.
-
-On macOS, a recent version of `clang` is needed to build. On Ubuntu, a recent version of `gcc`
-is needed to build.
+Officially supported client platforms are (recent versions of) macOS and Ubuntu,
+where a C++17-enabled compiler is available.
 
 # Packages
 
@@ -88,7 +86,8 @@ List of packages, inverse-topologically sorted wrt dependencies, with keywords /
   - A tutorial on how to use [imj-game] to build a multi-player game.
 - [imj-game-synths]
   - "A jam session, in the cloud, with loops and synthesizers."
-  - Players are playing music together, in real-time, using their computer keyboards as synthesizers.
+  - Players are playing music together, in real-time, using either real MIDI devices,
+	 or computer keyboards.
 - [imj-game-hamazed]
   - You're a ship pilot, shooting at flying numbers.
 	- Each level has its own original music!

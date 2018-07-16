@@ -46,51 +46,51 @@ import           Imj.Timing
 --
 -- The same key can be pressed multiple times for music devices having multiple keyboards
 -- with overlapping ranges.
-data PressedKeys = PressedKeys !(Map InstrumentNote Int)
+data PressedKeys i = PressedKeys !(Map (InstrumentNote i) Int)
   deriving(Generic, Show)
-instance Binary PressedKeys
-instance NFData PressedKeys
+instance (Binary i) => Binary (PressedKeys i)
+instance (NFData i) => NFData (PressedKeys i)
 
-mkEmptyPressedKeys :: PressedKeys
+mkEmptyPressedKeys :: Ord i => PressedKeys i
 mkEmptyPressedKeys = PressedKeys mempty
 
 
 -- | A 'MusicalEvent' that happens at an absolute time position.
-data AbsolutelyTimedMusicalEvent = ATM !MusicalEvent {-# UNPACK #-} !(Time Point System)
+data AbsolutelyTimedMusicalEvent i = ATM !(MusicalEvent i) {-# UNPACK #-} !(Time Point System)
   deriving(Generic,Show)
-instance NFData AbsolutelyTimedMusicalEvent
+instance (NFData i) => NFData (AbsolutelyTimedMusicalEvent i)
 
 -- | A 'MusicalEvent' that happens at a relative time position.
-data RelativelyTimedMusicalEvent = RTM  {
-    _rtmMusic :: !MusicalEvent
+data RelativelyTimedMusicalEvent i = RTM  {
+    _rtmMusic :: !(MusicalEvent i)
   , _rtmDt :: {-# UNPACK #-} !(Time Duration System)
 } deriving(Generic, Show)
-instance NFData RelativelyTimedMusicalEvent
+instance NFData i => NFData (RelativelyTimedMusicalEvent i)
 
-data Recording = Recording {
-    _recordedMusic :: ![AbsolutelyTimedMusicalEvent]
+data Recording i = Recording {
+    _recordedMusic :: ![AbsolutelyTimedMusicalEvent i]
     -- ^ Recent events are first in the list.
 }  deriving(Generic, Show)
-instance NFData Recording
+instance NFData i => NFData (Recording i)
 
-mkEmptyRecording :: Recording
+mkEmptyRecording :: Recording i
 mkEmptyRecording = Recording []
 
 -- | A Sequencer defines a time period (time start + time duration) and has music loops
 -- that are played during this period.
-data Sequencer k = Sequencer {
+data Sequencer k i = Sequencer {
     sequenceStart :: !(Time Point System)
     -- ^ The reference time
   , sequencePeriod :: {-# UNPACK #-} !(Time Duration System)
-  , musicLoops :: !(Map k MusicLoop)
+  , musicLoops :: !(Map k (MusicLoop i))
 } deriving(Generic)
-instance NFData k => NFData (Sequencer k)
+instance (NFData k, NFData i) => NFData (Sequencer k i)
 
-data MusicLoop = MusicLoop {-# UNPACK #-} !(V.Vector RelativelyTimedMusicalEvent) !(MVar PressedKeys)
+data MusicLoop i = MusicLoop {-# UNPACK #-} !(V.Vector (RelativelyTimedMusicalEvent i)) !(MVar (PressedKeys i))
   deriving(Generic)
-instance NFData MusicLoop
+instance NFData i => NFData (MusicLoop i)
 
-mkMusicLoop :: V.Vector RelativelyTimedMusicalEvent -> IO MusicLoop
+mkMusicLoop :: (NFData i, Ord i) => V.Vector (RelativelyTimedMusicalEvent i) -> IO (MusicLoop i)
 mkMusicLoop v = MusicLoop v <$> newMVar mkEmptyPressedKeys
 
 newtype SequencerId = SequencerId Int

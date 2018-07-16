@@ -11,6 +11,7 @@ module Imj.Game.State
       -- * Modify
       , onEvent
       , addIgnoredOverdues
+      , useInstrument
       -- * reexports
       , module Imj.Game.Class
       ) where
@@ -49,6 +50,7 @@ import           Imj.Graphics.Text.Render
 import           Imj.Graphics.UI.Animation.Types
 import           Imj.Graphics.UI.Chat
 import           Imj.Input.FromMonadReader
+import           Imj.Music.Instrument
 
 {-# INLINABLE onEvent #-}
 onEvent :: (GameLogicT e ~ g, s ~ ServerT g
@@ -124,7 +126,7 @@ addUpdateTime :: MonadState (AppState g) m
               => Time Duration System -> m ()
 addUpdateTime add =
   modify' $
-    \s@(AppState _ _ _ e@(EventGroup _ _ prevT _) _ _ _ _ _) ->
+    \s@(AppState _ _ _ e@(EventGroup _ _ prevT _) _ _ _ _ _ _) ->
       s { eventsGroup = e { evtGroupUpdateDuration = add |+| prevT} }
 
 {-# INLINABLE addToCurrentGroupOrRenderAndStartNewGroup #-}
@@ -136,7 +138,7 @@ addToCurrentGroupOrRenderAndStartNewGroup :: (GameLogicT e ~ g
                                             , MonadIO m)
                                           => Maybe (UpdateEvent g) -> m ()
 addToCurrentGroupOrRenderAndStartNewGroup evt =
-  get >>= \(AppState prevTime _ _ prevGroup _ _ _ _ _) -> do
+  get >>= \(AppState prevTime _ _ prevGroup _ _ _ _ _ _) -> do
     let onRender = do
           gets appStateDebug >>= \case
             (Debug True) -> liftIO $ putStr $ groupStats prevGroup
@@ -197,7 +199,7 @@ renderAll = do
 getEvtStrs :: MonadState (AppState g) m
               => m [ColorString]
 getEvtStrs =
-  get >>= \(AppState _ _ _ _ h r _ _ _) ->
+  get >>= \(AppState _ _ _ _ h r _ _ _ _) ->
     return $ case r of
       Record -> multiLine 150 $ toColorStr h -- TODO screen width should be dynamic
       DontRecord -> []
@@ -212,7 +214,7 @@ addIgnoredOverdues :: MonadState (AppState g) m
                    => Int -> m ()
 addIgnoredOverdues n =
   modify' $
-    \s@(AppState _ _ _ _ hist _ _ _ _) ->
+    \s@(AppState _ _ _ _ hist _ _ _ _ _) ->
       s { eventHistory = iterate (addEventRepr IgnoredOverdue) hist !! n }
 
 toColorStr :: OccurencesHist -> ColorString
@@ -239,7 +241,7 @@ createState :: Screen
             -> AppState g
 createState screen dbg a b t mpc =
   let g = Game (ClientState Ongoing Excluded) screen (GameState Nothing mkZeroAnimation) mempty [] mempty a b Nothing mkChat
-  in AppState t g mpc mkEmptyGroup mkEmptyOccurencesHist DontRecord (ParticleSystemKey 0) dbg mempty
+  in AppState t g mpc mkEmptyGroup mkEmptyOccurencesHist DontRecord (ParticleSystemKey 0) dbg mkEmptyInstruments mempty
 
 toColorStr' :: Occurences EventCategory -> ColorString
 toColorStr' (Occurences n e) =
@@ -252,3 +254,30 @@ toColorStr' (Occurences n e) =
 mkOccurencesHist :: Occurences EventCategory -> OccurencesHist
 mkOccurencesHist o =
   OccurencesHist [o] mempty
+
+-- | Lookups the instrument in 'Instruments', if it is found it is returned,
+-- else, if the supplied key is 'Just', the instrument is inserted
+--   and the server is notified of the new association.
+useInstrument ::(GameLogicT e ~ g, s ~ ServerT g
+              , MonadState (AppState g) m
+              , MonadReader e m, Client e
+              , MonadIO m)
+              => Maybe InstrumentId
+              -- ^ The 'InstrumentId' that will be used if a new 'InstrumentId' is needed.
+              -> Instrument
+              -> m (Maybe InstrumentId)
+useInstrument uniqueId i = do
+  is <- gets appInstruments
+  -- note that if 2 clients want to use the same new instrument at the same time,
+  -- we will end up having 2 different ids for it.
+  -- It's not supposed to be a big problem, though.
+  maybe
+    (maybe
+      (return Nothing)
+      (\iid -> do
+          modify' $ \s -> s { appInstruments = insertInstrument iid i $ appInstruments s }
+          asks sendToServer' >>= \f -> f $ RegisterInstrument iid i
+          return $ Just iid)
+      uniqueId)
+    (return . Just)
+    $ lookupInstrument i is

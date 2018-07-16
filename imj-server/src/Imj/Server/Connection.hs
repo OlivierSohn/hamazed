@@ -17,6 +17,7 @@ module Imj.Server.Connection
       , notifyClient'
       , notifyClientN
       , notifyClientN'
+      , notifyOthers'
       , disconnect
       , onBrokenClient
       ) where
@@ -27,6 +28,7 @@ import           Control.Monad.Reader(asks)
 import           Control.Monad.State.Strict(MonadState, modify', gets, state)
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import           Data.Text(pack, justifyRight)
 import           Network.WebSockets
                   (WebSocketsData(..), Connection, DataMessage(..),
@@ -259,6 +261,16 @@ notifyN :: (MonadIO m
         -> Map ClientId (ClientView c)
         -> m ()
 notifyN evts = notifyN' (map ServerAppEvt evts)
+
+-- | Notifies all clients except the one that calls this.
+{-# INLINABLE notifyOthers' #-}
+notifyOthers' :: (Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
+                 , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
+             => ServerEvent s
+             -> m ()
+notifyOthers' e = do
+  ignored <- Set.singleton <$> asks clientId
+  flip Map.withoutKeys ignored <$> gets clientsMap >>= notifyN' [e]
 
 {-# INLINABLE notifyN' #-}
 notifyN' :: (MonadIO m

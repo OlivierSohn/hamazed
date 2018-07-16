@@ -2,10 +2,11 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveLift #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 module Imj.Data.AlmostFloat
          ( almost
-         , AlmostFloat
+         , AlmostFloat, unAlmostFloat
          , almostDistance
          , mapNormalizedToDiscrete
          ) where
@@ -13,6 +14,7 @@ module Imj.Data.AlmostFloat
 import           Imj.Prelude
 import           Control.DeepSeq(NFData)
 import           Data.Binary(Binary)
+import           Data.Data(Data(..))
 import           Data.List
 import           Numeric(showFFloat)
 
@@ -22,8 +24,8 @@ almost = AlmostFloat
 eps :: Float
 eps = 1e-6
 
-newtype AlmostFloat = AlmostFloat Float
- deriving(Generic, Floating, Fractional, Num, RealFrac, Real, Lift)
+newtype AlmostFloat = AlmostFloat {unAlmostFloat :: Float }
+ deriving(Generic, Floating, Fractional, Num, RealFrac, Real, Lift, Data)
 instance NFData AlmostFloat
 instance Binary AlmostFloat
 instance Eq AlmostFloat where

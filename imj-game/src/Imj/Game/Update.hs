@@ -68,7 +68,7 @@ import           Imj.Server.Command
 
 
 toggleRecordEvent :: AppState g -> AppState g
-toggleRecordEvent s@(AppState _ _ _ _ _ r _ _ _) =
+toggleRecordEvent s@(AppState _ _ _ _ _ r _ _ _ _) =
   s { eventHistory = mkEmptyOccurencesHist
     , appStateRecordEvents = case r of
        Record -> DontRecord
@@ -170,8 +170,10 @@ updateAppState (Left evt) = updateAddStateFromServerEvt evt
     SequenceOfSrvEvts l -> mapM_ updateAddStateFromServerEvt l
     ServerAppEvt e ->
       onServerEvent e
+    AddInstrument iid i ->
+      modify' $ \s -> s {appInstruments = insertInstrument iid i $ appInstruments s}
     PlayMusic music ->
-      asks playMusic >>= \f -> f music
+      asks playMusic >>= \f -> gets (idToInstr . appInstruments) >>= flip f music
     OnContent worldParameters ->
       putServerContent worldParameters
     RunCommand i cmd -> runClientCommand i cmd
@@ -194,9 +196,10 @@ updateAppState (Left evt) = updateAddStateFromServerEvt evt
       let p = Map.map mkPlayer eplayers
       putPlayers p
       stateChat $ addMessage $ ChatMessage $ welcome p
-    ConnectionAccepted i -> do
-      withAnim $ -- to make the frame take its initial size
+    ConnectionAccepted i instruments -> do
+      withAnim $ do -- to make the frame take its initial size
         putGameConnection $ Right i
+        modify' $ \s -> s { appInstruments = mkInstruments instruments }
     ConnectionRefused sn reason ->
       putGameConnection $ Left $
         "[" <>

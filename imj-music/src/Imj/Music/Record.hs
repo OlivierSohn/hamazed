@@ -19,14 +19,15 @@ import           Imj.Music.Types
 import           Imj.Timing
 
 -- | Adds an 'AbsolutelyTimedMusicalEvent' to a 'Recording'
-recordMusic :: AbsolutelyTimedMusicalEvent -> Recording -> Recording
+recordMusic :: AbsolutelyTimedMusicalEvent i -> Recording i -> Recording i
 recordMusic e (Recording r) = Recording (flip (:) r e)
 
-mkSequencerFromRecording :: k
-                         -> Recording
+mkSequencerFromRecording :: (NFData i, Ord i)
+                         => k
+                         -> Recording i
                          -> Time Point System
                          -- ^ Defining the zero-time of the sequence.
-                         -> IO (Either Text (Sequencer k))
+                         -> IO (Either Text (Sequencer k i))
 mkSequencerFromRecording _ (Recording []) _ = return $ Left "empty recording"
 mkSequencerFromRecording k (Recording r) start = do
   mus <- mkMusicLoop v
@@ -37,8 +38,8 @@ mkSequencerFromRecording k (Recording r) start = do
   v = V.fromList $ map (\(ATM m t) -> RTM m $ firstTime...t) rr
 
 {-# INLINABLE insertRecording #-}
-insertRecording :: Ord k
-                => Recording -> k -> Sequencer k -> IO (Either Text (Sequencer k, MusicLoop))
+insertRecording :: (Ord k, Ord i, NFData i)
+                => Recording i -> k -> Sequencer k i -> IO (Either Text (Sequencer k i, MusicLoop i))
 insertRecording (Recording []) _ _ = return $ Left "Recording is empty"
 insertRecording (Recording r@(_:_)) k (Sequencer curPeriodStart periodLength ls)
   | periodLength == zeroDuration = return $ Left "sequencer with zero duration"
@@ -60,13 +61,13 @@ insertRecording (Recording r@(_:_)) k (Sequencer curPeriodStart periodLength ls)
 -- wait just a litle (up to half a second before the note) and send the event
 -- with its midi timestamp.
 playOnceFrom :: MonadIO m
-             => (MusicalEvent -> m ())
+             => (MusicalEvent i -> m ())
              -- ^ Will be called for each generated 'MusicalEvent'
              -> Time Point System
              -- ^ The music reference time
              -> Time Duration System
              -- ^ The elapsed time since the reference time.
-             -> V.Vector RelativelyTimedMusicalEvent
+             -> V.Vector (RelativelyTimedMusicalEvent i)
              -> m ()
 playOnceFrom play begin elapsed l =
   playOnce play v begin
@@ -74,8 +75,8 @@ playOnceFrom play begin elapsed l =
   v = V.dropWhile (\(RTM _ dt) -> dt < elapsed) l
 
 playOnce :: MonadIO m
-         => (MusicalEvent -> m ())
-         -> V.Vector RelativelyTimedMusicalEvent
+         => (MusicalEvent i -> m ())
+         -> V.Vector (RelativelyTimedMusicalEvent i)
          -> Time Point System
          -- ^ The reference time
          -> m ()

@@ -30,6 +30,8 @@ import           Foreign.Ptr
 import           Foreign.Storable
 import           GHC.Generics(Generic(..))
 
+import           Imj.Data.AlmostFloat
+
 
 data ReleaseMode =
     KeyRelease
@@ -146,7 +148,7 @@ data AHDSR'Envelope = AHDSR'Envelope {
   -- ^ Determines how the envelope will be shaped during the decay.
   , ahdsrReleaseItp :: !Interpolation
   -- ^ Determines how the envelope will be shaped during the release.
-  , ahdsrSustain :: {-# UNPACK #-} !Float
+  , ahdsrSustain :: {-# UNPACK #-} !AlmostFloat
   -- ^ The sustain value. Must be in the [0,1] range
 } deriving(Generic, Show, Eq, Data, Ord)
 instance NFData AHDSR'Envelope

@@ -26,6 +26,7 @@ import           Network.WebSockets
 
 import           Imj.ClientView.Types
 import           Imj.Graphics.Color
+import           Imj.Music.Instrument
 import           Imj.Network
 import           Imj.Server.Color
 import           Imj.Server.Internal.Types
@@ -38,6 +39,7 @@ data ClientEvent s =
   | Connect !(Set MAC) !(Maybe (ConnectIdT s)) {-unpack sum-} !ServerOwnership
   | ExitedState {-unpack sum-} !(StateValue (StateValueT s))
   | OnCommand !(Command s)
+  | RegisterInstrument {-# UNPACK #-} !InstrumentId !Instrument
   | SequenceOfCliEvts [ClientEvent s]
   -- ^ where the first elements in the list should be handled first
   deriving(Generic)
@@ -47,6 +49,7 @@ instance (Server s, ServerClientHandler s) => Show (ClientEvent s) where
     Connect x y z -> show ("Connect",x,y,z)
     ExitedState x -> show ("ExitedState",x)
     OnCommand x -> show ("OnCommand",x)
+    RegisterInstrument x y -> show("RegisterInstrument", x, y)
     SequenceOfCliEvts l -> show ("Sequence", show l)
 instance (Server s, ServerClientHandler s) => Binary (ClientEvent s)
 instance (Server s, ServerClientHandler s) => WebSocketsData (ClientEvent s) where
@@ -61,7 +64,7 @@ instance (Server s, ServerClientHandler s) => WebSocketsData (ClientEvent s) whe
 
 mkServerState :: ServerLogs -> Color8 Foreground -> ValuesT s -> s -> ServerState s
 mkServerState logs color c s =
-  ServerState logs (ClientViews Map.empty Map.empty (ClientId 0)) False c color s
+  ServerState logs (ClientViews Map.empty Map.empty (ClientId 0)) False c mempty color s
 
 {-# INLINE clientsMap #-}
 clientsMap :: ServerState s -> Map ClientId (ClientView (ClientViewT s))

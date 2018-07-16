@@ -41,6 +41,11 @@ work using a key:
     The server keeps track of "which client knows about which instrument"
       and on disconnection / reconnection, the memory is flushed.
 
+key = (clientIdx, instrumentIdx)
+
+To analyze traffic:
+sudo tcpdump -i lo0 -v -nnXSs 0
+
 - in ghc 8.2.2 we use much more memory than in ghc 8.4.3.
 
 +RTS -h : to generates a .hp file

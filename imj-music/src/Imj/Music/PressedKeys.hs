@@ -12,10 +12,14 @@ import qualified Data.Map.Strict as Map
 import           Imj.Music.Types
 import           Imj.Music.Instrument
 
-addNote :: InstrumentNote -> PressedKeys -> (Int, PressedKeys)
+{-# INLINABLE addNote #-}
+addNote :: Ord i
+        => InstrumentNote i -> PressedKeys i -> (Int, PressedKeys i)
 addNote n (PressedKeys s) = (1, PressedKeys $ Map.insertWith (+) n 1 s)
 
-removeNote :: InstrumentNote -> PressedKeys -> (Int,PressedKeys)
+{-# INLINABLE removeNote #-}
+removeNote :: Ord i
+           => InstrumentNote i -> PressedKeys i -> (Int,PressedKeys i)
 removeNote n (PressedKeys s) =
   (maybe 0 (const 1) mayNote, PressedKeys m)
  where
@@ -34,13 +38,15 @@ removeNote n (PressedKeys s) =
       s
 
 -- | Returns the [MusicalEvent] such that the piano plays no note.
-releaseAllKeys :: PressedKeys -> [MusicalEvent]
+releaseAllKeys :: PressedKeys i -> [MusicalEvent i]
 releaseAllKeys (PressedKeys m) =
   concatMap (\(n,i) -> replicate i (StopNote Nothing n)) $ Map.assocs m
 
-onMusic :: MusicalEvent
-        -> PressedKeys
-        -> (Int,PressedKeys)
+{-# INLINABLE onMusic #-}
+onMusic :: Ord i
+        => MusicalEvent i
+        -> PressedKeys i
+        -> (Int,PressedKeys i)
         -- ^ returns the number of changed notes (added or removed)
 onMusic n = case n of
   StartNote _ spec _ -> addNote spec

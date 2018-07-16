@@ -6,7 +6,8 @@
 
 module Imj.Music.Instrument
       ( -- * Types
-        Instrument(..)
+        Instrument(..), InstrumentId(..)
+      , Harmonics(..)
       , MusicalEvent(..)
       , InstrumentNote(..)
       , mkInstrumentNote
@@ -42,6 +43,7 @@ import           Control.DeepSeq as Exported(NFData(..))
 import           Data.Data(Data(..))
 import           Data.Vector.Binary()
 
+import           Data.Word(Word64)
 import           Data.List(dropWhile, foldl')
 import           Data.Vector.Unboxed(Vector)
 import qualified Data.Vector.Storable as S
@@ -50,6 +52,7 @@ import           GHC.Generics(Generic(..))
 import           Imj.Audio.Envelope
 import           Imj.Audio.Harmonics
 import           Imj.Audio.Midi
+import           Imj.Data.AlmostFloat
 import           Imj.Music.Instruction
 
 data Oscillator =
@@ -90,15 +93,19 @@ cycleOscillator :: Int -> Oscillator -> Oscillator
 cycleOscillator n v =
   toEnum $ ((fromEnum v) + n) `mod` countOscillators
 
-data MusicalEvent =
-     StartNote !(Maybe MidiInfo) !InstrumentNote {-# UNPACK #-} !NoteVelocity
+data MusicalEvent instr =
+     StartNote !(Maybe MidiInfo) !(InstrumentNote instr) {-# UNPACK #-} !NoteVelocity
      -- ^ Start playing a note at the given volume
-   | StopNote !(Maybe MidiInfo) !InstrumentNote
+   | StopNote !(Maybe MidiInfo) !(InstrumentNote instr)
      -- ^ Stop playing a note
   deriving(Generic,Show, Eq)
-instance Binary MusicalEvent
-instance NFData MusicalEvent
-
+instance Binary instr => Binary (MusicalEvent instr)
+instance NFData instr => NFData (MusicalEvent instr)
+instance Functor MusicalEvent where
+  {-# INLINABLE fmap #-}
+  fmap f = \case
+    StartNote a b c -> StartNote a (fmap f b) c
+    StopNote a b -> StopNote a $ fmap f b
 
 -- | In the range @[0,1]@. 0 means no sound, 1 means full volume.
 newtype NoteVelocity = NoteVelocity Float
@@ -131,10 +138,10 @@ envelopeShape = \case
 -- | A musical instrument (or musical effect).
 data Instrument =
     Synth {
-        oscillator :: !Oscillator
-      , harmonics_ :: !(S.Vector HarmonicProperties)
+        oscillator   :: !Oscillator
+      , harmonics_   :: !Harmonics
       , releaseMode_ :: !ReleaseMode
-      , envelope_ :: !AHDSR'Envelope
+      , envelope_    :: !AHDSR'Envelope
     }
     -- ^ Envelope-based synthethizer, with phase randomization.
   | Wind !Int
@@ -143,17 +150,67 @@ data Instrument =
 instance Binary Instrument
 instance NFData Instrument
 
-defaultHarmonics :: S.Vector HarmonicProperties
+defaultHarmonics :: Harmonics
 defaultHarmonics = harmonicsFromVolumes
  [ 1
  , 0.02
  , 0.005
  , 0.02]
 
+
+newtype Harmonics = Harmonics { unHarmonics :: S.Vector HarmonicProperties }
+  deriving(Generic,Show, Data)
+instance Binary Harmonics
+instance NFData Harmonics
+instance Eq Harmonics where
+  {-# INLINABLE (==) #-}
+  (Harmonics v1) == (Harmonics v2) =
+    let l1 = lastRelevantHarmonicIndex v1
+        l2 = lastRelevantHarmonicIndex v2
+    in if l1 == l2
+          then
+            maybe
+              True
+              (\lastIdx ->
+                let len = lastIdx + 1
+                -- verify that the l1 + 1 first harmonics are equal.
+                in S.unsafeTake len v1 == S.unsafeTake len v2
+              )
+              l1
+          else
+            False
+instance Ord Harmonics where
+  {-# INLINABLE compare #-}
+  (Harmonics v1) `compare` (Harmonics v2) = case compare l1 l2 of
+    EQ ->
+      maybe
+        EQ
+        (\lastIdx ->
+          let len = lastIdx + 1
+          in (S.unsafeTake len v1) `compare` (S.unsafeTake len v2))
+        l1
+    other -> other
+   where
+    l1 = lastRelevantHarmonicIndex v1
+    l2 = lastRelevantHarmonicIndex v2
+
+lastRelevantHarmonicIndex :: S.Vector HarmonicProperties -> Maybe Int
+lastRelevantHarmonicIndex =
+  fst . S.foldl'
+    (\(lastNonZero,idx) hp ->
+      let newLNZ =
+            if volume hp == 0
+              then
+                lastNonZero
+              else
+                Just idx
+      in (newLNZ, idx+1))
+    (Nothing,0)
+
 -- | Normalizes the volumes so that the sum of their absolute value is 1
-mkHarmonics :: [HarmonicProperties] -> S.Vector HarmonicProperties
+mkHarmonics :: [HarmonicProperties] -> Harmonics
 mkHarmonics allProps =
-  S.fromList $ map (scaleVolume normalizeFactor) props
+  Harmonics $ S.fromList $ map (scaleVolume normalizeFactor) props
  where
    props = reverse $ dropWhile ((==) 0 . volume) $ reverse allProps
    sumAbs = foldl' (\s p -> s + abs (volume p)) 0 props
@@ -162,22 +219,32 @@ mkHarmonics allProps =
      _ -> recip sumAbs
 
 -- | Normalizes the volumes so that the sum of their absolute value is 1
-harmonicsFromVolumes :: [Float] -> S.Vector HarmonicProperties
-harmonicsFromVolumes = mkHarmonics . map (HarmonicProperties 0)
+harmonicsFromVolumes :: [Float] -> Harmonics
+harmonicsFromVolumes = mkHarmonics . map (HarmonicProperties 0 . almost)
+
+-- | Each client should be able to generate 'InstrumentId's that do not overlap
+-- with the ones generated by other clients.
+newtype InstrumentId = InstrumentId Word64
+  deriving(Generic,Show, Eq, Ord)
+instance Binary InstrumentId
+instance NFData InstrumentId
 
 -- | A music note played by an 'Instrument'
-data InstrumentNote = InstrumentNote !NoteName {-# UNPACK #-} !Octave !Instrument
-  deriving(Generic,Show, Eq, Data)
-instance Binary InstrumentNote
-instance NFData InstrumentNote
-instance Ord InstrumentNote where
+data InstrumentNote instr = InstrumentNote !NoteName {-# UNPACK #-} !Octave !instr
+  deriving(Generic,Show, Eq)
+instance Binary instr => Binary (InstrumentNote instr)
+instance NFData instr => NFData (InstrumentNote instr)
+instance Ord i => Ord (InstrumentNote i) where
   compare n@(InstrumentNote _ _ a) m@(InstrumentNote _ _ b) =
     compare (instrumentNoteToMidiPitch n, a) $ (instrumentNoteToMidiPitch m, b)
+instance Functor InstrumentNote where
+  {-# INLINABLE fmap #-}
+  fmap f (InstrumentNote n o i) = InstrumentNote n o $ f i
 
-instrumentNoteToMidiPitch :: InstrumentNote -> MidiPitch
+instrumentNoteToMidiPitch :: InstrumentNote i -> MidiPitch
 instrumentNoteToMidiPitch (InstrumentNote n oct _) = noteToMidiPitch n oct
 
-mkInstrumentNote :: MidiPitch -> Instrument -> InstrumentNote
+mkInstrumentNote :: MidiPitch -> i -> InstrumentNote i
 mkInstrumentNote pitch i =
   InstrumentNote n o i
  where

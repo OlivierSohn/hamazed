@@ -35,7 +35,6 @@ library
                      , Imj.Control.Concurrent
                      , Imj.Control.Concurrent.AsyncGroups.Class
                      , Imj.Control.Concurrent.AsyncGroups.Impl
-                     , Imj.Data.AlmostFloat
                      , Imj.Data.Class.Quantifiable
                      , Imj.Data.Graph
                      , Imj.Data.UndirectedGraph

@@ -66,6 +66,7 @@ import           Imj.ClientView.Internal.Types
 import           Imj.Graphics.Class.UIInstructions
 import           Imj.Graphics.Color.Types
 import           Imj.Music.Types
+import           Imj.Music.Instrument
 import           Imj.Server.Internal.Types
 
 import           Imj.Network
@@ -271,6 +272,7 @@ data ServerState s = ServerState {
   , shouldTerminate :: {-unpack sum-} !Bool
   -- ^ Set on server shutdown
   , content :: !(ValuesT s)
+  , instrumentMap :: !(Map InstrumentId Instrument)
   , centerColor :: {-# UNPACK #-} !(Color8 Foreground)
   -- ^ The color scheme.
   , unServerState :: !s
@@ -312,7 +314,9 @@ mapState' f s =
 
 data ServerEvent s =
     ServerAppEvt !(ServerEventT s)
-  | PlayMusic !MusicalEvent
+  | AddInstrument {-# UNPACK #-} !InstrumentId !Instrument
+  -- ^ The server sends this before using an 'InstrumentId' that is unknown to the client.
+  | PlayMusic !(MusicalEvent InstrumentId)
   | CommandError {-unpack sum-} !(ClientCommand (CustomCmdT s) Proposed)
                  {-# UNPACK #-} !Text
   -- ^ The command cannot be run, with a reason.
@@ -323,7 +327,8 @@ data ServerEvent s =
   -- ^ Response to a 'Report'.
   | PlayerInfo !(PlayerNotif (ValueT s) (EnumValueKeyT s))
                {-# UNPACK #-} !ClientId
-  | ConnectionAccepted {-# UNPACK #-} !ClientId
+  | ConnectionAccepted {-# UNPACK #-} !ClientId !(Map InstrumentId Instrument)
+  -- ^ With the mapping between 'InstrumentId' and 'Instrument'
   | ConnectionRefused !(Maybe (ConnectIdT s)) {-# UNPACK #-} !Text
   | Disconnected {-unpack sum-} !DisconnectReason
   | OnContent !(ValuesT s)
@@ -345,7 +350,7 @@ instance (Server s, ServerClientHandler s) => Show (ServerEvent s) where
     RunCommand x y -> show ("RunCommand",x, y)
     Reporting x -> show ("Reporting",x)
     PlayerInfo x y -> show ("PlayerInfo",x, y)
-    ConnectionAccepted x -> show ("ConnectionAccepted",x)
+    ConnectionAccepted x y -> show ("ConnectionAccepted",x, y)
     ConnectionRefused x y -> show ("ConnectionRefused",x,y)
     Disconnected x -> show ("Disconnected",x)
     OnContent x -> show ("OnContent",x)
@@ -354,7 +359,8 @@ instance (Server s, ServerClientHandler s) => Show (ServerEvent s) where
     ExitState x -> show ("ExitState",x)
     ServerError x -> show ("ServerError",x)
     Warn x -> show ("Warning",x)
-    SequenceOfSrvEvts l -> show ("Sequence",show l)
+    AddInstrument iid i -> show ("AddInstrument", iid, i)
+    SequenceOfSrvEvts l -> show ("Sequence",l)
 instance (Server s, ServerClientHandler s) => Binary (ServerEvent s)
 instance (Server s, ServerClientHandler s) => WebSocketsData (ServerEvent s) where
   fromDataMessage (Text t _) =
@@ -381,6 +387,7 @@ instance (Server s, ServerClientHandler s) => Categorized (ServerEvent s) where
     EnterState _ -> EnterState'
     ExitState _ -> ExitState'
     Warn {} -> Chat'
+    AddInstrument {} -> Command'
     SequenceOfSrvEvts{} -> Command'
     ServerAppEvt e -> evtCategory e
 

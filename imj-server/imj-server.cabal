@@ -39,6 +39,7 @@ library
                      , containers ==0.5.*
                      , deepseq ==1.4.*
                      , imj-base ==0.1.*
+                     , imj-audio ==0.1.*
                      , imj-music ==0.1.*
                      , imj-prelude ==0.1.*
                      , imj-time ==0.1.*

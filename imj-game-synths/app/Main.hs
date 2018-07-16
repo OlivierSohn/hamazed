@@ -7,6 +7,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 {-|
 This is a multiplayer game where every player uses the keyboard as a synthesizer.
@@ -30,6 +31,7 @@ import           Control.Monad.Reader(asks)
 import           Data.Binary(Binary(..), encode, decodeOrFail)
 import           Data.Bits (shiftR, shiftL, (.&.))
 import qualified Data.ByteString.Lazy as BL
+import           Data.Data(Data(..))
 import           Data.List(replicate, concat, take, foldl')
 import           Data.Map.Internal(Map(..))
 import qualified Data.Map.Strict as Map
@@ -41,11 +43,11 @@ import qualified Data.Vector.Unboxed as V
 import qualified Data.Vector.Storable as S
 import qualified Data.Vector.Storable.Mutable as SM
 import           Data.Proxy(Proxy(..))
+import           Data.Word(Word32, Word64)
 import           Foreign.ForeignPtr(withForeignPtr)
 import           Foreign.Marshal.Array(peekArray)
 import           GHC.Generics(Generic)
 import qualified Graphics.UI.GLFW as GLFW(Key(..), KeyState(..))
-import           Numeric(showFFloat)
 import           Options.Applicative(ReadM, str, option, long, help, readerError)
 import qualified Sound.PortMidi as PortMidi
 import           System.IO(withFile, IOMode(..))
@@ -58,6 +60,7 @@ import           Imj.Audio.Harmonics
 import           Imj.Audio.Midi
 import           Imj.Categorized
 import           Imj.ClientView.Types
+import           Imj.Data.AlmostFloat
 import           Imj.Event
 import           Imj.File
 import           Imj.Game.App(runGame)
@@ -67,6 +70,7 @@ import           Imj.Game.Command
 import           Imj.Game.KeysMaps
 import           Imj.Game.Modify
 import           Imj.Game.Show
+import           Imj.Game.State
 import           Imj.Game.Status
 import           Imj.Geo.Discrete.Types
 import           Imj.Geo.Discrete.Resample
@@ -207,7 +211,7 @@ toggleView = \case
   LinearView -> LogView
   LogView -> LinearView
 
-data EditMode = Harmonics | Envelope
+data EditMode = Tone | Envelope
   deriving(Show)
 
 data Edition = Edition {
@@ -223,13 +227,13 @@ mkEdition = Edition Envelope 0 0
 
 toggleEditMode :: Edition -> Edition
 toggleEditMode e = case editMode e of
-  Harmonics -> e {editMode = Envelope}
-  Envelope -> e {editMode = Harmonics}
+  Tone -> e {editMode = Envelope}
+  Envelope -> e {editMode = Tone}
 
 setEditionIndex :: Int -> Edition -> Edition
 setEditionIndex idx (Edition mode i j) = case mode of
   Envelope -> Edition mode (fromIntegral idx) j
-  Harmonics -> Edition mode i idx
+  Tone -> Edition mode i idx
 
 getEditionIndex :: Edition -> Int
 getEditionIndex (Edition mode i j) =
@@ -237,81 +241,90 @@ getEditionIndex (Edition mode i j) =
  where
   editiontIndex = case mode of
     Envelope -> fromIntegral i
-    Harmonics -> j
+    Tone -> j
 
   countEditables Envelope = 9
-  countEditables Harmonics = 2*countHarmonics + 1
+  countEditables Tone = 2*countHarmonics + 1
+
+
+newtype InstrumentVersion = InstrumentVersion Word32
+  deriving(Generic,Show, Eq, Ord, Data, Integral, Num, Real, Enum)
+instance Binary InstrumentVersion
+instance NFData InstrumentVersion
+
+mkInstrumentVersion :: InstrumentVersion
+mkInstrumentVersion = InstrumentVersion 0
 
 data SynthsGame = SynthsGame {
-    pianos :: !(Map ClientId PressedKeys)
-  , pianoLoops :: !(Map SequencerId (Map LoopId PressedKeys))
-  , clientPressedKeys :: !(Map Key InstrumentNote)
-  , instrument :: !Instrument
+    pianos :: !(Map ClientId (PressedKeys InstrumentId))
+  , pianoLoops :: !(Map SequencerId (Map LoopId (PressedKeys InstrumentId)))
+  , clientPressedKeys :: !(Map Key (InstrumentNote InstrumentId))
+  , instrument :: !(Maybe (InstrumentId,Instrument))
   , envelopePlot :: !EnvelopePlot
   , edition :: !Edition
   , sourceIdx :: !(Maybe MidiSourceIdx)
+  , nextInstrumentVersion :: !InstrumentVersion
 } deriving(Show)
 
 instance UIInstructions SynthsGame where
-  instructions color (SynthsGame _ _ _ instr _ edit@(Edition mode _ _) _) =
-    case instr of
-      Synth osc harmonics release (AHDSR'Envelope a h d r ai di ri s) -> case mode of
-        Envelope -> envelopeInstructions
-        Harmonics -> harmonicsInstructions
+  instructions color (SynthsGame _ _ _ mayInstr _ edit@(Edition mode _ _) _ _) = maybe [] (\(_,instr) -> case instr of
+    Synth osc harmonics release (AHDSR'Envelope a h d r ai di ri s) -> case mode of
+      Envelope -> envelopeInstructions
+      Tone -> harmonicsInstructions
+
+     where
+
+      envelopeInstructions =
+        [ ConfigUI "Attack"
+            [ mkChoice 0 $ show a
+            , mkChoice 1 $ show ai
+            ]
+        , ConfigUI "Hold"
+            [ mkChoice 2 $ show h]
+        , ConfigUI "Decay"
+            [ mkChoice 3 $ show d
+            , mkChoice 4 $ show di
+            ]
+        , ConfigUI "Sustain"
+            [ mkChoice 5 $ show s
+            ]
+        , ConfigUI "Release"
+            [ mkChoice 6 $ show r
+            , mkChoice 7 $ show ri
+            ]
+        , ConfigUI "Auto-release"
+            [ mkChoice 8 $ case release of
+                AutoRelease -> "Yes"
+                KeyRelease -> "No"
+            ]
+        ]
+
+      harmonicsInstructions =
+        [ hInst "Tone" volume 0
+        , hInst "Phases" phase firstPhaseIdx
+        , ConfigUI "Oscillator"
+            [ mkChoice firstOscillatorIdx $ show osc]
+            ]
+       where
+         hInst title f startIdx = ConfigUI title $
+          map
+           (\(i,har) -> mkChoice i $ show $ f har)
+           (zip [startIdx..] $ S.toList $ unHarmonics harmonics)
+
+      mkChoice x v =
+        Choice $ UI.Choice (pack v) right left color
 
        where
 
-        envelopeInstructions =
-          [ ConfigUI "Attack"
-              [ mkChoice 0 $ show a
-              , mkChoice 1 $ show ai
-              ]
-          , ConfigUI "Hold"
-              [ mkChoice 2 $ show h]
-          , ConfigUI "Decay"
-              [ mkChoice 3 $ show d
-              , mkChoice 4 $ show di
-              ]
-          , ConfigUI "Sustain"
-              [ mkChoice 5 $ showFFloat (Just 3) s ""
-              ]
-          , ConfigUI "Release"
-              [ mkChoice 6 $ show r
-              , mkChoice 7 $ show ri
-              ]
-          , ConfigUI "Auto-release"
-              [ mkChoice 8 $ case release of
-                  AutoRelease -> "Yes"
-                  KeyRelease -> "No"
-              ]
-          ]
+        right
+          | x == idx = '>'
+          | otherwise = ' '
+        left
+          | x == idx = '<'
+          | otherwise = ' '
+        idx = getEditionIndex edit
 
-        harmonicsInstructions =
-          [ hInst "Harmonics" volume 0
-          , hInst "Phases" phase firstPhaseIdx
-          , ConfigUI "Oscillator"
-              [ mkChoice firstOscillatorIdx $ show osc]
-              ]
-         where
-           hInst title f startIdx = ConfigUI title $
-            map
-             (\(i,har) -> mkChoice i $ showFFloat (Just 3) (f har) "")
-             (zip [startIdx..] $ S.toList harmonics)
-
-        mkChoice x v =
-          Choice $ UI.Choice (pack v) right left color
-
-         where
-
-          right
-            | x == idx = '>'
-            | otherwise = ' '
-          left
-            | x == idx = '<'
-            | otherwise = ' '
-          idx = getEditionIndex edit
-
-      _ -> []
+    _ -> []) mayInstr
 
 
 data Key =
@@ -333,14 +346,14 @@ predefinedDecayItp = allInterpolations
 predefinedAttackItp = Set.delete ProportionaValueDerivative allInterpolations
 predefinedReleaseItp = predefinedAttackItp
 
-predefinedHarmonicsVolumes :: Set Float
+predefinedHarmonicsVolumes :: Set AlmostFloat
 predefinedHarmonicsVolumes = Set.fromList [0, 0.01, 0.1, 1]
 
-predefinedHarmonicsPhases :: Set Float
+predefinedHarmonicsPhases :: Set AlmostFloat
 predefinedHarmonicsPhases = Set.fromList $ takeWhile (< 2) $ map ((*) 0.1 . fromIntegral) [0::Int ..]
 
 predefinedAttack, predefinedHolds, predefinedDecays, predefinedReleases :: Set Int
-predefinedSustains :: Set Float
+predefinedSustains :: Set AlmostFloat
 predefinedAttack =
   let l = 50:map (*2) l
   in Set.fromDistinctAscList $ take 12 l
@@ -355,17 +368,15 @@ predefinedSustains =
 
 withMinimumHarmonicsCount :: Instrument -> Instrument
 withMinimumHarmonicsCount i =
-  i { harmonics_ =
-        (harmonics_ i) S.++
-        (S.fromList $ replicate (countHarmonics - S.length (harmonics_ i)) (HarmonicProperties 0 0))
-    }
+  let prevH = unHarmonics $ harmonics_ i
+  in i { harmonics_ = Harmonics $
+          prevH S.++
+          (S.fromList $ replicate (countHarmonics - S.length prevH) (HarmonicProperties 0 0))
+        }
 
 initialGame :: IO SynthsGame
 initialGame = do
-  i <- withMinimumHarmonicsCount <$> loadInstrument
-  let initialViewMode = LogView
-  p <- flip EnvelopePlot initialViewMode . toParts initialViewMode <$> envelopeShape i
-  return $ SynthsGame mempty mempty mempty i p mkEdition Nothing
+  return $ SynthsGame mempty mempty mempty Nothing (EnvelopePlot [] LogView) mkEdition Nothing mkInstrumentVersion
 
 data SynthsMode =
     PlaySynth
@@ -373,27 +384,27 @@ data SynthsMode =
   deriving(Show)
 
 data SynthsServer = SynthsServer {
-    srvSequencers :: !(Map SequencerId (MVar (Sequencer LoopId)))
+    srvSequencers :: !(Map SequencerId (MVar (Sequencer LoopId InstrumentId)))
   , nextSeqId :: !SequencerId
   , nextMIDISourceIdx :: !MidiSourceIdx
 } deriving(Generic)
 instance NFData SynthsServer
 
 data SynthsClientView = SynthsClientView {
-    _piano :: !PressedKeys
+    _piano :: !(PressedKeys InstrumentId)
     -- ^ What is currently pressed, by the player (excluding what is played by loops)
-  , _recording :: !Recording
+  , _recording :: !(Recording InstrumentId)
     -- ^ The ongoing recording of what is being played, which can be used to create a 'Loop'
   , _nextLoopPianoIdx :: !Int
 } deriving(Generic, Show)
 instance NFData SynthsClientView
 
-thePianoValue :: SynthsClientView -> PressedKeys
+thePianoValue :: SynthsClientView -> PressedKeys InstrumentId
 thePianoValue (SynthsClientView x _ _) = x
 
 -- | The server will also send 'PlayMusic' events, which are generic events.
 data SynthsServerEvent =
-    PianoValue !(Either ClientId (SequencerId, LoopId)) !PressedKeys
+    PianoValue !(Either ClientId (SequencerId, LoopId)) !(PressedKeys InstrumentId)
   | NewLine {-# UNPACK #-} !SequencerId {-# UNPACK #-} !LoopId
   | AssignedSourceIdx {-# UNPACK #-} !MidiSourceIdx
   deriving(Generic, Show)
@@ -410,8 +421,13 @@ instance Categorized SynthsServerEvent
 instance NFData SynthsServerEvent
 instance Binary SynthsServerEvent
 
+-- TODO the global client instrument Id should be set to Nothing when the instrument is changed.
+-- The maybe we should see if there is a correponding instrument in the map,
+-- and if yes return the existing 'InstrumentId', else create a new 'InstrumentId'.
+-- To avoid overhead when sending a Note, we should do this work at each instrument
+-- parameter change.
 data SynthClientEvent =
-    PlayNote !MusicalEvent
+    PlayNote !(MusicalEvent InstrumentId)
   | WithMultiLineSequencer {-# UNPACK #-} !SequencerId
   | WithMonoLineSequencer
   | ForgetCurrentRecording
@@ -424,7 +440,7 @@ data SynthsGameEvent =
   | ChangeEditedFeature {-# UNPACK #-} !Int
   | ToggleEditMode
   | ToggleEnvelopeViewMode
-  | InsertPressedKey !Key !InstrumentNote
+  | InsertPressedKey !Key !(InstrumentNote InstrumentId)
   | RemovePressedKey !Key
   deriving(Show)
 instance Categorized SynthsGameEvent
@@ -439,14 +455,14 @@ instance GameExternalUI SynthsGame where
   getViewport _ (Screen _ center) SynthsGame{} =
     mkCenteredRectContainer center $ Size 45 100
 
-changeInstrumentValue :: SynthsGame -> Int -> Instrument
-changeInstrumentValue (SynthsGame _ _ _ instr _ edit@(Edition mode _ _) _) inc =
+changeInstrumentValue :: Instrument -> Edition -> Int -> Instrument
+changeInstrumentValue instr edit@(Edition mode _ _) inc =
   case instr of
     Synth osc _ _ _ ->
       case mode of
         Envelope ->
           changeInstrumentEnvelopeIndexedValue instr (fromIntegral idx) inc
-        Harmonics ->
+        Tone ->
           if idx == firstOscillatorIdx
             then
               instr { oscillator = cycleOscillator inc osc }
@@ -489,8 +505,8 @@ changeInstrumentEnvelopeIndexedValue instr@(Synth _ _ release p@(AHDSR'Envelope 
 
 changeInstrumentHarmonic :: Int -> Instrument -> Int -> Instrument
 changeInstrumentHarmonic _ instr@(Wind _ ) _ = instr
-changeInstrumentHarmonic idx instr@(Synth _ harmonics _ _) inc =
-  instr { harmonics_ = h' S.// [(idx', newVal)] }
+changeInstrumentHarmonic idx instr@(Synth _ (Harmonics harmonics) _ _) inc =
+  instr { harmonics_ = Harmonics $ h' S.// [(idx', newVal)] }
  where
   idx'
    | idx >= firstPhaseIdx = idx - firstPhaseIdx
@@ -530,15 +546,19 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
     return [CliEvt $ ClientAppEvt ForgetCurrentRecording]
   mapStateKey _ k st _ _ g = maybe
     (return [])
-    (\ga@(SynthsGame _ _ pressed instr _ edit _) -> maybe
+    (\(SynthsGame _ _ pressed mayInstr _ edit _ _) -> maybe
       (return $ case st of
         GLFW.KeyState'Repeating -> []
         GLFW.KeyState'Pressed -> maybe
             []
             (\noteSpec ->
-              let spec = noteSpec instr
-              in [CliEvt $ ClientAppEvt $ PlayNote $ StartNote Nothing spec 1
-                , Evt $ AppEvent $ InsertPressedKey (GLFWKey k) spec])
+              maybe
+                []
+                (\(iid, _) ->
+                  let spec = noteSpec iid
+                  in [CliEvt $ ClientAppEvt $ PlayNote $ StartNote Nothing spec 1
+                    , Evt $ AppEvent $ InsertPressedKey (GLFWKey k) spec])
+                mayInstr)
             $ keyToNote k
         GLFW.KeyState'Released -> maybe
             []
@@ -546,23 +566,25 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
                [CliEvt $ ClientAppEvt $ PlayNote $ StopNote Nothing spec
               , Evt $ AppEvent $ RemovePressedKey $ GLFWKey k])
             $ Map.lookup (GLFWKey k) pressed)
-      (\dir -> return $ case instr of
-          Synth{} -> case st of
-            GLFW.KeyState'Pressed -> [configureInstrument]
-            GLFW.KeyState'Repeating -> [configureInstrument]
-            _ -> []
+      (\dir ->
+        return $
+          maybe [] (\(_, instr) -> case instr of
+            Synth{} -> case st of
+              GLFW.KeyState'Pressed -> [configureInstrument]
+              GLFW.KeyState'Repeating -> [configureInstrument]
+              _ -> []
 
-           where
+             where
 
-            configureInstrument = case dir of
-              LEFT  -> Evt $ AppEvent $ ChangeInstrument $ changeInstrumentValue ga (-1)
-              RIGHT -> Evt $ AppEvent $ ChangeInstrument $ changeInstrumentValue ga 1
-              Up   -> Evt $ AppEvent $ ChangeEditedFeature $ idx - 1
-              Down -> Evt $ AppEvent $ ChangeEditedFeature $ idx + 1
+              configureInstrument = case dir of
+                LEFT  -> Evt $ AppEvent $ ChangeInstrument $ changeInstrumentValue instr edit (-1)
+                RIGHT -> Evt $ AppEvent $ ChangeInstrument $ changeInstrumentValue instr edit 1
+                Up   -> Evt $ AppEvent $ ChangeEditedFeature $ idx - 1
+                Down -> Evt $ AppEvent $ ChangeEditedFeature $ idx + 1
 
-            idx = getEditionIndex edit
+              idx = getEditionIndex edit
 
-          _ -> [])
+            _ -> []) mayInstr)
         $ isArrow k)
     $ _game $ getGameState' g
 
@@ -686,6 +708,9 @@ midiPollPeriodArg =
           return $ fromIntegral i)
     . readMaybe
 
+mkInstrumentId :: InstrumentVersion -> MidiSourceIdx -> InstrumentId
+mkInstrumentId v midi = InstrumentId $ ((fromIntegral midi :: Word64) `shiftL` 32) + (fromIntegral v :: Word64)
+
 instance GameLogic SynthsGame where
 
   type ClientArgsT SynthsGame = SynthsClientArgs
@@ -749,69 +774,72 @@ instance GameLogic SynthsGame where
                           -- in that case, we don't use the events we just read,
                           -- but reading them serves the purpose of not overflowing the queue.
                           (return ([],[]))
-                          (\g@(SynthsGame _ _ pressed instr _ edit maySourceIdx) -> maybe
+                          (\(SynthsGame _ _ pressed mayInstr _ edit maySourceIdx _) -> maybe
                             (return ([],[])) -- should not happen once connected.
                             (\srcIdx ->
-                              (foldl' (\(a,b) (c,d) -> (a++c, b++d)) ([],[]).
-                                  map
-                                    (\(PortMidi.PMEvent msg time) ->
-                                    -- Portmidi time is in milliseconds, we convert it to nanoseconds.
-                                    let mi = Just $ MidiInfo (fromIntegral $ time * 1000000) srcIdx
-                                        off k =
-                                          let key = MIDIKey k
-                                          in maybe
-                                              ([],[])
-                                              (\spec ->
-                                                ([AppEvent $ RemovePressedKey key]
-                                                ,[ClientAppEvt $ PlayNote $ StopNote mi spec]))
-                                              $ Map.lookup key pressed
-                                        on k v =
-                                          let i = mkInstrumentNote k instr
-                                          in ([AppEvent $ InsertPressedKey (MIDIKey k) i]
-                                            , [ClientAppEvt $ PlayNote $ StartNote mi i $ mkNoteVelocity v])
-                                        ctrl control value
-                                          | control == 12 =
-                                              (AppEvent . ChangeEditedFeature . (+ (getEditionIndex edit))) <$>
-                                                relativeValue (Just 1) value
-                                          | control == 13 =
-                                              (AppEvent . ChangeInstrument . (changeInstrumentValue g)) <$>
-                                                relativeValue (Just 1) value
-                                          | control == 24 =
-                                              Just $ AppEvent $ ChangeInstrument $ instr { oscillator = toEnum $ value `mod` countOscillators }
-                                          | control >= 14 && control <= 23 =
-                                              (AppEvent . ChangeInstrument . changeInstrumentHarmonic (control - 14) instr) <$>
-                                                relativeValue (Just 1) value
-                                          | control >= 52 && control <= 61 =
-                                              (AppEvent . ChangeInstrument . changeInstrumentHarmonic (firstPhaseIdx + control - 52) instr) <$>
-                                                relativeValue (Just 1) value
-                                          | otherwise =
-                                              maybe
-                                                Nothing
-                                                (\i ->
-                                                  (AppEvent . ChangeInstrument . changeInstrumentEnvelopeIndexedValue instr i) <$>
-                                                    relativeValue (Just 1) value) $
-                                                controlToIndex control
-                                          where
-                                            relativeValue _ 64 = Nothing
-                                            relativeValue mayMaxChange x
-                                              | x > 64 = Just $ min maxChange $ x-64
-                                              | otherwise = Just $ negate $ min maxChange $ (64-x)
-                                              where maxChange = fromMaybe maxBound mayMaxChange
-                                    in maybe
-                                        ([],[])
-                                        (\m -> {-traceShow (time,m) $ -} case m of
-                                          NoteOff _ key _ -> off $ fromIntegral key
-                                          NoteOn _ key 0 -> off $ fromIntegral key
-                                          NoteOn _ key vel -> on (fromIntegral key) vel
-                                          ControlChange _ control value ->
-                                            maybe
-                                              ([],[])
-                                              (flip (,) [] . (:[]))
-                                              $ ctrl control value
-                                          _ -> ([],[]))
-                                        $ msgToMidi $ PortMidi.decodeMsg msg))
-                                      <$> flip peekArray ptr nReads)
-                            maySourceIdx)
+                                maybe
+                                  (return ([],[]))
+                                  (\(iid, instr) -> foldl' (\(a,b) (c,d) -> (a++c, b++d)) ([],[]).
+                                      map
+                                        (\(PortMidi.PMEvent msg time) ->
+                                        -- Portmidi time is in milliseconds, we convert it to nanoseconds.
+                                        let mi = Just $ MidiInfo (fromIntegral $ time * 1000000) srcIdx
+                                            off k =
+                                              let key = MIDIKey k
+                                              in maybe
+                                                  ([],[])
+                                                  (\spec ->
+                                                    ([AppEvent $ RemovePressedKey key]
+                                                    ,[ClientAppEvt $ PlayNote $ StopNote mi spec]))
+                                                  $ Map.lookup key pressed
+                                            on k v =
+                                              let i = mkInstrumentNote k iid
+                                              in ([AppEvent $ InsertPressedKey (MIDIKey k) i]
+                                                , [ClientAppEvt $ PlayNote $ StartNote mi i $ mkNoteVelocity v])
+                                            ctrl control value
+                                              | control == 12 =
+                                                  (AppEvent . ChangeEditedFeature . (+ (getEditionIndex edit))) <$>
+                                                    relativeValue (Just 1) value
+                                              | control == 13 =
+                                                  (AppEvent . ChangeInstrument . (changeInstrumentValue instr edit)) <$>
+                                                    relativeValue (Just 1) value
+                                              | control == 24 =
+                                                  Just $ AppEvent $ ChangeInstrument $ instr { oscillator = toEnum $ value `mod` countOscillators }
+                                              | control >= 14 && control <= 23 =
+                                                  (AppEvent . ChangeInstrument . changeInstrumentHarmonic (control - 14) instr) <$>
+                                                    relativeValue (Just 1) value
+                                              | control >= 52 && control <= 61 =
+                                                  (AppEvent . ChangeInstrument . changeInstrumentHarmonic (firstPhaseIdx + control - 52) instr) <$>
+                                                    relativeValue (Just 1) value
+                                              | otherwise =
+                                                  maybe
+                                                    Nothing
+                                                    (\i ->
+                                                      (AppEvent . ChangeInstrument . changeInstrumentEnvelopeIndexedValue instr i) <$>
+                                                        relativeValue (Just 1) value) $
+                                                    controlToIndex control
+                                              where
+                                                relativeValue _ 64 = Nothing
+                                                relativeValue mayMaxChange x
+                                                  | x > 64 = Just $ min maxChange $ x-64
+                                                  | otherwise = Just $ negate $ min maxChange $ (64-x)
+                                                  where maxChange = fromMaybe maxBound mayMaxChange
+                                        in maybe
+                                            ([],[])
+                                            (\m -> {-traceShow (time,m) $ -} case m of
+                                              NoteOff _ key _ -> off $ fromIntegral key
+                                              NoteOn _ key 0 -> off $ fromIntegral key
+                                              NoteOn _ key vel -> on (fromIntegral key) vel
+                                              ControlChange _ control value ->
+                                                maybe
+                                                  ([],[])
+                                                  (flip (,) [] . (:[]))
+                                                  $ ctrl control value
+                                              _ -> ([],[]))
+                                            $ msgToMidi $ PortMidi.decodeMsg msg)
+                                          <$> flip peekArray ptr nReads)
+                                        mayInstr)
+                                      maySourceIdx)
                           mayGame
                         return (l1,l2,nReads)
                   go' a b = do
@@ -834,34 +862,55 @@ instance GameLogic SynthsGame where
 
   onClientOnlyEvent e = do
     mayNewEnvMinMaxs <-
-      getIGame >>= maybe (liftIO initialGame) return >>= \(SynthsGame _ _ _ instr (EnvelopePlot _ viewmode) _ _) ->
+      getIGame >>= maybe (liftIO initialGame) return >>= \(SynthsGame _ _ _ mayInstr (EnvelopePlot _ viewmode) _ _ _) -> do
         case e of
           ChangeInstrument i -> do
             liftIO $ saveInstrument i
             -- we could omit this for harmonic changes:
             Just . toParts viewmode <$> liftIO (envelopeShape i)
-          ToggleEnvelopeViewMode -> Just . toParts (toggleView viewmode) <$> liftIO (envelopeShape instr)
+          ToggleEnvelopeViewMode ->
+            maybe
+              (return Nothing)
+              (\(_, instr) -> Just . toParts (toggleView viewmode) <$> liftIO (envelopeShape instr))
+              mayInstr
           _ -> return Nothing
-    getIGame >>= maybe (liftIO initialGame) return >>= \g@(SynthsGame _ _ pressed _ _ _ _) -> withAnim $ putIGame $ case e of
-      ChangeInstrument i -> g {
-          instrument = i
-        , envelopePlot = EnvelopePlot (fromMaybe (error "logic") mayNewEnvMinMaxs) $ envViewMode $ envelopePlot g
-      }
-      ToggleEnvelopeViewMode -> g {
+    getIGame >>= maybe (liftIO initialGame) return >>= \g@(SynthsGame _ _ pressed _ _ _ maySourceIdx nextV) -> withAnim $ case e of
+      ChangeInstrument i -> do
+        let idForInsertion = maybe Nothing (Just . mkInstrumentId nextV) maySourceIdx
+        useInstrument idForInsertion i >>= maybe (return ()) (\instrId ->
+          putIGame g {
+              instrument = Just (instrId, i)
+            , nextInstrumentVersion =
+                if Just instrId == idForInsertion
+                  then
+                    -- the insertion id was used.
+                    nextV + 1
+                  else
+                    nextV
+            , envelopePlot = EnvelopePlot (fromMaybe (error "logic") mayNewEnvMinMaxs) $ envViewMode $ envelopePlot g
+            })
+      ToggleEnvelopeViewMode -> putIGame g {
         envelopePlot = EnvelopePlot (fromMaybe (error "logic") mayNewEnvMinMaxs) $ toggleView $ envViewMode $ envelopePlot g }
-      ToggleEditMode -> g {edition = toggleEditMode $ edition g}
-      ChangeEditedFeature i -> g {edition = setEditionIndex i $ edition g}
-      InsertPressedKey k n -> g { clientPressedKeys = Map.insert k n pressed }
-      RemovePressedKey k -> g { clientPressedKeys = Map.delete k pressed }
+      ToggleEditMode ->
+        putIGame g {edition = toggleEditMode $ edition g}
+      ChangeEditedFeature i ->
+        putIGame g {edition = setEditionIndex i $ edition g}
+      InsertPressedKey k n ->
+        putIGame g {clientPressedKeys = Map.insert k n pressed}
+      RemovePressedKey k ->
+        putIGame g {clientPressedKeys = Map.delete k pressed}
 
 
   onServerEvent e =
     -- TODO force withAnim when using putIGame ?
-    getIGame >>= maybe (liftIO initialGame) return >>= \g -> withAnim $ putIGame $ case e of
-      AssignedSourceIdx s -> g { sourceIdx = Just s}
+    getIGame >>= maybe (liftIO initialGame) return >>= \g -> withAnim $ case e of
+      AssignedSourceIdx s -> do
+        putIGame g { sourceIdx = Just s }
+        asks writeToClient' >>= \f -> liftIO $ do
+          FromClient . AppEvent . ChangeInstrument . withMinimumHarmonicsCount <$> loadInstrument >>= f
       NewLine seqId loopId ->
-        g { pianoLoops = Map.insertWith Map.union seqId (Map.singleton loopId mkEmptyPressedKeys) $ pianoLoops g }
-      PianoValue creator x -> either
+        putIGame $ g { pianoLoops = Map.insertWith Map.union seqId (Map.singleton loopId mkEmptyPressedKeys) $ pianoLoops g }
+      PianoValue creator x -> putIGame $ either
         (\i ->
           g {pianos = Map.insert i x $ pianos g})
         (\(seqId,loopId) ->
@@ -870,7 +919,7 @@ instance GameLogic SynthsGame where
 
 instance GameDraw SynthsGame where
 
-  drawBackground (Screen _ center@(Coords _ centerC)) g@(SynthsGame pianoClients pianoLoops_ _ _ (EnvelopePlot curves _) _ _) = do
+  drawBackground (Screen _ center@(Coords _ centerC)) g@(SynthsGame pianoClients pianoLoops_ _ _ (EnvelopePlot curves _) _ _ _) = do
     drawInstructions Horizontally (Just 15) g (mkCentered $ move 21 Up center) >>= \(Alignment _ ref) -> do
       ref2 <- case curves of
         [] -> return ref
@@ -1036,7 +1085,7 @@ instance ServerClientHandler SynthsServer where
    where
 
     onRecordableNote :: (MonadIO m, MonadState (ServerState SynthsServer) m, MonadReader ConstClientView m)
-                       => MusicalEvent
+                       => MusicalEvent InstrumentId
                        -> m [ServerEvent SynthsServer]
     onRecordableNote n = do
       cid <- asks clientId
@@ -1059,7 +1108,7 @@ instance ServerClientHandler SynthsServer where
                 ])
 
     playLoopMusic :: (MonadState (ServerState SynthsServer) m, MonadIO m)
-                  => SequencerId -> LoopId -> PressedKeys -> MusicalEvent -> m ()
+                  => SequencerId -> LoopId -> PressedKeys InstrumentId -> MusicalEvent InstrumentId -> m ()
     playLoopMusic seqId loopId newPiano n =
       notifyEveryoneN'
         [ ServerAppEvt $ PianoValue (Right (seqId,loopId)) newPiano
@@ -1113,7 +1162,7 @@ instance ServerClientHandler SynthsServer where
               let loopId = LoopId creator $ idx - 1
               liftIO getSystemTime >>= x loopId recording))
 
-pianoEvts :: Either ClientId (SequencerId,LoopId) -> PressedKeys -> [ServerEvent SynthsServer]
+pianoEvts :: Either ClientId (SequencerId,LoopId) -> PressedKeys InstrumentId -> [ServerEvent SynthsServer]
 pianoEvts idx v@(PressedKeys m) =
   ServerAppEvt (PianoValue idx v) :
   concatMap
@@ -1129,7 +1178,7 @@ instance ServerCmdParser SynthsServer
 showPianos :: MonadReader e m
            => Text
            -> (a -> m ColorString)
-           -> Map a PressedKeys
+           -> Map a (PressedKeys InstrumentId)
            -> m [ColorString]
 showPianos _ _ Tip = return []
 showPianos title showKey m = do
@@ -1143,7 +1192,7 @@ showKeys :: MidiPitch
          -- ^ From
          -> MidiPitch
          -- ^ To
-         -> PressedKeys
+         -> PressedKeys InstrumentId
          -> String
 showKeys from to (PressedKeys m) =
   go [] [from..to] $ Set.toAscList $ Map.keysSet m

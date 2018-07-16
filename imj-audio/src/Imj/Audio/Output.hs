@@ -188,7 +188,7 @@ setMaxMIDIJitter = setMaxMIDIJitter_ . (*1000) . fromIntegral
 -- This function should be called from an action
 -- run with 'usingAudioOutput' or 'usingAudioOutputWithMinLatency'.
 -- If this is not the case, it hans no effect and returns 'False'.
-play :: MusicalEvent
+play :: MusicalEvent Instrument
      -> IO (Either () ())
 play (StartNote mayMidi n@(InstrumentNote _ _ i) (NoteVelocity v)) = bool (Left ()) (Right ()) <$> case i of
   Synth osc harmonics e ahdsr -> midiNoteOnAHDSR (fromIntegral $ fromEnum osc) (fromIntegral $ fromEnum e) ahdsr harmonics pitch vel mayMidi
@@ -202,8 +202,8 @@ play (StopNote mayMidi n@(InstrumentNote _ _ i)) = bool (Left ()) (Right ()) <$>
  where
   (MidiPitch pitch) = instrumentNoteToMidiPitch n
 
-midiNoteOffAHDSR :: CInt -> CInt -> AHDSR'Envelope -> S.Vector HarmonicProperties -> CShort -> Maybe MidiInfo -> IO Bool
-midiNoteOnAHDSR :: CInt -> CInt -> AHDSR'Envelope -> S.Vector HarmonicProperties -> CShort -> CFloat -> Maybe MidiInfo -> IO Bool
+midiNoteOffAHDSR :: CInt -> CInt -> AHDSR'Envelope -> Harmonics -> CShort -> Maybe MidiInfo -> IO Bool
+midiNoteOnAHDSR :: CInt -> CInt -> AHDSR'Envelope -> Harmonics -> CShort -> CFloat -> Maybe MidiInfo -> IO Bool
 midiNoteOffAHDSR osc t (AHDSR'Envelope a h d r ai di ri s) har i mayMidi =
   withForeignPtr harPtr $ \harmonicsPtr ->
     midiNoteOffAHDSR_ osc t
@@ -212,7 +212,7 @@ midiNoteOffAHDSR osc t (AHDSR'Envelope a h d r ai di ri s) har i mayMidi =
       i
       src time
  where
-  (harPtr, harmonicsSz) = S.unsafeToForeignPtr0 har
+  (harPtr, harmonicsSz) = S.unsafeToForeignPtr0 $ unHarmonics har
   src  = fromIntegral $ maybe (-1 :: CInt) (fromIntegral . unMidiSourceIdx . source) mayMidi
   time = fromIntegral $ maybe 0 timestamp mayMidi
 
@@ -224,7 +224,7 @@ midiNoteOnAHDSR osc t (AHDSR'Envelope a h d r ai di ri s) har i v mayMidi =
       i v
       src time
  where
-  (harPtr, harmonicsSz) = S.unsafeToForeignPtr0 har
+  (harPtr, harmonicsSz) = S.unsafeToForeignPtr0 $ unHarmonics har
   -- -1 encodes "no source"
   src  = fromIntegral $ maybe (-1 :: CInt) (fromIntegral . unMidiSourceIdx . source) mayMidi
   time = fromIntegral $ maybe 0 timestamp mayMidi

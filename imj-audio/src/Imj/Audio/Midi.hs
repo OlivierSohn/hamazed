@@ -14,7 +14,7 @@ module Imj.Audio.Midi
   ) where
 
 import Imj.Prelude
-import           Data.Word(Word64, Word)
+import           Data.Word(Word64, Word16)
 
 -- | Buffer size, in microseconds, introduced to avoid MIDI jitter
 newtype MaxMIDIJitter = MaxMIDIJitter { unMaxMIDIJitter :: Word64 }
@@ -25,8 +25,8 @@ defaultMaxMIDIJitter = 0
 
 -- | Must be between 0 and 16383, because the audioengine can encode
 -- only that many different MIDI sources.
-newtype MidiSourceIdx = MidiSourceIdx {unMidiSourceIdx :: Word}
-  deriving (Generic, Show, Eq)
+newtype MidiSourceIdx = MidiSourceIdx {unMidiSourceIdx :: Word16}
+  deriving (Generic, Show, Eq, Ord, Integral, Real, Num, Enum)
 instance NFData MidiSourceIdx
 instance Binary MidiSourceIdx
 

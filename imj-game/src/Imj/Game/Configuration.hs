@@ -17,6 +17,7 @@ module Imj.Game.Configuration
       ) where
 
 import           Imj.Prelude
+import           Data.Map.Strict((!))
 import           Options.Applicative(long, help, flag)
 
 import           Imj.Arg.Class
@@ -52,8 +53,8 @@ instance Audio WithAudio where
     | useAudio = liftIO $ void $ laserSound
     | otherwise = return ()
 
-  playMusic (WithAudio useAudio) mus
-    | useAudio = liftIO $ void $ play mus
+  playMusic (WithAudio useAudio) instrumentMap mus
+    | useAudio = liftIO $ void $ play $ fmap ((!) instrumentMap) mus
     | otherwise = return ()
 
   -- WARNING when changing this, also change 'parseArg'

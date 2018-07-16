@@ -170,6 +170,10 @@ handleIncomingEvent' = \case
     handlerError $ "already connected : " ++ show i
     return []
   ClientAppEvt e -> handleClientEvent e
+  RegisterInstrument iid i -> do
+    modify' $ \s -> s {instrumentMap = Map.insert iid i $ instrumentMap s}
+    notifyOthers' $ AddInstrument iid i
+    return []
   ExitedState Excluded -> do
     clientCanJoin (Proxy :: Proxy s) >>= bool
       (do
@@ -294,8 +298,10 @@ addClient connectId cliType = do
   greeters <- greetNewcomer
   greeters' <- greetNewcomer'
 
+  instruments <- gets instrumentMap
+
   notifyClientN' $
-    [ ConnectionAccepted i
+    [ ConnectionAccepted i instruments
     , AllClients presentClients
     , OnContent wp
     ] ++

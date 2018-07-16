@@ -1,3 +1,13 @@
+- should we compress network messages? to analyze traffic:
+sudo tcpdump -i lo0 -v -nnXSs 0
+
+- At some point, on a release build when playing a very low note ('kick')
+I heard an audio bug (as if the note would never stop : the audioelement buffer
+  was maybe not computed anymore, but the associated channel was still playing, hence
+  a very harsh continuous sound occured)
+
+I could not reproduce it yet.
+
 - change the sound in real time, when harmonics change.
 .. enqueue parameter changes :
    change volume / phase of harmonic 6 to ...
@@ -29,22 +39,6 @@ there is.
 - adapt Music.Midi to use timestamps for more accurate timing, instead of relying on sleep.
 (rely on sleep, too, but wake up earlier and schedule note on / note off)
 - make effectOn / effectOff MIDI-aware ?
-
-- Every played note stores 2 InstrumentNote, in each of which is a copy of the Instrument
-containing a vector of harmonics, and an envelope... that's a lot of redundant info!
-
-work using a key:
-... the server sends either the full instrument+key or just the key
-... the client sends either the full instrument if it's a new one, or just the key
-    if the server already assigned a key for that instrument.
-    That will also optimize network bandwith usage.
-    The server keeps track of "which client knows about which instrument"
-      and on disconnection / reconnection, the memory is flushed.
-
-key = (clientIdx, instrumentIdx)
-
-To analyze traffic:
-sudo tcpdump -i lo0 -v -nnXSs 0
 
 - in ghc 8.2.2 we use much more memory than in ghc 8.4.3.
 

@@ -31,7 +31,6 @@ import           Control.Monad.Reader(asks)
 import           Data.Binary(Binary(..), encode, decodeOrFail)
 import           Data.Bits (shiftR, shiftL, (.&.))
 import qualified Data.ByteString.Lazy as BL
-import           Data.Data(Data(..))
 import           Data.List(replicate, concat, take, foldl')
 import           Data.Map.Internal(Map(..))
 import qualified Data.Map.Strict as Map
@@ -43,7 +42,6 @@ import qualified Data.Vector.Unboxed as V
 import qualified Data.Vector.Storable as S
 import qualified Data.Vector.Storable.Mutable as SM
 import           Data.Proxy(Proxy(..))
-import           Data.Word(Word32, Word64)
 import           Foreign.ForeignPtr(withForeignPtr)
 import           Foreign.Marshal.Array(peekArray)
 import           GHC.Generics(Generic)
@@ -85,6 +83,7 @@ import qualified Imj.Graphics.Text.ColorString as CS
 import           Imj.Graphics.Text.Render
 import           Imj.Graphics.UI.RectContainer
 import qualified Imj.Graphics.UI.Choice as UI
+import           Imj.Music.Instruments
 import           Imj.Music.Types
 import           Imj.Music.PressedKeys
 import           Imj.Music.Record
@@ -246,15 +245,6 @@ getEditionIndex (Edition mode i j) =
   countEditables Envelope = 9
   countEditables Tone = 2*countHarmonics + 1
 
-
-newtype InstrumentVersion = InstrumentVersion Word32
-  deriving(Generic,Show, Eq, Ord, Data, Integral, Num, Real, Enum)
-instance Binary InstrumentVersion
-instance NFData InstrumentVersion
-
-mkInstrumentVersion :: InstrumentVersion
-mkInstrumentVersion = InstrumentVersion 0
-
 data SynthsGame = SynthsGame {
     pianos :: !(Map ClientId (PressedKeys InstrumentId))
   , pianoLoops :: !(Map SequencerId (Map LoopId (PressedKeys InstrumentId)))
@@ -263,11 +253,10 @@ data SynthsGame = SynthsGame {
   , envelopePlot :: !EnvelopePlot
   , edition :: !Edition
   , sourceIdx :: !(Maybe MidiSourceIdx)
-  , nextInstrumentVersion :: !InstrumentVersion
 } deriving(Show)
 
 instance UIInstructions SynthsGame where
-  instructions color (SynthsGame _ _ _ mayInstr _ edit@(Edition mode _ _) _ _) = maybe [] (\(_,instr) -> case instr of
+  instructions color (SynthsGame _ _ _ mayInstr _ edit@(Edition mode _ _) _) = maybe [] (\(_,instr) -> case instr of
     Synth osc harmonics release (AHDSR'Envelope a h d r ai di ri s) -> case mode of
       Envelope -> envelopeInstructions
       Tone -> harmonicsInstructions
@@ -376,7 +365,7 @@ withMinimumHarmonicsCount i =
 
 initialGame :: IO SynthsGame
 initialGame = do
-  return $ SynthsGame mempty mempty mempty Nothing (EnvelopePlot [] LogView) mkEdition Nothing mkInstrumentVersion
+  return $ SynthsGame mempty mempty mempty Nothing (EnvelopePlot [] LogView) mkEdition Nothing
 
 data SynthsMode =
     PlaySynth
@@ -546,7 +535,7 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
     return [CliEvt $ ClientAppEvt ForgetCurrentRecording]
   mapStateKey _ k st _ _ g = maybe
     (return [])
-    (\(SynthsGame _ _ pressed mayInstr _ edit _ _) -> maybe
+    (\(SynthsGame _ _ pressed mayInstr _ edit _) -> maybe
       (return $ case st of
         GLFW.KeyState'Repeating -> []
         GLFW.KeyState'Pressed -> maybe
@@ -708,9 +697,6 @@ midiPollPeriodArg =
           return $ fromIntegral i)
     . readMaybe
 
-mkInstrumentId :: InstrumentVersion -> MidiSourceIdx -> InstrumentId
-mkInstrumentId v midi = InstrumentId $ ((fromIntegral midi :: Word64) `shiftL` 32) + (fromIntegral v :: Word64)
-
 instance GameLogic SynthsGame where
 
   type ClientArgsT SynthsGame = SynthsClientArgs
@@ -774,7 +760,7 @@ instance GameLogic SynthsGame where
                           -- in that case, we don't use the events we just read,
                           -- but reading them serves the purpose of not overflowing the queue.
                           (return ([],[]))
-                          (\(SynthsGame _ _ pressed mayInstr _ edit maySourceIdx _) -> maybe
+                          (\(SynthsGame _ _ pressed mayInstr _ edit maySourceIdx) -> maybe
                             (return ([],[])) -- should not happen once connected.
                             (\srcIdx ->
                                 maybe
@@ -862,7 +848,7 @@ instance GameLogic SynthsGame where
 
   onClientOnlyEvent e = do
     mayNewEnvMinMaxs <-
-      getIGame >>= maybe (liftIO initialGame) return >>= \(SynthsGame _ _ _ mayInstr (EnvelopePlot _ viewmode) _ _ _) -> do
+      getIGame >>= maybe (liftIO initialGame) return >>= \(SynthsGame _ _ _ mayInstr (EnvelopePlot _ viewmode) _ _) -> do
         case e of
           ChangeInstrument i -> do
             liftIO $ saveInstrument i
@@ -874,19 +860,11 @@ instance GameLogic SynthsGame where
               (\(_, instr) -> Just . toParts (toggleView viewmode) <$> liftIO (envelopeShape instr))
               mayInstr
           _ -> return Nothing
-    getIGame >>= maybe (liftIO initialGame) return >>= \g@(SynthsGame _ _ pressed _ _ _ maySourceIdx nextV) -> withAnim $ case e of
+    getIGame >>= maybe (liftIO initialGame) return >>= \g@(SynthsGame _ _ pressed _ _ _ maySourceIdx) -> withAnim $ case e of
       ChangeInstrument i -> do
-        let idForInsertion = maybe Nothing (Just . mkInstrumentId nextV) maySourceIdx
-        useInstrument idForInsertion i >>= maybe (return ()) (\instrId ->
+        useInstrument maySourceIdx i >>= maybe (return ()) (\instrId ->
           putIGame g {
               instrument = Just (instrId, i)
-            , nextInstrumentVersion =
-                if Just instrId == idForInsertion
-                  then
-                    -- the insertion id was used.
-                    nextV + 1
-                  else
-                    nextV
             , envelopePlot = EnvelopePlot (fromMaybe (error "logic") mayNewEnvMinMaxs) $ envViewMode $ envelopePlot g
             })
       ToggleEnvelopeViewMode -> putIGame g {
@@ -919,7 +897,7 @@ instance GameLogic SynthsGame where
 
 instance GameDraw SynthsGame where
 
-  drawBackground (Screen _ center@(Coords _ centerC)) g@(SynthsGame pianoClients pianoLoops_ _ _ (EnvelopePlot curves _) _ _ _) = do
+  drawBackground (Screen _ center@(Coords _ centerC)) g@(SynthsGame pianoClients pianoLoops_ _ _ (EnvelopePlot curves _) _ _) = do
     drawInstructions Horizontally (Just 15) g (mkCentered $ move 21 Up center) >>= \(Alignment _ ref) -> do
       ref2 <- case curves of
         [] -> return ref
@@ -993,7 +971,7 @@ instance ServerInit SynthsServer where
           , SynthsServer
               mempty
               (SequencerId 10) $ -- the 9 first sequencers are reserved
-              mkMidiSourceIdx 0)
+              srvMidiSource + 1)
 
   mkInitialClient = SynthsClientView mkEmptyPressedKeys mkEmptyRecording 0
 

@@ -54,6 +54,7 @@ import           Imj.Server.Color
 import           Imj.Server.Types
 
 import           Imj.Graphics.Text.ColorString(colored)
+import           Imj.Music.Instruments
 import           Imj.Network
 import           Imj.Server.Connection
 import           Imj.Server
@@ -171,7 +172,7 @@ handleIncomingEvent' = \case
     return []
   ClientAppEvt e -> handleClientEvent e
   RegisterInstrument iid i -> do
-    modify' $ \s -> s {instrumentMap = Map.insert iid i $ instrumentMap s}
+    modify' $ \s -> s {srvInstruments = registerInstrument iid i $ srvInstruments s}
     notifyOthers' $ AddInstrument iid i
     return []
   ExitedState Excluded -> do
@@ -283,7 +284,8 @@ addClient connectId cliType = do
   notifyEveryoneN' $
     map (RunCommand i) [AssignColor color, AssignName realName] -- elts order is important for animations.
 
-  let c = ClientView conn cliType realName color mkInitialClient
+  instruments <- idToInstr <$> gets srvInstruments
+  let c = ClientView conn cliType realName color (Map.keysSet instruments) mkInitialClient
 
   modify' $ \ s ->
     let clients = clientsViews s
@@ -293,12 +295,10 @@ addClient connectId cliType = do
   serverLog $ (\strId -> colored "Add client" green <> "|" <> strId <> "|" <> showClient c) <$> showId i
 
   presentClients <-
-    Map.map (\(ClientView _ _ n co _) -> ClientEssence n Present co) <$> gets clientsMap
+    Map.map (\(ClientView _ _ n co _ _) -> ClientEssence n Present co) <$> gets clientsMap
   wp <- gets content
   greeters <- greetNewcomer
   greeters' <- greetNewcomer'
-
-  instruments <- gets instrumentMap
 
   notifyClientN' $
     [ ConnectionAccepted i instruments

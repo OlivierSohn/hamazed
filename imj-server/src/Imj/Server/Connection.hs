@@ -7,7 +7,8 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
 module Imj.Server.Connection
-      ( notifyN
+      ( sendUnknownInstruments
+      , notifyN
       , notifyN'
       , notifyEveryone
       , notifyEveryone'
@@ -52,18 +53,18 @@ import           Imj.Server.Log
 sendAndHandleExceptions :: (MonadIO m
                           , Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
                           , MonadState (ServerState s) m)
-                        => [ServerEvent s]
-                        -> Connection
+                        => Connection
                         -> ClientId
+                        -> [ServerEvent s]
                         -> m ()
-sendAndHandleExceptions [] _ _ = return () -- sendDataMessages throws on empty list
-sendAndHandleExceptions [one] conn i =
+sendAndHandleExceptions _ _ [] = return () -- sendDataMessages throws on empty list
+sendAndHandleExceptions conn i [one] =
   liftIO (try $ sendDataMessages conn [msg]) >>= either
     (\(e :: SomeException) -> onBrokenClient "" (Just ("sending", "ServerEvent", [one])) e i)
     return
  where
   !msg = Binary $ toLazyByteString $ one
-sendAndHandleExceptions evts@(_:_:_) conn i =
+sendAndHandleExceptions conn i evts@(_:_:_) =
   liftIO (try $ sendDataMessages conn [msg]) >>= either
     (\(e :: SomeException) -> onBrokenClient "" (Just ("sending", "ServerEvent", [aggregate])) e i)
     return
@@ -105,7 +106,7 @@ disconnect r i =
   tryRemoveClient >>= maybe
     (do serverLog $ (<> " was already removed.") <$> showId i
         return ())
-    (\c@(ClientView _ ownership name _ _) -> do
+    (\c@(ClientView _ ownership name _ _ _) -> do
         -- If the client owns the server, we shutdown connections to /other/ clients first.
         when (ownership == ClientOwnsServer) $ do
           gets clientsMap >>= void . Map.traverseWithKey
@@ -125,7 +126,7 @@ disconnect r i =
                     , Server s, ServerClientLifecycle s, ServerInit s, ServerClientHandler s
                     , MonadState (ServerState s) m)
                   => DisconnectReason -> ClientId -> ClientView (ClientViewT s) -> m ()
-  closeConnection reason cid c@(ClientView conn _ name color _) = do
+  closeConnection reason cid c@(ClientView conn _ name color _ _) = do
     serverLog $ pure $
       colored "Close connection" yellow <>
       "|" <>
@@ -167,6 +168,26 @@ disconnect r i =
   removeAllClients = modify' $ \s ->
     s { clientsViews = (clientsViews s) { views = Map.empty } }
 
+-- | Just sends the instruments that are not known to the clients yet (on a client-by client basis)
+sendUnknownInstruments :: (MonadIO m
+                         , Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
+                         , MonadState (ServerState s) m)
+                       => Instruments
+                       -> m ()
+sendUnknownInstruments is = do
+  let newKeys = Map.keysSet $ idToInstr is
+  cvs <- Map.assocs . views <$> gets clientsViews
+  newClientViews <- Map.fromList <$>
+    mapM
+      (\(cid, clientView) -> do
+        sendAndHandleExceptions (getConnection clientView) cid
+          $ map (uncurry AddInstrument) $ Map.assocs $ Map.withoutKeys (idToInstr is) $ getKnownInstruments clientView
+        return (cid,clientView{getKnownInstruments = newKeys})
+      )
+      cvs
+  modify' $ \s -> s { clientsViews = (clientsViews s) {views = newClientViews } }
+
+
 {-# INLINABLE notify #-}
 notify :: (MonadIO m
          , Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
@@ -176,7 +197,7 @@ notify :: (MonadIO m
        -> ServerEvent s
        -> m ()
 notify conn sid evt =
-  sendAndHandleExceptions [evt] conn sid
+  sendAndHandleExceptions conn sid [evt]
 
 {-# INLINABLE notifyClientN #-}
 notifyClientN :: (Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
@@ -193,7 +214,7 @@ notifyClientN' :: (Server s, ServerClientHandler s, ServerInit s, ServerClientLi
 notifyClientN' evts = do
   conn <- asks connection
   sid <- asks clientId
-  sendAndHandleExceptions evts conn sid
+  sendAndHandleExceptions conn sid evts
 
 {-# INLINABLE notifyClient #-}
 notifyClient :: (Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
@@ -281,4 +302,4 @@ notifyN' :: (MonadIO m
         -> m ()
 notifyN' evts m =
   void $ Map.traverseWithKey
-    (\i client -> sendAndHandleExceptions evts (getConnection client) i) m
+    (\i client -> sendAndHandleExceptions (getConnection client) i evts) m

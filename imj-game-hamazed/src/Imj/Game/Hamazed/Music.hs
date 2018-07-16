@@ -16,14 +16,14 @@ import           Data.List hiding(transpose, intersperse, intercalate)
 import           Imj.Audio
 import           Imj.Game.Hamazed.Level
 
-scoreForLevel :: LevelSpec -> Score
+scoreForLevel :: LevelSpec -> Score Instrument
 scoreForLevel (LevelSpec n _) =
   hamazedScores !! idx
  where
   nScores = length hamazedScores
   idx = (fromIntegral (n-firstLevel)) `mod` nScores
 
-hamazedScores :: [Score]
+hamazedScores :: [Score Instrument]
 hamazedScores =
   [ transpose 2 primaryScore
   , transpose 2 secondaryScore
@@ -39,7 +39,7 @@ hamazedScores =
   , intercalate [Extend,Extend] twelvthScore
   ]
 
-primaryScore :: Score
+primaryScore :: Score Instrument
 primaryScore = mkScore organicInstrument
   [ firstVoice
   , secondVoice
@@ -93,7 +93,7 @@ primaryScore = mkScore organicInstrument
     . . .
     |]
 
-secondaryScore :: Score
+secondaryScore :: Score Instrument
 secondaryScore =
   mkScore organicInstrument
     [ firstVoice
@@ -173,7 +173,7 @@ secondaryScore =
     fa - - vsol
   |]
 
-tertiaryScore :: Score
+tertiaryScore :: Score Instrument
 tertiaryScore =
   mkScore organicInstrument
     [ firstVoice ++ secondVoice
@@ -242,7 +242,7 @@ tertiaryScore =
      si . sol .
    |]
 
-quatScore :: Score
+quatScore :: Score Instrument
 quatScore =
   mkScore organicInstrument
     [ voice1
@@ -330,7 +330,7 @@ quatScore =
   . . .
   |]
 
-quintScore :: Score
+quintScore :: Score Instrument
 quintScore =
   mkScore bellInstrument
     [ v2
@@ -359,7 +359,7 @@ quintScore =
     ^mib sol lab sib ^do ^ré ^mib . .
   |]
 
-sextScore :: Score
+sextScore :: Score Instrument
 sextScore =
   mkScore organicInstrument
     [ take (length v2) $ cycle v1
@@ -435,7 +435,7 @@ sextScore =
      . . . . . . . .      .|]      ++ x ++ [voice|.      .           . . . .
      . . . . . . . .|] ++ x ++ [voice|-           .|] ++ x ++ [voice|. . . .|] -- it would be nice to have a live coding app to try these things
 
-sevthScore :: Score
+sevthScore :: Score Instrument
 sevthScore =
   mkScore organicInstrument
     [ v1 ++ v1
@@ -477,7 +477,7 @@ sevthScore =
    |]
 
 
-heighthScore :: Score
+heighthScore :: Score Instrument
 heighthScore = mkScore organicInstrument
   [ concat $ replicate 8 melody
   , concat $ replicate 4 bass
@@ -538,7 +538,7 @@ heighthScore = mkScore organicInstrument
     |]
 
 
-ninthScore :: Score
+ninthScore :: Score Instrument
 ninthScore = mkScore shortInstrument
   [ melody
   , bass1
@@ -572,7 +572,7 @@ ninthScore = mkScore shortInstrument
     . . mi . . . . . . . . .
   |]
 
-tenthScore :: Score
+tenthScore :: Score Instrument
 tenthScore = mkScore
   shortInstrument
   [ concat $ replicate 2 melody
@@ -597,7 +597,7 @@ tenthScore = mkScore
     vla do vmi vla vdo vmi
   |]
 
-eleventhScore :: Score
+eleventhScore :: Score Instrument
 eleventhScore = mkScore
   testInstrument
   [ melody
@@ -664,7 +664,7 @@ eleventhScore = mkScore
     lab . sol . mi .
     |]
 
-twelvthScore :: Score
+twelvthScore :: Score Instrument
 twelvthScore = Score
   [ mkVoice stringsInstrument $ concat $ replicate 8 melody
   , mkVoice stringsInstrument $ concat $ replicate 8 bass1

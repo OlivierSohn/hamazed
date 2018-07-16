@@ -20,7 +20,7 @@ import           Imj.Prelude
 import           Prelude(putStr, putStrLn, length)
 
 import           Control.Monad.State.Class(MonadState)
-import           Control.Monad.State.Strict(get, gets, modify')
+import           Control.Monad.State.Strict(get, gets, modify', state)
 import           Control.Monad.Reader.Class(asks)
 import           Data.Text(pack)
 
@@ -36,6 +36,7 @@ import           Imj.Server.Class
 import           Imj.Server.Types
 import           Imj.ServerView.Types
 
+import           Imj.Audio.Midi
 import           Imj.Game.Audio.Class
 import           Imj.Game.Draw
 import           Imj.Game.Status
@@ -51,6 +52,7 @@ import           Imj.Graphics.UI.Animation.Types
 import           Imj.Graphics.UI.Chat
 import           Imj.Input.FromMonadReader
 import           Imj.Music.Instrument
+import           Imj.Music.Instruments
 
 {-# INLINABLE onEvent #-}
 onEvent :: (GameLogicT e ~ g, s ~ ServerT g
@@ -258,15 +260,15 @@ mkOccurencesHist o =
 -- | Lookups the instrument in 'Instruments', if it is found it is returned,
 -- else, if the supplied key is 'Just', the instrument is inserted
 --   and the server is notified of the new association.
-useInstrument ::(GameLogicT e ~ g, s ~ ServerT g
-              , MonadState (AppState g) m
-              , MonadReader e m, Client e
-              , MonadIO m)
-              => Maybe InstrumentId
-              -- ^ The 'InstrumentId' that will be used if a new 'InstrumentId' is needed.
+useInstrument :: (GameLogicT e ~ g, s ~ ServerT g
+                , MonadState (AppState g) m
+                , MonadReader e m, Client e
+                , MonadIO m)
+              => Maybe MidiSourceIdx
+              -- ^ The 'MidiSourceIdx' that will be used to copmute a new 'InstrumentId' if needed.
               -> Instrument
               -> m (Maybe InstrumentId)
-useInstrument uniqueId i = do
+useInstrument mayMidiIdx i = do
   is <- gets appInstruments
   -- note that if 2 clients want to use the same new instrument at the same time,
   -- we will end up having 2 different ids for it.
@@ -274,10 +276,12 @@ useInstrument uniqueId i = do
   maybe
     (maybe
       (return Nothing)
-      (\iid -> do
-          modify' $ \s -> s { appInstruments = insertInstrument iid i $ appInstruments s }
+      (\midiIdx -> do
+          iid <- state $ \s ->
+            let (newInstruments, key) = insertInstrument midiIdx i $ appInstruments s
+            in (key, s { appInstruments = newInstruments })
           asks sendToServer' >>= \f -> f $ RegisterInstrument iid i
           return $ Just iid)
-      uniqueId)
+      mayMidiIdx)
     (return . Just)
     $ lookupInstrument i is

@@ -27,6 +27,7 @@ import           Network.WebSockets
 import           Imj.ClientView.Types
 import           Imj.Graphics.Color
 import           Imj.Music.Instrument
+import           Imj.Music.Instruments
 import           Imj.Network
 import           Imj.Server.Color
 import           Imj.Server.Internal.Types
@@ -64,7 +65,7 @@ instance (Server s, ServerClientHandler s) => WebSocketsData (ClientEvent s) whe
 
 mkServerState :: ServerLogs -> Color8 Foreground -> ValuesT s -> s -> ServerState s
 mkServerState logs color c s =
-  ServerState logs (ClientViews Map.empty Map.empty (ClientId 0)) False c mempty color s
+  ServerState logs (ClientViews Map.empty Map.empty (ClientId 0)) False c mkEmptyInstruments color s
 
 {-# INLINE clientsMap #-}
 clientsMap :: ServerState s -> Map ClientId (ClientView (ClientViewT s))

@@ -64,6 +64,7 @@ import           Imj.Graphics.UI.Chat
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Iteration
 import           Imj.Log
+import           Imj.Music.Instruments
 import           Imj.Server.Command
 
 
@@ -171,7 +172,7 @@ updateAppState (Left evt) = updateAddStateFromServerEvt evt
     ServerAppEvt e ->
       onServerEvent e
     AddInstrument iid i ->
-      modify' $ \s -> s {appInstruments = insertInstrument iid i $ appInstruments s}
+      modify' $ \s -> s {appInstruments = registerInstrument iid i $ appInstruments s}
     PlayMusic music ->
       asks playMusic >>= \f -> gets (idToInstr . appInstruments) >>= flip f music
     OnContent worldParameters ->

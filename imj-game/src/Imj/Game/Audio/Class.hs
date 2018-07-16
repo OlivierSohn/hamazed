@@ -10,6 +10,7 @@ import           Control.Monad.IO.Unlift(MonadUnliftIO)
 import           Imj.Audio.Midi
 import           Imj.Music.Types
 import           Imj.Music.Instrument
+import           Imj.Music.Instruments
 
 class Audio e where
   -- | The value to use when the user didn't specify one on the command line.

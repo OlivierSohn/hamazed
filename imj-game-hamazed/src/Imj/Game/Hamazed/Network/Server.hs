@@ -51,6 +51,7 @@ import           Control.Concurrent.MVar.Strict(MVar)
 import           Control.Monad.IO.Class(MonadIO, liftIO)
 import           Control.Monad.Reader(asks)
 import           Control.Monad.State.Strict(MonadState, modify', gets, get, state, runStateT)
+import           Data.List(foldl')
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 import           Data.Maybe(isJust)
@@ -85,6 +86,8 @@ import           Imj.Game.Level
 import           Imj.Game.Status
 import           Imj.Graphics.Text.ColorString(colored, intercalate)
 import           Imj.Music.Play
+import           Imj.Music.Score
+import           Imj.Music.Instruments
 import           Imj.Server.Connection
 import           Imj.Server.Log
 import           Imj.Server.Run
@@ -259,7 +262,25 @@ instance ServerClientHandler HamazedServer where
                     _ -> c
                 -- 'putMVar' is non blocking because all game changes are done inside a modifyMVar
                 -- of 'ServerState' and we are inside one.
-                void $ liftIO $ putMVar game $ mkCurrentGame (scoreForLevel lev) lastWId $ Map.keysSet players)
+                case scoreForLevel lev of
+                  sc@(Score voices) -> do
+                    is <- gets srvInstruments
+                    let newIs = foldl' (\instrus voice ->
+                          let i = voiceInstrument voice
+                          in maybe
+                              (fst $ insertInstrument srvMidiSource i instrus)
+                              (\_ -> instrus)
+                              $ lookupInstrument i instrus)
+                          is
+                          voices
+                    -- It's important to do this before setting the current game,
+                    -- else some clients may miss some instruments:
+                    sendUnknownInstruments newIs
+                    void $ liftIO $ putMVar game $
+                      mkCurrentGame
+                        (fmap (fromMaybe (error "logic") . flip lookupInstrument newIs) sc)
+                        lastWId
+                        $ Map.keysSet players)
             -- a game is in progress (reconnection scenario) :
             (\(CurrentGame wid' _ _ _) -> do
                 when (wid' /= lastWId) $
@@ -524,7 +545,7 @@ onChangeStatus notified status newStatus = getsState scheduledGame >>= \game -> 
 
 gameScheduler :: MVar (ServerState HamazedServer) -> IO ()
 gameScheduler st =
-  readMVar st >>= \(ServerState _ _ terminate _ _ (HamazedServer _ _ _ _ mayGame _)) ->
+  readMVar st >>= \(ServerState _ _ terminate _ _ _ (HamazedServer _ _ _ _ mayGame _)) ->
     if terminate
       then return ()
       else
@@ -581,7 +602,7 @@ gameScheduler st =
             _:_ -> notifyPlayersN' $ map PlayMusic notesChanges
           putMVar game $ g{score = newScore})
 
-    go = get >>= \(ServerState _ _ terminate _ _ (HamazedServer _ _ _ _ game _)) ->
+    go = get >>= \(ServerState _ _ terminate _ _ _ (HamazedServer _ _ _ _ game _)) ->
       if terminate
         then do
           serverLog $ pure $ colored "Terminating game" yellow
@@ -750,7 +771,7 @@ requestWorld :: (MonadIO m, MonadState (ServerState HamazedServer) m)
              => m ()
 requestWorld = do
   cancelWorldRequest
-  modify' $ \s@(ServerState _ _ _ params _ (HamazedServer _ level creation _ _ _)) ->
+  modify' $ \s@(ServerState _ _ _ params _ _ (HamazedServer _ level creation _ _ _)) ->
     let nextWid = succ $ creationKey creation
     in mapState
       (\v -> v {

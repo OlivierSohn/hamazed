@@ -30,7 +30,6 @@ module Imj.Game.Class
       , defaultFrameSize
       -- * AppState type
       , AppState(..)
-      , Instruments(..), mkEmptyInstruments, mkInstruments, lookupInstrument, insertInstrument
       , GameState(..)
       , RecordMode(..)
       , OccurencesHist(..)
@@ -64,11 +63,9 @@ import           Control.Concurrent.STM(TQueue)
 import           Control.Monad.Reader.Class(MonadReader)
 import           Control.Monad.State.Class(MonadState)
 import           Data.Map.Strict(Map)
-import qualified Data.Map.Strict as Map
 import           Data.Proxy(Proxy(..))
 import           Data.Set(Set)
 import qualified Data.Set as Set
-import           Data.Tuple(swap)
 import qualified Graphics.UI.GLFW as GLFW(Key(..), KeyState(..), ModifierKeys(..))
 
 import           Imj.Arg.Class
@@ -98,7 +95,6 @@ import           Imj.Graphics.Screen
 import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Input.Types
-import           Imj.Music.Instrument
 import           Imj.Network
 import           Imj.Server.Class
 import           Imj.Server.Color
@@ -559,29 +555,6 @@ data Occurences a = Occurences {
   , _occurencesItem :: {-unpack sum-} !EventCategory
 } deriving(Generic, Show)
 
-data Instruments = Instruments {
-    instrToId :: !(Map Instrument   InstrumentId)
-  , idToInstr :: !(Map InstrumentId Instrument)
-}
-
--- | Note that it's possible that two 'Instrument's compare equal.
-mkInstruments :: Map InstrumentId Instrument
-              -> Instruments
-mkInstruments m = Instruments rev m
- where
-  rev = Map.fromList $ map swap $ Map.assocs m
-
-mkEmptyInstruments :: Instruments
-mkEmptyInstruments = mkInstruments mempty
-
-lookupInstrument :: Instrument -> Instruments -> Maybe InstrumentId
-lookupInstrument i (Instruments a _) = Map.lookup i a
-
-insertInstrument :: InstrumentId -> Instrument -> Instruments -> Instruments
-insertInstrument iid i (Instruments a b) = Instruments a' b'
- where
-  a' = Map.insert i iid a
-  b' = Map.insert iid i b
 
 data AppState g = AppState {
     timeAfterRender :: !(Time Point System)

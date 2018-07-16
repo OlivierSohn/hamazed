@@ -41,6 +41,8 @@ module Imj.Server.Class
       , DisconnectReason(..)
       , ClientName(..)
       , unClientName
+      , Instruments(..)
+      , srvMidiSource
       -- * reexports
       , MonadReader
       , MonadState
@@ -61,12 +63,14 @@ import qualified Data.Text.Lazy as LazyT
 import           Network.WebSockets
 
 import           Imj.Arg.Class
+import           Imj.Audio.Midi
 import           Imj.Categorized
 import           Imj.ClientView.Internal.Types
 import           Imj.Graphics.Class.UIInstructions
 import           Imj.Graphics.Color.Types
 import           Imj.Music.Types
 import           Imj.Music.Instrument
+import           Imj.Music.Instruments
 import           Imj.Server.Internal.Types
 
 import           Imj.Network
@@ -272,12 +276,16 @@ data ServerState s = ServerState {
   , shouldTerminate :: {-unpack sum-} !Bool
   -- ^ Set on server shutdown
   , content :: !(ValuesT s)
-  , instrumentMap :: !(Map InstrumentId Instrument)
+  , srvInstruments :: !Instruments
   , centerColor :: {-# UNPACK #-} !(Color8 Foreground)
   -- ^ The color scheme.
   , unServerState :: !s
 } deriving(Generic)
 instance (ServerInit s, ServerClientHandler s) => NFData (ServerState s)
+
+srvMidiSource :: MidiSourceIdx
+srvMidiSource = MidiSourceIdx 0
+
 
 {-# INLINABLE getsState #-}
 getsState :: (MonadState (ServerState s) m)

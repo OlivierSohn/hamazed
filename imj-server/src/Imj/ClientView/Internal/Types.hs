@@ -20,6 +20,7 @@ import           Data.Set(Set)
 import           Network.WebSockets(Connection)
 
 import           Imj.Network
+import           Imj.Music.Instruments
 import           Imj.Graphics.Color
 
 -- | Immutable data associated to a client.
@@ -49,12 +50,13 @@ data ClientView c = ClientView {
   , getServerOwnership :: {-unpack sum-} !ServerOwnership
   , getName :: {-# UNPACK #-} !(ClientName Approved)
   , getColor :: {-# UNPACK #-} !(Color8 Foreground)
+  , getKnownInstruments :: !(Set InstrumentId)
   , unClientView :: !c
 } deriving(Generic)
 instance NFData c => NFData (ClientView c) where
-  rnf (ClientView _ a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+  rnf (ClientView _ a b c d e) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
 instance Show c => Show (ClientView c) where
-  show (ClientView _ a b c d ) = show ("ClientView" :: String,a,b,c,d)
+  show (ClientView _ a b c d e) = show ("ClientView" :: String,a,b,c,d,e)
 instance Functor ClientView where
   {-# INLINE fmap #-}
   fmap f c = c { unClientView = f $ unClientView c}

@@ -33,7 +33,7 @@ interleaveSymbols v1 v2 = concatMap (\(a,b) -> [a,b]) $ zip v1 v2
 intercalateSymbols :: [Instruction] -> [Instruction] -> [Instruction]
 intercalateSymbols s i = concatMap (\sy -> [sy] ++ i) s
 
-mapVoice :: ([Instruction] -> [Instruction]) -> Voice -> Voice
+mapVoice :: ([Instruction] -> [Instruction]) -> Voice i -> Voice i
 mapVoice f v = v { voiceInstructions = V.fromList $ f $ V.toList $ voiceInstructions v }
 
 transposeSymbol :: Int
@@ -44,7 +44,7 @@ transposeSymbol s (Note n o) = uncurry Note $ midiPitchToNoteAndOctave (fromInte
 transposeSymbol _ Rest   = Rest
 transposeSymbol _ Extend = Extend
 
-intersperse :: Instruction -> Score -> Score
+intersperse :: Instruction -> Score i -> Score i
 intersperse s (Score voices) =
   Score $
     map
@@ -52,7 +52,7 @@ intersperse s (Score voices) =
         interleaveSymbols v (repeat s)
         )) voices
 
-intercalate :: [Instruction] -> Score -> Score
+intercalate :: [Instruction] -> Score i -> Score i
 intercalate symbols (Score voices) =
   Score $
     map
@@ -61,7 +61,7 @@ intercalate symbols (Score voices) =
         )) voices
 
 -- | Transposes a 'Score' be a given number of semitones.
-transpose :: Int -> Score -> Score
+transpose :: Int -> Score i -> Score i
 transpose n (Score voices) =
   Score $
     map

@@ -67,7 +67,7 @@ playVoicesAtTempo :: Float
 playVoicesAtTempo tempo i instructions =
   playScoreOnceAtTempo tempo (mkScore i instructions)
 
-playScoreOnceAtTempo :: Float -> Score -> IO PlayResult
+playScoreOnceAtTempo :: Float -> Score Instrument -> IO PlayResult
 playScoreOnceAtTempo tempo s =
 
   go (scoreLength s) s
@@ -88,7 +88,7 @@ playScoreOnceAtTempo tempo s =
 
 type PlayResult = Either () ()
 
-allMusic :: Instrument -> [Instruction] -> [[MusicalEvent Instrument]]
+allMusic :: i -> [Instruction] -> [[MusicalEvent i]]
 allMusic i x =
   snd $ stepNVoiceAndStop (sizeVoice s) s
  where
@@ -104,8 +104,8 @@ allMusic i x =
 -- which is not possible as of today.
 -- | Steps a 'Score' forward (by a single time quantum),
 -- returns the list of 'MusicalEvent's that need to be played for this time quantum.
-stepScore :: Score
-          -> (Score, [MusicalEvent Instrument])
+stepScore :: Score i
+          -> (Score i, [MusicalEvent i])
 stepScore (Score l) = (s,m)
  where
   nv = map stepVoice l
@@ -114,21 +114,21 @@ stepScore (Score l) = (s,m)
 
 -- | Returns the 'MusicalEvent's that need to be played to stop the ongoing notes
 -- associated to this 'Score'.
-stopScore :: Score
-          -> (Score, [MusicalEvent Instrument])
+stopScore :: Score i
+          -> (Score i, [MusicalEvent i])
 stopScore (Score l) = (s,m)
  where
   nv = map stopVoice l
   s = Score $ map fst nv
   m = concatMap snd nv
 
-sizeVoice :: Voice -> Int
+sizeVoice :: Voice i -> Int
 sizeVoice (Voice _ _ v _) = V.length v
 
 -- | Steps a 'Voice' forward by a single time quantum,
 -- returns the list of 'MusicalEvent's that need to be played for this time quantum.
-stepVoice :: Voice
-          -> (Voice, [MusicalEvent Instrument])
+stepVoice :: Voice i
+          -> (Voice i, [MusicalEvent i])
 stepVoice (Voice i cur v inst) =
     ( Voice nextI newCur v inst
     , catMaybes [mayStopCur, mayStartNext])
@@ -162,7 +162,7 @@ stepVoice (Voice i cur v inst) =
 
 -- | Returns the 'MusicalEvent's that need to be played to stop the ongoing notes
 -- associated to this 'Voice'.
-stopVoice :: Voice -> (Voice, [MusicalEvent Instrument])
+stopVoice :: Voice i -> (Voice i, [MusicalEvent i])
 stopVoice (Voice _ cur l i) =
     ( Voice 0 Nothing l i
     , maybeToList noteChange)
@@ -173,14 +173,14 @@ stopVoice (Voice _ cur l i) =
     Extend -> error "logic") cur
 
 -- | Like 'stepNVoice' but also uses 'stopVoice' to finalize the music.
-stepNVoiceAndStop :: Int -> Voice -> (Voice, [[MusicalEvent Instrument]])
+stepNVoiceAndStop :: Int -> Voice i -> (Voice i, [[MusicalEvent i]])
 stepNVoiceAndStop n s =
   (s'', reverse $ lastMusic:music)
  where
   (s', music) = stepNVoiceReversed n s
   (s'', lastMusic) = stopVoice s'
 
-stepNVoiceReversed :: Int -> Voice -> (Voice, [[MusicalEvent Instrument]])
+stepNVoiceReversed :: Int -> Voice i -> (Voice i, [[MusicalEvent i]])
 stepNVoiceReversed n score
   | n < 0 = (score,[])
   | otherwise = go n score []
@@ -191,6 +191,6 @@ stepNVoiceReversed n score
 -- | Steps a 'Voice' forward by several time quantume
 stepNVoice :: Int
            -- ^ How many time quantums to step.
-           -> Voice
-           -> (Voice, [[MusicalEvent Instrument]])
+           -> Voice i
+           -> (Voice i, [[MusicalEvent i]])
 stepNVoice n score = let (s,l) = stepNVoiceReversed n score in (s,reverse l)

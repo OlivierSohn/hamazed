@@ -4,7 +4,7 @@
 
 module Imj.Geo.Discrete.Resample
     ( resampleWithExtremities
-    , MinMax(..), mmSpan
+    , MinMax, countSamples, minSample, maxSample, mkMinMax', mmSpan, mmEmpty
     , resampleMinMaxLinear
     , resampleMinMaxLogarithmic
     ) where
@@ -136,19 +136,28 @@ resampleWithExtremities input' n m
 
 -- | Represents the range of a signal in a given duration.
 data MinMax a = MinMax {
-    _min :: !a
-  , _max :: !a
-  , _countSamples :: {-# UNPACK #-} !Int
+    minSample :: !a
+  , maxSample :: !a
+  , countSamples :: {-# UNPACK #-} !Int
 } deriving(Show, Eq)
+instance Functor MinMax where
+  fmap f (MinMax a b n) = MinMax (f a) (f b) n
+
+mkMinMax' :: a -> a -> Int -> MinMax a
+mkMinMax' a b c = MinMax a b c
 
 {-# INLINABLE mmSpan #-}
 mmSpan :: (Num a) => MinMax a -> a
 mmSpan (MinMax a b _) = b - a
 
+{-# INLINABLE mmEmpty #-}
+mmEmpty :: Num a => MinMax a
+mmEmpty = MinMax 1 (-1) 0
+
 {-# INLINABLE mkMinMax #-}
-mkMinMax :: Ord a
+mkMinMax :: (Ord a, Num a)
          => [a] -> MinMax a
-mkMinMax [] = error "logic"
+mkMinMax [] = mmEmpty
 mkMinMax (e:rest) = go rest $ MinMax e e 1
  where
   go [] x = x
@@ -159,7 +168,7 @@ mkMinMax (e:rest) = go rest $ MinMax e e 1
 
 
 {-# INLINABLE resampleMinMaxLinear #-}
-resampleMinMaxLinear :: Ord a
+resampleMinMaxLinear :: (Ord a, Num a)
                      => [a]
                      -- ^ Input
                      -> Int
@@ -171,26 +180,7 @@ resampleMinMaxLinear :: Ord a
                      -- ^ Output
 resampleMinMaxLinear i inLen outLen
   | outLen <= 0 = []
-  | otherwise = reverse $ go i [] $ outLen - 1
- where
-  (bucketLen, extraLen) = if outLen > inLen
-    then
-      (1,0)
-    else
-      quotRem inLen outLen
-  lastBucketLen = bucketLen + extraLen
-
-  go [] l _ = l
-  go _ l (-1) = l
-  go inp l r =
-    let len
-          | r == 0 = lastBucketLen
-          | otherwise = bucketLen
-        (scope,rest) = splitAt len inp
-        nextL
-         | null scope = l
-         | otherwise = mkMinMax scope:l
-    in go rest nextL (r-1)
+  | otherwise = map mkMinMax $ mkEvenlySpreadGroups outLen $ take inLen i
 
 
 -- | This function finds the multiplicative factor @x@ such that for an output of length @m@,
@@ -203,7 +193,7 @@ resampleMinMaxLinear i inLen outLen
 --
 -- And such that exactly @n@ samples are used in the input.
 {-# INLINABLE resampleMinMaxLogarithmic #-}
-resampleMinMaxLogarithmic :: Ord a
+resampleMinMaxLogarithmic :: (Ord a, Num a)
                           => [a]
                           -- ^ Input
                           -> Int
@@ -258,7 +248,7 @@ resampleMinMaxLogarithmic i n m
 
       -- m >= 2, hence n/m <= n/2
       -- n >= 2, hence n/2 <= n-1
-      -- hence n/m <= n-1, and  lowerBound < upperBound, so we can apply the Newton root-finding method:
+      -- hence n/m <= n-1, and lowerBound < upperBound, so we can apply the Newton root-finding method:
       mayRoot = findRoot
         (\x -> x^m - fromIntegral n*(x-1) - 1)
         (\x -> fromIntegral m * x^(m-1) - fromIntegral n)
@@ -269,8 +259,8 @@ resampleMinMaxLogarithmic i n m
 --      go :: [a] -> Int -> Int -> [MinMax a] -> [MinMax a]
       go [] _ _ o = o
       go remainingInput inputUsedSofar expo o
-        | expo == m-1 = nextO
-        | otherwise = go rest inputUsedNext (expo+1) nextO
+        | expo == m-1 = nextO remainingInput
+        | otherwise = go rest inputUsedNext (expo+1) $ nextO scope
          where
           inputUsedNext
             | expo == 0 = 1
@@ -278,6 +268,6 @@ resampleMinMaxLogarithmic i n m
             | otherwise = round $ (1-root^(expo+1))/(1-root)
           countInputUsedThisIteration = inputUsedNext - inputUsedSofar
           (scope,rest) = splitAt countInputUsedThisIteration remainingInput
-          nextO
-            | null scope = o
-            | otherwise = mkMinMax scope:o
+          nextO x
+            | null x = o
+            | otherwise = mkMinMax x:o

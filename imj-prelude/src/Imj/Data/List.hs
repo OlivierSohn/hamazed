@@ -11,6 +11,7 @@ module Imj.Data.List
     , intersperse'
     , splitEvery
     , mkGroups
+    , mkEvenlySpreadGroups
     , range
     , commonPrefix
     , commonSuffix
@@ -73,6 +74,29 @@ mkGroups n elts
           in (rest,a:res))
         (elts, [])
         sizes
+
+-- | Divides a list in n lists of sizes s or s+1. Bigger lists are evenly spread.
+--
+-- Elements order is maintained, i.e for every n>0 and input :
+--
+-- @ input == concat $ mkGroups n input @
+mkEvenlySpreadGroups :: Int
+                     -- ^ number of groups, must be > 0
+                     -> [a]
+                     -> [[a]]
+mkEvenlySpreadGroups n elts
+  | n <= 0 = error $ "negative group count " ++ show n
+  | otherwise = reverse $ go 0 (n-1) elts []
+ where
+  groupSz :: Float
+  groupSz = fromIntegral (length elts) / fromIntegral n
+
+  go _ 0 remaining groups = remaining:groups
+  go consumed i remaining groups =
+    go (consumed + thisGroupSz) (i-1) next $ group:groups
+   where
+    thisGroupSz = round (groupSz * (fromIntegral $ n-i)) - consumed
+    (group,next) = splitAt thisGroupSz remaining
 
 splitEvery :: Int -> [a] -> [[a]]
 splitEvery _ [] = []

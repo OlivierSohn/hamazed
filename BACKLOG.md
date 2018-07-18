@@ -1,12 +1,7 @@
+- add reverb in game-synths.
+
 - should we compress network messages? to analyze traffic:
 sudo tcpdump -i lo0 -v -nnXSs 0
-
-- At some point, on a release build when playing a very low note ('kick')
-I heard an audio bug (as if the note would never stop : the audioelement buffer
-  was maybe not computed anymore, but the associated channel was still playing, hence
-  a very harsh continuous sound occured)
-
-I could not reproduce it yet.
 
 - change the sound in real time, when harmonics change.
 .. enqueue parameter changes :

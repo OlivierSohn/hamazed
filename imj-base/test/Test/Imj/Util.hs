@@ -24,6 +24,15 @@ testUtils = do
   mkGroups 3 [1,2,3,4,5,6::Int] `shouldBe` [[1,2],[3,4],[5,6]]
   mkGroups 4 [1,2,3,4,5,6::Int] `shouldBe` [[1,2],[3,4],[5],[6]]
 
+
+  mkEvenlySpreadGroups 5 ([]::[Int]) `shouldBe` [[],[],[],[],[]]
+  mkEvenlySpreadGroups 5 [1::Int] `shouldBe` [[],[],[1],[],[]]
+  mkEvenlySpreadGroups 6 [1,2,3,4,5,6::Int] `shouldBe` [[1],[2],[3],[4],[5],[6]]
+  mkEvenlySpreadGroups 8 [1,2,3,4,5,6::Int] `shouldBe` [[1],[2],[],[3],[4],[],[5],[6]]
+  mkEvenlySpreadGroups 1 [1,2,3,4,5,6::Int] `shouldBe` [[1,2,3,4,5,6]]
+  mkEvenlySpreadGroups 3 [1,2,3,4,5,6::Int] `shouldBe` [[1,2],[3,4],[5,6]]
+  mkEvenlySpreadGroups 4 [1,2,3,4,5,6::Int] `shouldBe` [[1,2],[3],[4],[5,6]]
+
 testMapRange :: IO ()
 testMapRange = do
   fromMaybe (error "test") (mapRange 0   1   0    10 0.5) `shouldBeAlmost` 5

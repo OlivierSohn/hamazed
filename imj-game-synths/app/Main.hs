@@ -940,7 +940,9 @@ instance GameDraw SynthsGame where
       let h = fromIntegral h'
           ll = move h Down ul
           color = onBlack fgColor
-          heights (MinMax a b _) = [round (a*fromIntegral h)..round (b*fromIntegral h)]
+          heights x
+            | countSamples x == 0 = []
+            | otherwise = [round (minSample x * fromIntegral h)..round (maxSample x * fromIntegral h)]
       mapM_
         (\(i,mm) ->
           mapM_
@@ -948,7 +950,7 @@ instance GameDraw SynthsGame where
             $ heights mm)
         $ zip [0..] resampled
       foldM_
-        (\(cur,pos) (MinMax _ _ n) -> do
+        (\(cur,pos) n -> do
           let (q,r) = quotRem pos 4
               he
                 | mod q 2 == 0 = 2
@@ -956,7 +958,7 @@ instance GameDraw SynthsGame where
           when (r == 0) $ drawAt (CS.colored (pack $ show cur) fgColor) (move pos RIGHT $ move (offsetLegend + he) Down ll)
           return (cur + n,pos+1))
         (0,0)
-        resampled
+        $ map countSamples resampled
         {-
       drawAligned_
         (CS.colored (pack $ show nSamples) color)

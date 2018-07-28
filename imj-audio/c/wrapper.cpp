@@ -301,6 +301,22 @@ extern "C" {
     }
     return convert(stopPlaying(windVoice(),getAudioContext().getChannelHandler(),*getXfadeChannels(),pitch));
   }
+
+  bool dontUseReverb_() {
+    using namespace imajuscule::audio;
+    if(unlikely(!getAudioContext().Initialized())) {
+      return false;
+    }
+    dontUseConvolutionReverbs(getAudioContext().getChannelHandler());
+    return true;
+  }
+  bool useReverb_(const char * dirPath, const char * filePath) {
+    using namespace imajuscule::audio;
+    if(unlikely(!getAudioContext().Initialized())) {
+      return false;
+    }
+    return useConvolutionReverb(getAudioContext().getChannelHandler(), dirPath, filePath);
+  }
 }
 
 #endif

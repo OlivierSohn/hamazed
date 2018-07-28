@@ -15,7 +15,7 @@ This is a multiplayer game where every player uses the keyboard as a synthesizer
 The enveloppe of the synthesizer can be tuned.
 
 The music is shared between all players.
- -}
+-}
 
 module Main where
 
@@ -31,7 +31,8 @@ import           Control.Monad.Reader(asks)
 import           Data.Binary(Binary(..), encode, decodeOrFail)
 import           Data.Bits (shiftR, shiftL, (.&.))
 import qualified Data.ByteString.Lazy as BL
-import           Data.List(replicate, concat, take, foldl')
+import           Data.Char (toLower)
+import           Data.List(replicate, concat, take, foldl', elem)
 import           Data.Map.Internal(Map(..))
 import qualified Data.Map.Strict as Map
 import           Data.Set(Set)
@@ -50,6 +51,7 @@ import           Options.Applicative(ReadM, str, option, long, help, readerError
 import qualified Sound.PortMidi as PortMidi
 import           System.IO(withFile, IOMode(..))
 import           System.Directory(doesFileExist)
+import           System.FilePath(takeExtension, splitFileName)
 import           Text.Read(readMaybe)
 
 import           Imj.Arg.Class
@@ -243,7 +245,18 @@ getEditionIndex (Edition mode i j) =
     Tone -> j
 
   countEditables Envelope = 9
-  countEditables Tone = 2*countHarmonics + 1
+  countEditables Tone = 2 * countHarmonics + 2 -- 1 for oscillator, 1 for reverb
+
+data Reverbs = Reverbs {
+    allRevs :: [FilePath]
+  , curRev :: Maybe Int
+} deriving(Show)
+
+mkReverbs :: IO Reverbs
+mkReverbs = flip Reverbs Nothing <$> allReverbs
+
+prettyShowReverb :: Reverbs -> String
+prettyShowReverb (Reverbs l c) = maybe "None" (reverse . take 15 . reverse . show . (!!) l) c
 
 data SynthsGame = SynthsGame {
     pianos :: !(Map ClientId (PressedKeys InstrumentId))
@@ -253,10 +266,11 @@ data SynthsGame = SynthsGame {
   , envelopePlot :: !EnvelopePlot
   , edition :: !Edition
   , sourceIdx :: !(Maybe MidiSourceIdx)
+  , reverbs :: !Reverbs
 } deriving(Show)
 
 instance UIInstructions SynthsGame where
-  instructions color (SynthsGame _ _ _ mayInstr _ edit@(Edition mode _ _) _) = maybe [] (\(_,instr) -> case instr of
+  instructions color (SynthsGame _ _ _ mayInstr _ edit@(Edition mode _ _) _ rev) = maybe [] (\(_,instr) -> case instr of
     Synth osc harmonics release (AHDSR'Envelope a h d r ai di ri s) -> case mode of
       Envelope -> envelopeInstructions
       Tone -> harmonicsInstructions
@@ -289,10 +303,12 @@ instance UIInstructions SynthsGame where
         ]
 
       harmonicsInstructions =
-        [ hInst "Tone" volume 0
-        , hInst "Phases" phase firstPhaseIdx
+        [ hInst "Harmo. vol." volume 0
+        , hInst "Harmo. ang." phase firstPhaseIdx
         , ConfigUI "Oscillator"
-            [ mkChoice firstOscillatorIdx $ show osc]
+            [ mkChoice oscillatorIdx $ show osc]
+        , ConfigUI "Reverb (WIP)"
+            [ mkChoice reverbIdx $ prettyShowReverb rev]
             ]
        where
          hInst title f startIdx = ConfigUI title $
@@ -326,9 +342,10 @@ data Key =
 countHarmonics :: Int
 countHarmonics = 10
 
-firstPhaseIdx, firstOscillatorIdx :: Int
+firstPhaseIdx, oscillatorIdx, reverbIdx :: Int
 firstPhaseIdx = countHarmonics
-firstOscillatorIdx = 2*firstPhaseIdx
+oscillatorIdx = 2*firstPhaseIdx
+reverbIdx = oscillatorIdx + 1
 
 predefinedAttackItp, predefinedDecayItp, predefinedReleaseItp :: Set Interpolation
 predefinedDecayItp = allInterpolations
@@ -363,9 +380,14 @@ withMinimumHarmonicsCount i =
           (S.fromList $ replicate (countHarmonics - S.length prevH) (HarmonicProperties 0 0))
         }
 
+allReverbs :: IO [FilePath]
+allReverbs =
+  let extensions = [".wav",".wir"]
+  in filter (flip elem extensions . map toLower . takeExtension) <$> listFilesRecursively "/Users/Olivier/Dev/audio.ir"
+
 initialGame :: IO SynthsGame
-initialGame = do
-  return $ SynthsGame mempty mempty mempty Nothing (EnvelopePlot [] LogView) mkEdition Nothing
+initialGame =
+  SynthsGame mempty mempty mempty Nothing (EnvelopePlot [] LogView) mkEdition Nothing <$> mkReverbs
 
 data SynthsMode =
     PlaySynth
@@ -426,6 +448,7 @@ instance Categorized SynthClientEvent
 
 data SynthsGameEvent =
     ChangeInstrument !Instrument
+  | ChangeReverb {-# UNPACK #-} !Int
   | ChangeEditedFeature {-# UNPACK #-} !Int
   | ToggleEditMode
   | ToggleEnvelopeViewMode
@@ -452,11 +475,15 @@ changeInstrumentValue instr edit@(Edition mode _ _) inc =
         Envelope ->
           changeInstrumentEnvelopeIndexedValue instr (fromIntegral idx) inc
         Tone ->
-          if idx == firstOscillatorIdx
+          if idx == oscillatorIdx
             then
               instr { oscillator = cycleOscillator inc osc }
             else
-              changeInstrumentHarmonic idx instr inc
+              if idx == reverbIdx
+                then
+                  error "logic"
+                else
+                  changeInstrumentHarmonic idx instr inc
     _ -> instr
  where
   idx = getEditionIndex edit
@@ -535,7 +562,7 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
     return [CliEvt $ ClientAppEvt ForgetCurrentRecording]
   mapStateKey _ k st _ _ g = maybe
     (return [])
-    (\(SynthsGame _ _ pressed mayInstr _ edit _) -> maybe
+    (\(SynthsGame _ _ pressed mayInstr _ edit _ _) -> maybe
       (return $ case st of
         GLFW.KeyState'Repeating -> []
         GLFW.KeyState'Pressed -> maybe
@@ -555,8 +582,15 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
                [CliEvt $ ClientAppEvt $ PlayNote $ StopNote Nothing spec
               , Evt $ AppEvent $ RemovePressedKey $ GLFWKey k])
             $ Map.lookup (GLFWKey k) pressed)
-      (\dir ->
-        return $
+      (\dir -> if (dir == RIGHT || dir == LEFT) && (getEditionIndex edit == reverbIdx)
+        then do
+         let res = [Evt $ AppEvent $ ChangeReverb $ if dir == RIGHT then 1 else -1]
+         return $ case st of
+           GLFW.KeyState'Pressed -> res
+           GLFW.KeyState'Repeating -> res
+           _ -> []
+        else
+         return $
           maybe [] (\(_, instr) -> case instr of
             Synth{} -> case st of
               GLFW.KeyState'Pressed -> [configureInstrument]
@@ -760,7 +794,7 @@ instance GameLogic SynthsGame where
                           -- in that case, we don't use the events we just read,
                           -- but reading them serves the purpose of not overflowing the queue.
                           (return ([],[]))
-                          (\(SynthsGame _ _ pressed mayInstr _ edit maySourceIdx) -> maybe
+                          (\(SynthsGame _ _ pressed mayInstr _ edit maySourceIdx _) -> maybe
                             (return ([],[])) -- should not happen once connected.
                             (\srcIdx ->
                                 maybe
@@ -848,7 +882,7 @@ instance GameLogic SynthsGame where
 
   onClientOnlyEvent e = do
     mayNewEnvMinMaxs <-
-      getIGame >>= maybe (liftIO initialGame) return >>= \(SynthsGame _ _ _ mayInstr (EnvelopePlot _ viewmode) _ _) -> do
+      getIGame >>= maybe (liftIO initialGame) return >>= \(SynthsGame _ _ _ mayInstr (EnvelopePlot _ viewmode) _ _ _) -> do
         case e of
           ChangeInstrument i -> do
             liftIO $ saveInstrument i
@@ -860,13 +894,18 @@ instance GameLogic SynthsGame where
               (\(_, instr) -> Just . toParts (toggleView viewmode) <$> liftIO (envelopeShape instr))
               mayInstr
           _ -> return Nothing
-    getIGame >>= maybe (liftIO initialGame) return >>= \g@(SynthsGame _ _ pressed _ _ _ maySourceIdx) -> withAnim $ case e of
+    getIGame >>= maybe (liftIO initialGame) return >>= \g@(SynthsGame _ _ pressed _ _ _ maySourceIdx (Reverbs revs mayCurIndex)) -> withAnim $ case e of
       ChangeInstrument i -> do
         useInstrument maySourceIdx i >>= maybe (return ()) (\instrId ->
           putIGame g {
               instrument = Just (instrId, i)
             , envelopePlot = EnvelopePlot (fromMaybe (error "logic") mayNewEnvMinMaxs) $ envViewMode $ envelopePlot g
             })
+      ChangeReverb i -> do
+        let newIndex = (maybe 0 ((+) i) mayCurIndex) `mod` length revs
+            revPath = revs !! newIndex
+        putIGame g { reverbs = Reverbs revs $ Just newIndex }
+        liftIO (useReverb (Just $ splitFileName revPath)) >>= either (const $ liftIO $ putStrLn "error while setting reverb (see logs above)") return
       ToggleEnvelopeViewMode -> putIGame g {
         envelopePlot = EnvelopePlot (fromMaybe (error "logic") mayNewEnvMinMaxs) $ toggleView $ envViewMode $ envelopePlot g }
       ToggleEditMode ->
@@ -897,7 +936,7 @@ instance GameLogic SynthsGame where
 
 instance GameDraw SynthsGame where
 
-  drawBackground (Screen _ center@(Coords _ centerC)) g@(SynthsGame pianoClients pianoLoops_ _ _ (EnvelopePlot curves _) _ _) = do
+  drawBackground (Screen _ center@(Coords _ centerC)) g@(SynthsGame pianoClients pianoLoops_ _ _ (EnvelopePlot curves _) _ _ _) = do
     drawInstructions Horizontally (Just 15) g (mkCentered $ move 21 Up center) >>= \(Alignment _ ref) -> do
       ref2 <- case curves of
         [] -> return ref

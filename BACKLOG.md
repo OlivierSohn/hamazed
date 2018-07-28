@@ -1,5 +1,19 @@
 - add reverb in game-synths.
 
+. add a dry / wet ratio
+. change the autogain :
+.. normalize max resonnance :
+  finds the most resonnant frequency, and adjusts the gain for that frequency.
+.. normalize avg frequencies: sample frequency space (10Hz, 20, 40, 80, ...) and
+chose a gain such that the average of the sustained notes volumes is 1.
+
+should we assume all clients have the same reverbs? or should we send the reverb file OTN ?
+a reverb is not like an instrument, we can't have one reverb per instrument
+
+. display full reverb name in UI
+- allow to force a given latency (computations may use more CPU then)
+. there are algorithms for 0-latency reverb, see if we can use them.
+
 - should we compress network messages? to analyze traffic:
 sudo tcpdump -i lo0 -v -nnXSs 0
 

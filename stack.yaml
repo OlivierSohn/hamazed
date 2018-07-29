@@ -3,7 +3,7 @@
 # resolver by ghc version:
 #
 #   8.4.3:  nightly-2018-06-26
-#   8.2.2:  lts-11.9
+#   8.2.2:  lts-11.19
 resolver: nightly-2018-06-26
 
 image:

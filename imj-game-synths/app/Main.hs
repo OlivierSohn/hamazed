@@ -902,10 +902,16 @@ instance GameLogic SynthsGame where
             , envelopePlot = EnvelopePlot (fromMaybe (error "logic") mayNewEnvMinMaxs) $ envViewMode $ envelopePlot g
             })
       ChangeReverb i -> do
-        let newIndex = (maybe 0 ((+) i) mayCurIndex) `mod` length revs
-            revPath = revs !! newIndex
-        putIGame g { reverbs = Reverbs revs $ Just newIndex }
-        liftIO (useReverb (Just $ splitFileName revPath)) >>= either (const $ liftIO $ putStrLn "error while setting reverb (see logs above)") return
+        let nullIndex = length revs
+            newIndex = (i + (fromMaybe nullIndex mayCurIndex)) `mod` (nullIndex + 1)
+        if newIndex == nullIndex
+          then do
+            putIGame g { reverbs = Reverbs revs Nothing }
+            liftIO (useReverb Nothing) >>= either (const $ liftIO $ putStrLn "error while unsetting reverb (see logs above)") return
+          else do
+            let revPath = revs !! newIndex
+            putIGame g { reverbs = Reverbs revs $ Just newIndex }
+            liftIO (useReverb (Just $ splitFileName revPath)) >>= either (const $ liftIO $ putStrLn "error while setting reverb (see logs above)") return
       ToggleEnvelopeViewMode -> putIGame g {
         envelopePlot = EnvelopePlot (fromMaybe (error "logic") mayNewEnvMinMaxs) $ toggleView $ envViewMode $ envelopePlot g }
       ToggleEditMode ->

@@ -9,6 +9,9 @@ chose a gain such that the average of the sustained notes volumes is 1.
 
 . there are algorithms for 0-latency reverb, see if we can use them:
 https://www.w3.org/TR/2013/WD-webaudio-20131010/convolution.html
+we could split the first part of the response in smaller chunks (1,2,4,8,...) until
+we reach the size of the callback buffer (or more, for safety?), so that we have 0 latency.
+We could also replace the first small ffts by a single brute force convolution (measure what's best)
 
 should we assume all clients have the same reverbs? or should we send the reverb file OTN ?
 a reverb is not like an instrument, we can't have one reverb per instrument

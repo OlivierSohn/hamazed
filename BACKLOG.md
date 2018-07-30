@@ -1,22 +1,22 @@
 - add reverb in game-synths.
 
-. add a dry / wet ratio
-. change the autogain :
-.. normalize max resonnance :
+. display full reverb name in UI
+
+. see if due to cache we should add a brute force convolution
+at the beginning (for 1 or 2 or 4 or ... frames).
+
+. take the cost of the first convolution into account when dynamically optimizing
+(and the fact that there are less iterations of the second convolution).
+
+. dry / wet ratio
+. autogain modes :
+.. safe normalize :
   finds the most resonnant frequency, and adjusts the gain for that frequency.
-.. normalize avg frequencies: sample frequency space (10Hz, 20, 40, 80, ...) and
+.. avg normalize : sample frequency space (10Hz, 20, 40, 80, ...) and
 chose a gain such that the average of the sustained notes volumes is 1.
 
-. there are algorithms for 0-latency reverb, see if we can use them:
-https://www.w3.org/TR/2013/WD-webaudio-20131010/convolution.html
-we could split the first part of the response in smaller chunks (1,2,4,8,...) until
-we reach the size of the callback buffer (or more, for safety?), so that we have 0 latency.
-We could also replace the first small ffts by a single brute force convolution (measure what's best)
-
-should we assume all clients have the same reverbs? or should we send the reverb file OTN ?
+. should we assume all clients have the same reverbs? or should we send the reverb file OTN ?
 a reverb is not like an instrument, we can't have one reverb per instrument
-
-. display full reverb name in UI
 
 - should we compress network messages? to analyze traffic:
 sudo tcpdump -i lo0 -v -nnXSs 0

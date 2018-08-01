@@ -130,7 +130,7 @@ mkNoteVelocity i
 --
 -- * The first list covers phases from attack to the beginning of sustain.
 -- * The second list covers the end of sustain to the release phase.
-envelopeShape :: Instrument -> IO [Vector Float]
+envelopeShape :: Instrument -> IO [Vector Double]
 envelopeShape = \case
   Synth _ _ e ahdsr -> analyzeAHDSREnvelope e ahdsr
   Wind _ -> return []

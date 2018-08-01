@@ -172,7 +172,7 @@ instance NFData LoopId
 
 
 data EnvelopePart = EnvelopePart {
-    _plot :: [MinMax Float]
+    _plot :: [MinMax Double]
   , _nSamples :: !Int
 } deriving(Show)
 
@@ -182,7 +182,7 @@ widthPart = length . _plot
 widthEnvelope :: Int
 widthEnvelope = 90
 
-toParts :: EnvelopeViewMode -> [Vector Float] -> [EnvelopePart]
+toParts :: EnvelopeViewMode -> [Vector Double] -> [EnvelopePart]
 toParts mode l@[ahds,r]
   | totalSamples == 0 = []
   | otherwise = map (uncurry mkMinMaxEnv) $ zip [widthAHDS, widthEnvelope - widthAHDS] l

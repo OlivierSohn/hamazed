@@ -36,8 +36,8 @@ namespace imajuscule::audioelement {
 
 
   template<typename Env>
-  float* envelopeGraph(typename Env::Param const & rawEnvParams, int*nElems, int*splitAt) {
-    std::vector<float> v;
+  double* envelopeGraph(typename Env::Param const & rawEnvParams, int*nElems, int*splitAt) {
+    std::vector<double> v;
     int split;
     std::tie(v, split) = envelopeGraphVec<Env>(rawEnvParams);
     if(nElems) {
@@ -49,10 +49,10 @@ namespace imajuscule::audioelement {
     auto n_bytes = v.size()*sizeof(decltype(v[0]));
     auto c_arr = imj_c_malloc(n_bytes); // will be freed by haskell finalizer.
     memcpy(c_arr, v.data(), n_bytes);
-    return static_cast<float*>(c_arr);
+    return static_cast<double*>(c_arr);
   }
 
-  float* analyzeEnvelopeGraph(EnvelopeRelease t, AHDSR p, int* nElems, int*splitAt) {
+  double* analyzeEnvelopeGraph(EnvelopeRelease t, AHDSR p, int* nElems, int*splitAt) {
     static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
     switch(t) {
       case EnvelopeRelease::ReleaseAfterDecay:
@@ -277,7 +277,7 @@ extern "C" {
     return convert(midiEventAHDSR(osc, t, {hars, har_sz}, p, n, maybeMts));
   }
 
-  float* analyzeAHDSREnvelope_(imajuscule::audioelement::EnvelopeRelease t, int a, int ai, int h, int d, int di, float s, int r, int ri, int*nElems, int*splitAt) {
+  double* analyzeAHDSREnvelope_(imajuscule::audioelement::EnvelopeRelease t, int a, int ai, int h, int d, int di, float s, int r, int ri, int*nElems, int*splitAt) {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;

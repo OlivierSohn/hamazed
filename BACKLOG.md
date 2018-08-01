@@ -1,5 +1,7 @@
 - add reverb in game-synths.
 
+. replace FIRFilter by FIRFilter + Scale
+
 . display full reverb name in UI
 
 . see if due to cache we should add a brute force convolution

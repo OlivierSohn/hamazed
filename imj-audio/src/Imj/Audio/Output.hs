@@ -36,6 +36,7 @@ module Imj.Audio.Output
       , MusicalEvent(..)
       -- * Postprocessing
       , useReverb
+      , setReverbWetRatio
       -- * C++ audio-engine implementation details
       {-|
 
@@ -88,7 +89,7 @@ import           Control.Monad.IO.Unlift(MonadUnliftIO, liftIO)
 import           Data.Bool(bool)
 import           Data.Text(Text)
 import qualified Data.Vector.Storable as S
-import           Foreign.C(CInt(..), CULLong(..), CShort(..), CFloat(..), CString, withCString)
+import           Foreign.C(CInt(..), CULLong(..), CShort(..), CFloat(..), CDouble(..), CString, withCString)
 import           Foreign.ForeignPtr(withForeignPtr)
 import           Foreign.Ptr(Ptr)
 import           UnliftIO.Exception(bracket)
@@ -240,6 +241,12 @@ useReverb =
       dontUseReverb_
       (\(dirName, fileName) ->
         withCString dirName $ \d -> withCString fileName $ \f -> useReverb_ d f)
+
+foreign import ccall "setReverbWetRatio" setReverbWetRatio_ :: CDouble -> IO Bool
+setReverbWetRatio :: Double -> IO (Either () ())
+setReverbWetRatio =
+  fmap (bool (Left ()) (Right ())) .
+    setReverbWetRatio_ . realToFrac
 
 foreign import ccall "effectOn" effectOn :: CInt -> CShort -> CFloat -> IO Bool
 foreign import ccall "effectOff" effectOff :: CShort -> IO Bool

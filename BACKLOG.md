@@ -1,24 +1,40 @@
 - add reverb in game-synths.
 
-. replace FIRFilter by FIRFilter + Scale
-
-. display full reverb name in UI
-
-. see if due to cache we should add a brute force convolution
-at the beginning (for 1 or 2 or 4 or ... frames).
-
-. take the cost of the first convolution into account when dynamically optimizing
-(and the fact that there are less iterations of the second convolution).
-
-. dry / wet ratio
+now that we have dry/wet, the reverb autogain becomes really important:
 . autogain modes :
 .. safe normalize :
   finds the most resonnant frequency, and adjusts the gain for that frequency.
 .. avg normalize : sample frequency space (10Hz, 20, 40, 80, ...) and
 chose a gain such that the average of the sustained notes volumes is 1.
 
-. should we assume all clients have the same reverbs? or should we send the reverb file OTN ?
-a reverb is not like an instrument, we can't have one reverb per instrument
+. send the reverb file OTN (or first a file path + hash to see if the client has it)
+
+. merge step / get in convolutions
+for firfilter, the get is really expensive, so merging will be a good thing
+
+. display full reverb name in UI
+. make it easy to navigate through reverbs hierarchically, using folders.
+
+. take the cost of the first convolution into account when dynamically optimizing:
+
+worst case:
+
+early part (once every 2^n sample):
+----------
+for k : [nDropped..n]
+  1 forward FFT (size 2^k),
+  1 inverse FFT (size 2^k),
+  2 multiply add  (size 2^k)
+
+late part ():
+---------
+
+if the number of late coefficients is much bigger than the number of early ones,
+the cost of early will be negligible.
+but if it's similar, we may have a problem, because early worst is 1.5x late worst in that case
+
+A first approach is to measure the peak overhead, by sample, of early coefficients handling,
+and give this information to the algorithm, along with the timing (what is in sync with which grain?).
 
 - should we compress network messages? to analyze traffic:
 sudo tcpdump -i lo0 -v -nnXSs 0

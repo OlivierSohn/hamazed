@@ -317,6 +317,16 @@ extern "C" {
     }
     return useConvolutionReverb(getAudioContext().getChannelHandler(), dirPath, filePath);
   }
+  bool setReverbWetRatio(double wet) {
+    using namespace imajuscule::audio;
+    if(unlikely(!getAudioContext().Initialized())) {
+      return false;
+    }
+    getAudioContext().getChannelHandler().enqueueOneShot([wet](auto & chans) {
+      chans.getPost().transitionConvolutionReverbWetRatio(wet);
+    });
+    return true;
+  }
 }
 
 #endif

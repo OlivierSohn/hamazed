@@ -245,18 +245,21 @@ getEditionIndex (Edition mode i j) =
     Tone -> j
 
   countEditables Envelope = 9
-  countEditables Tone = 2 * countHarmonics + 2 -- 1 for oscillator, 1 for reverb
+  countEditables Tone =
+    -- 1 for oscillator, 1 for reverb, 1 for reverb dry/wet
+    2 * countHarmonics + 3
 
 data Reverbs = Reverbs {
-    allRevs :: [FilePath]
+    wetRatio :: AlmostFloat
+  , allRevs :: [FilePath]
   , curRev :: Maybe Int
 } deriving(Show)
 
 mkReverbs :: IO Reverbs
-mkReverbs = flip Reverbs Nothing <$> allReverbs
+mkReverbs = flip (Reverbs $ almost 1) Nothing <$> allReverbs
 
 prettyShowReverb :: Reverbs -> String
-prettyShowReverb (Reverbs l c) = maybe "None" (reverse . take 15 . reverse . show . (!!) l) c
+prettyShowReverb (Reverbs _ l c) = maybe "None" (reverse . take 15 . reverse . show . (!!) l) c
 
 data SynthsGame = SynthsGame {
     pianos :: !(Map ClientId (PressedKeys InstrumentId))
@@ -307,8 +310,10 @@ instance UIInstructions SynthsGame where
         , hInst "Harmo. ang." phase firstPhaseIdx
         , ConfigUI "Oscillator"
             [ mkChoice oscillatorIdx $ show osc]
-        , ConfigUI "Reverb (WIP)"
+        , ConfigUI "Reverb"
             [ mkChoice reverbIdx $ prettyShowReverb rev]
+        , ConfigUI "Reverb ratio"
+            [ mkChoice reverbWetIdx $ show $ wetRatio rev]
             ]
        where
          hInst title f startIdx = ConfigUI title $
@@ -342,10 +347,11 @@ data Key =
 countHarmonics :: Int
 countHarmonics = 10
 
-firstPhaseIdx, oscillatorIdx, reverbIdx :: Int
+firstPhaseIdx, oscillatorIdx, reverbIdx, reverbWetIdx :: Int
 firstPhaseIdx = countHarmonics
 oscillatorIdx = 2*firstPhaseIdx
 reverbIdx = oscillatorIdx + 1
+reverbWetIdx = reverbIdx + 1
 
 predefinedAttackItp, predefinedDecayItp, predefinedReleaseItp :: Set Interpolation
 predefinedDecayItp = allInterpolations
@@ -357,6 +363,9 @@ predefinedHarmonicsVolumes = Set.fromList [0, 0.01, 0.1, 1]
 
 predefinedHarmonicsPhases :: Set AlmostFloat
 predefinedHarmonicsPhases = Set.fromList $ takeWhile (< 2) $ map ((*) 0.1 . fromIntegral) [0::Int ..]
+
+predefinedWetRatios :: Set AlmostFloat
+predefinedWetRatios = Set.fromList $ map (flip (/) 10 . fromIntegral) [0::Int ..10]
 
 predefinedAttack, predefinedHolds, predefinedDecays, predefinedReleases :: Set Int
 predefinedSustains :: Set AlmostFloat
@@ -449,6 +458,7 @@ instance Categorized SynthClientEvent
 data SynthsGameEvent =
     ChangeInstrument !Instrument
   | ChangeReverb {-# UNPACK #-} !Int
+  | ChangeReverbWet {-# UNPACK #-} !Int
   | ChangeEditedFeature {-# UNPACK #-} !Int
   | ToggleEditMode
   | ToggleEnvelopeViewMode
@@ -479,7 +489,7 @@ changeInstrumentValue instr edit@(Edition mode _ _) inc =
             then
               instr { oscillator = cycleOscillator inc osc }
             else
-              if idx == reverbIdx
+              if idx == reverbIdx || idx == reverbWetIdx
                 then
                   error "logic"
                 else
@@ -582,9 +592,19 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
                [CliEvt $ ClientAppEvt $ PlayNote $ StopNote Nothing spec
               , Evt $ AppEvent $ RemovePressedKey $ GLFWKey k])
             $ Map.lookup (GLFWKey k) pressed)
-      (\dir -> if (dir == RIGHT || dir == LEFT) && (getEditionIndex edit == reverbIdx)
+      (\dir -> do
+        let idx = getEditionIndex edit
+        if (dir == RIGHT || dir == LEFT) && (idx == reverbIdx || idx == reverbWetIdx)
         then do
-         let res = [Evt $ AppEvent $ ChangeReverb $ if dir == RIGHT then 1 else -1]
+         let inc = case dir of
+              RIGHT -> 1
+              LEFT  -> -1
+              _ -> error "logic"
+             ev
+              | idx == reverbIdx    = ChangeReverb
+              | idx == reverbWetIdx = ChangeReverbWet
+              | otherwise = error "logic"
+             res = [Evt $ AppEvent $ ev inc]
          return $ case st of
            GLFW.KeyState'Pressed -> res
            GLFW.KeyState'Repeating -> res
@@ -604,8 +624,6 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
                 RIGHT -> Evt $ AppEvent $ ChangeInstrument $ changeInstrumentValue instr edit 1
                 Up   -> Evt $ AppEvent $ ChangeEditedFeature $ idx - 1
                 Down -> Evt $ AppEvent $ ChangeEditedFeature $ idx + 1
-
-              idx = getEditionIndex edit
 
             _ -> []) mayInstr)
         $ isArrow k)
@@ -894,7 +912,7 @@ instance GameLogic SynthsGame where
               (\(_, instr) -> Just . toParts (toggleView viewmode) <$> liftIO (envelopeShape instr))
               mayInstr
           _ -> return Nothing
-    getIGame >>= maybe (liftIO initialGame) return >>= \g@(SynthsGame _ _ pressed _ _ _ maySourceIdx (Reverbs revs mayCurIndex)) -> withAnim $ case e of
+    getIGame >>= maybe (liftIO initialGame) return >>= \g@(SynthsGame _ _ pressed _ _ _ maySourceIdx (Reverbs wet revs mayCurIndex)) -> withAnim $ case e of
       ChangeInstrument i -> do
         useInstrument maySourceIdx i >>= maybe (return ()) (\instrId ->
           putIGame g {
@@ -906,12 +924,16 @@ instance GameLogic SynthsGame where
             newIndex = (i + (fromMaybe nullIndex mayCurIndex)) `mod` (nullIndex + 1)
         if newIndex == nullIndex
           then do
-            putIGame g { reverbs = Reverbs revs Nothing }
+            putIGame g { reverbs = Reverbs wet revs Nothing }
             liftIO (useReverb Nothing) >>= either (const $ liftIO $ putStrLn "error while unsetting reverb (see logs above)") return
           else do
             let revPath = revs !! newIndex
-            putIGame g { reverbs = Reverbs revs $ Just newIndex }
-            liftIO (useReverb (Just $ splitFileName revPath)) >>= either (const $ liftIO $ putStrLn "error while setting reverb (see logs above)") return
+            putIGame g { reverbs = Reverbs wet revs $ Just newIndex }
+            liftIO (useReverb $ Just $ splitFileName revPath) >>= either (const $ liftIO $ putStrLn "error while setting reverb (see logs above)") return
+      ChangeReverbWet i -> do
+        let newWet = changeParam predefinedWetRatios wet i
+        putIGame g { reverbs = Reverbs newWet revs mayCurIndex }
+        liftIO (setReverbWetRatio $ realToFrac newWet) >>= either (const $ liftIO $ putStrLn "error while setting reverb wet ratio (see logs above)") return
       ToggleEnvelopeViewMode -> putIGame g {
         envelopePlot = EnvelopePlot (fromMaybe (error "logic") mayNewEnvMinMaxs) $ toggleView $ envViewMode $ envelopePlot g }
       ToggleEditMode ->

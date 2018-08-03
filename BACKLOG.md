@@ -1,11 +1,14 @@
 - add reverb in game-synths.
 
-now that we have dry/wet, the reverb autogain becomes really important:
-. autogain modes :
-.. safe normalize :
-  finds the most resonnant frequency, and adjusts the gain for that frequency.
-.. avg normalize : sample frequency space (10Hz, 20, 40, 80, ...) and
-chose a gain such that the average of the sustained notes volumes is 1.
+. embed some reverbs
+. make an argument with "path to reverbs"
+
+. let user adjust reverb gain (in addition to dry/wet)
+
+. true stereo have 3 responses : maybe they should be interpreted as 4 responses:
+3 +-1 and 3 +- 2 ?
+
+. visual feedback when the compressor kicks in (rt thread sets a flag, non rt trhead checks every second)
 
 . send the reverb file OTN (or first a file path + hash to see if the client has it)
 

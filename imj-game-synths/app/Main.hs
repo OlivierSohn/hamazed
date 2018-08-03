@@ -929,6 +929,7 @@ instance GameLogic SynthsGame where
           else do
             let revPath = revs !! newIndex
             putIGame g { reverbs = Reverbs wet revs $ Just newIndex }
+            liftIO $ putStrLn $ "using reverb " ++ revPath
             liftIO (useReverb $ Just $ splitFileName revPath) >>= either (const $ liftIO $ putStrLn "error while setting reverb (see logs above)") return
       ChangeReverbWet i -> do
         let newWet = changeParam predefinedWetRatios wet i

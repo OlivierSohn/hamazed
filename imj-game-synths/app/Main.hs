@@ -361,7 +361,7 @@ instance UIInstructions SynthsGame where
              , List (LayeredColor bg $ dim 2 fg) [pack $ drop (length $ commonPref rev) dirName]
              -- we dim the foreground color to indicate that it's not editable.
              , List (LayeredColor bg $ dim 2 fg) $ map pack $
-                   [ (showFFloat (Just 2) (lengthInSeconds i) "") ++ " s"
+                   [ showDur i
                    , (show $ countChannels i) ++ " channels"
                    ]
              ]) $ currentReverb rev
@@ -373,12 +373,21 @@ instance UIInstructions SynthsGame where
                 , "of"
                 , show $ Map.size $ allRevs rev ]
             ]
+        , ConfigUI "Browse by duration" $
+            [ mkChoice reverbIdx $ unwords [ maybe
+                "0.00 s"
+                (\(_, i) -> showDur i)
+                $ currentReverb rev
+                , show $ Map.size $ allRevs rev ]
+            ]
         , ConfigUI "Reverb ratio"
             [ mkChoice reverbWetIdx $ show $ wetRatio rev]
         ]
 
       mkChoice x v =
         Choice $ UI.Choice (pack v) right left color
+
+      showDur x = (showFFloat (Just 2) (lengthInSeconds x) "") ++ " s"
 
        where
 

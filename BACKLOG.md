@@ -1,8 +1,30 @@
-- panning of music in game-synths (each player could be assigned a different position)
+- reverb in game-synths.
 
-- add reverb in game-synths.
+. several browsing modes
+by index
+ < 6 >
 
-. display of nearby reverb names:
+by duration
+ < 2.23s >
+
+(shift + right = max)
+
+- release imj-audio (effects will be fully handled in a later version)
+. document performances, using longest available reverb (stereo / true stereo)
+. chose C++ compilation options based on convolution reverbs performance.
+
+- Effects
+. Allow to play multiple notes of the same wind at the same time (I'm not sure it works today)
+. Allow to play different kinds of Wind at the same time
+. give each wind preset a Haskell constructor.
+. do the same thing for robots
+
+- panning of instruments
+- in game-synths, each player could be automatically assigned a different position
+in the stereo field.
+When using true stereo reverbs, we could pan each player to far left / far right.
+
+- display of nearby reverb names:
 
   ...
   revA
@@ -14,22 +36,12 @@
   revG
   ...
 
-. several browsing modes
-by index
- < 6 >
-
-by duration
- < 2.23s >
-
 . embed some reverbs
 . make an argument with "path to reverbs" to allow adding more reverbs
 
 . let user adjust reverb gain (in addition to dry/wet)
 
 . send the reverb file OTN (or first a file path + hash to see if the client has it)
-
-. make it easy to navigate through reverbs hierarchically, using folders.
-. sort / filter reverbs by characteristics
 
 . take the cost of the first convolution into account when dynamically optimizing:
 

@@ -162,9 +162,9 @@ library
                      , containers ==0.5.*
                      , deepseq ==1.4.*
                      , event-list == 0.1.*
+                     , imj-audio-cxx
                      , imj-prelude ==0.1.*
                      , imj-time ==0.1.*
-                     , imj-audio-cxx
                      , midi ==0.2.*
                      , non-negative == 0.1.*
                      , parsec ==3.1.*

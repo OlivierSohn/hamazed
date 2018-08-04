@@ -21,7 +21,7 @@ module Main where
 
 import           Imj.Prelude
 import           Prelude(length, putStrLn)
---import Debug.Trace(traceShow)
+--import Debug.Trace(trace)
 import           Codec.Midi hiding(key, Key)
 import           Control.Concurrent(forkIO, threadDelay)
 import           Control.Concurrent.MVar.Strict(MVar, modifyMVar, modifyMVar_, newMVar, putMVar, takeMVar)
@@ -46,7 +46,7 @@ import           Data.Proxy(Proxy(..))
 import           Foreign.ForeignPtr(withForeignPtr)
 import           Foreign.Marshal.Array(peekArray)
 import           GHC.Generics(Generic)
-import qualified Graphics.UI.GLFW as GLFW(Key(..), KeyState(..))
+import qualified Graphics.UI.GLFW as GLFW
 import           Numeric(showFFloat)
 import           Options.Applicative(ReadM, str, option, long, help, readerError)
 import qualified Sound.PortMidi as PortMidi
@@ -353,7 +353,6 @@ instance UIInstructions SynthsGame where
            (\(i,har) -> mkChoice i $ show $ f har)
            (zip [startIdx..] $ S.toList $ unHarmonics harmonics)
 
-
       reverbInstructions =
         [ ConfigUI "Reverb" $ maybe [List color ["None"]] (\(pathRev, i) ->
           let (dirName, fileName) = splitFileName $ dropExtension pathRev
@@ -643,7 +642,7 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
     return [Evt $ AppEvent $ ToggleEnvelopeViewMode]
   mapStateKey _ GLFW.Key'F10 GLFW.KeyState'Pressed _ _ _ =
     return [CliEvt $ ClientAppEvt ForgetCurrentRecording]
-  mapStateKey _ k st _ _ g = return $ maybe
+  mapStateKey _ k st m _ g = return $ maybe
     []
     (\(SynthsGame _ _ pressed mayInstr _ edit _ _) -> maybe
       (case st of
@@ -666,9 +665,13 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
               , Evt $ AppEvent $ RemovePressedKey $ GLFWKey k])
             $ Map.lookup (GLFWKey k) pressed)
       (\dir -> do
-          let mayInc = case dir of
-               RIGHT -> Just 1
-               LEFT  -> Just $ -1
+
+          let amount
+               | m == altOnly = 10
+               | otherwise = 1
+              mayInc = case dir of
+               RIGHT -> Just amount
+               LEFT  -> Just $ -amount
                _ -> Nothing
           case st of
             GLFW.KeyState'Released -> []
@@ -733,12 +736,26 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
       GLFW.Key'RightBracket -> Just $ InstrumentNote Sol $ noOctave + 1
       _ -> Nothing
 
+-- ctrl has a bug on OSX / GLFW : Ctrl + arrow left events are not received
+altOnly :: GLFW.ModifierKeys
+altOnly = GLFW.ModifierKeys {
+    GLFW.modifierKeysShift   = False
+  , GLFW.modifierKeysControl = False
+  , GLFW.modifierKeysAlt     = True
+  , GLFW.modifierKeysSuper   = False
+  }
 
 changeParam :: (Ord a) => Set a -> a -> Int -> a
 changeParam predefined current direction
-  | direction < 0 = fromMaybe current $ Set.lookupLT current predefined
-  | direction > 0 = fromMaybe current $ Set.lookupGT current predefined
-  | otherwise = current
+  | direction < 0 = go Set.lookupLT (-direction)
+  | otherwise     = go Set.lookupGT direction
+ where
+  go lookupF =
+    flip go' current
+   where
+    go' 0 cur = cur
+    go' n cur =
+      maybe cur (go' (n-1)) $ lookupF cur predefined
 
 instrumentFile :: FilePath
 instrumentFile = "instruments/last.inst"

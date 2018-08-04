@@ -21,6 +21,7 @@ module Imj.Graphics.Color
   , rgb
   , gray
   , mix
+  , dim
   -- ** Get / modify hue
   , hue
   , countHuesOfSameIntensity

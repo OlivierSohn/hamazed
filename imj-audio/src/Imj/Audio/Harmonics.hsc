@@ -42,7 +42,7 @@ instance Ord HarmonicProperties where
 
 instance Storable HarmonicProperties where
     sizeOf    _ = #{size harmonicProperties_t}
-    alignment _ = alignment (undefined :: Float)
+    alignment _ = #{alignment harmonicProperties_t}
 
     poke p harmonicProperties = do
       #{poke harmonicProperties_t, phase} p $ unAlmostFloat $ phase harmonicProperties

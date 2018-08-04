@@ -25,6 +25,7 @@ module Imj.Graphics.Color.Types
           , gray
           , userGray
           , mix
+          , dim
           , grayToRGB
           , color8ToUnitRGB
           , Xterm256Color(..)
@@ -455,7 +456,15 @@ grayComponentToFollowingRGBComponent g
   | g > 8  = 2
   | otherwise = 1
 
-mix :: Color8 a -> Color8 a -> Color8 a
+-- | dims the color.
+dim :: Int -> Color8 a -> Color8 a
+dim n c = xterm256ColorToCode $ case color8CodeToXterm256 c of
+  GrayColor g -> GrayColor $ dimmed g
+  RGBColor (RGB r g b) -> RGBColor $ RGB (dimmed r) (dimmed g) (dimmed b)
+ where
+  dimmed i = max 0 $ i-n
+
+mix :: Color8 a -> Color8 b -> Color8 c
 mix  = mix' 0.5
 
 interpolateComp :: Float
@@ -470,8 +479,8 @@ interpolateComp f a b = round $ f' * fromIntegral a + f * fromIntegral b
 
 mix' :: Float
      -> Color8 a
-     -> Color8 a
-     -> Color8 a
+     -> Color8 b
+     -> Color8 c
 mix' factor c c' = xterm256ColorToCode $ case (color8CodeToXterm256 c, color8CodeToXterm256 c') of
   (GrayColor g1, GrayColor g2)   -> GrayColor $ f g1 g2
   (RGBColor rgb1, RGBColor rgb2) -> mixRGB rgb1 rgb2

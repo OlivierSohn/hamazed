@@ -302,6 +302,11 @@ extern "C" {
     return convert(stopPlaying(windVoice(),getAudioContext().getChannelHandler(),*getXfadeChannels(),pitch));
   }
 
+  bool getConvolutionReverbSignature_(const char * dirPath, const char * filePath, spaceResponse_t * r) {
+    using namespace imajuscule::audio;
+    return getConvolutionReverbSignature(dirPath, filePath, *r);
+  }
+
   bool dontUseReverb_() {
     using namespace imajuscule::audio;
     if(unlikely(!getAudioContext().Initialized())) {

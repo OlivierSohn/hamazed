@@ -35,6 +35,7 @@ module Imj.Audio.Output
       , play
       , MusicalEvent(..)
       -- * Postprocessing
+      , getReverbInfo
       , useReverb
       , setReverbWetRatio
       -- * C++ audio-engine implementation details
@@ -91,12 +92,15 @@ import           Data.Text(Text)
 import qualified Data.Vector.Storable as S
 import           Foreign.C(CInt(..), CULLong(..), CShort(..), CFloat(..), CDouble(..), CString, withCString)
 import           Foreign.ForeignPtr(withForeignPtr)
+import           Foreign.Marshal.Alloc
 import           Foreign.Ptr(Ptr)
+import           Foreign.Storable
 import           UnliftIO.Exception(bracket)
 
 import           Imj.Audio.Envelope
 import           Imj.Audio.Harmonics
 import           Imj.Audio.Midi
+import           Imj.Audio.SpaceResponse
 import           Imj.Music.Instruction
 import           Imj.Music.Instrument
 import           Imj.Timing
@@ -231,6 +235,16 @@ midiNoteOnAHDSR osc t (AHDSR'Envelope a h d r ai di ri s) har i v mayMidi =
   -- -1 encodes "no source"
   src  = fromIntegral $ maybe (-1 :: CInt) (fromIntegral . unMidiSourceIdx . source) mayMidi
   time = fromIntegral $ maybe 0 timestamp mayMidi
+
+
+foreign import ccall "getConvolutionReverbSignature_" getReverbSignature :: CString -> CString -> Ptr SpaceResponse -> IO Bool
+
+getReverbInfo :: String -> String -> IO (Maybe SpaceResponse)
+getReverbInfo dirName fileName =
+  withCString dirName $ \d -> withCString fileName $ \f -> alloca $ \p ->
+    getReverbSignature d f p >>= bool
+      (return Nothing)
+      (Just <$> peek p)
 
 foreign import ccall "dontUseReverb_" dontUseReverb_ :: IO Bool
 foreign import ccall "useReverb_" useReverb_ :: CString -> CString -> IO Bool

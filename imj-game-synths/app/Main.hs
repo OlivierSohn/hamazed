@@ -32,7 +32,7 @@ import           Data.Binary(Binary(..), encode, decodeOrFail)
 import           Data.Bits (shiftR, shiftL, (.&.))
 import qualified Data.ByteString.Lazy as BL
 import           Data.Char (toLower)
-import           Data.List(replicate, concat, take, foldl', elem)
+import           Data.List(replicate, concat, take, foldl', elem, unwords)
 import           Data.Map.Internal(Map(..))
 import qualified Data.Map.Strict as Map
 import           Data.Set(Set)
@@ -47,17 +47,19 @@ import           Foreign.ForeignPtr(withForeignPtr)
 import           Foreign.Marshal.Array(peekArray)
 import           GHC.Generics(Generic)
 import qualified Graphics.UI.GLFW as GLFW(Key(..), KeyState(..))
+import           Numeric(showFFloat)
 import           Options.Applicative(ReadM, str, option, long, help, readerError)
 import qualified Sound.PortMidi as PortMidi
 import           System.IO(withFile, IOMode(..))
 import           System.Directory(doesFileExist)
-import           System.FilePath(takeExtension, splitFileName)
+import           System.FilePath(takeExtension, splitFileName, dropExtension)
 import           Text.Read(readMaybe)
 
 import           Imj.Arg.Class
 import           Imj.Audio
 import           Imj.Audio.Harmonics
 import           Imj.Audio.Midi
+import           Imj.Audio.SpaceResponse
 import           Imj.Categorized
 import           Imj.ClientView.Types
 import           Imj.Data.AlmostFloat
@@ -212,8 +214,11 @@ toggleView = \case
   LinearView -> LogView
   LogView -> LinearView
 
-data EditMode = Tone | Envelope
-  deriving(Show)
+data EditMode =
+    Envelope
+  | Tone
+  | Reverb
+  deriving(Show, Eq)
 
 data Edition = Edition {
     editMode :: !EditMode
@@ -221,45 +226,75 @@ data Edition = Edition {
   -- ^ Index of the enveloppe parameter that will be edited on left/right arrows.
   , harmonicIdx :: !Int
   -- ^ Index of the harmonic parameter that will be edited on left/right arrows.
+  , reverbIdx_ :: !Int
+  -- ^ Index of the reverb parameter that will be edited on left/right arrows.
 } deriving(Show)
 
 mkEdition :: Edition
-mkEdition = Edition Envelope 0 0
+mkEdition = Edition Envelope 0 0 0
 
 toggleEditMode :: Edition -> Edition
 toggleEditMode e = case editMode e of
-  Tone -> e {editMode = Envelope}
   Envelope -> e {editMode = Tone}
+  Tone -> e {editMode = Reverb}
+  Reverb -> e {editMode = Envelope}
 
 setEditionIndex :: Int -> Edition -> Edition
-setEditionIndex idx (Edition mode i j) = case mode of
-  Envelope -> Edition mode (fromIntegral idx) j
-  Tone -> Edition mode i idx
+setEditionIndex idx (Edition mode i j k) = case mode of
+  Envelope -> Edition mode (fromIntegral idx) j k
+  Tone -> Edition mode i idx k
+  Reverb -> Edition mode i j idx
 
 getEditionIndex :: Edition -> Int
-getEditionIndex (Edition mode i j) =
+getEditionIndex (Edition mode i j k) =
   editiontIndex `mod` (countEditables mode)
  where
   editiontIndex = case mode of
     Envelope -> fromIntegral i
     Tone -> j
+    Reverb -> k
 
   countEditables Envelope = 9
   countEditables Tone =
-    -- 1 for oscillator, 1 for reverb, 1 for reverb dry/wet
-    2 * countHarmonics + 3
+    -- 1 for oscillator
+    1 + 2 * countHarmonics
+  countEditables Reverb =
+    -- 1 for reverb, 1 for reverb dry/wet
+    2
 
+widthEditMode :: Edition -> Length Width
+widthEditMode (Edition mode _ _ _) = case mode of
+  Envelope -> 15
+  Tone -> 15
+  Reverb -> 25
+
+-- TODO use a Trie for allRevs
 data Reverbs = Reverbs {
-    wetRatio :: AlmostFloat
-  , allRevs :: [FilePath]
-  , curRev :: Maybe Int
+    wetRatio :: !AlmostFloat
+  , allRevs :: Map FilePath SpaceResponse
+  , commonPref :: !FilePath
+  -- ^ This path is shared by all reverbs, it should be prefixed to keys of 'allRevs'
+  -- to get the path of the reverb.
+  , curRev :: !(Maybe Int)
 } deriving(Show)
 
 mkReverbs :: IO Reverbs
-mkReverbs = flip (Reverbs $ almost 1) Nothing <$> allReverbs
+mkReverbs = do
+  a <- allReverbs
+  let pref = fromMaybe "" $ Map.foldlWithKey (\cpref n _ -> Just $ maybe n (commonPrefix n) cpref) Nothing a
+      cprefLen = length pref
+      !b = Map.fromList $ map (\(k,v) -> (drop cprefLen k, v)) $ Map.toList a
+  return $ Reverbs (almost 1) b pref Nothing
 
-prettyShowReverb :: Reverbs -> String
-prettyShowReverb (Reverbs _ l c) = maybe "None" (reverse . take 15 . reverse . show . (!!) l) c
+currentReverb :: Reverbs -> Maybe (FilePath, SpaceResponse)
+currentReverb (Reverbs _ l pref c) =
+  maybe Nothing (\idx -> if idx >= Map.size l
+    then
+      Nothing
+    else
+      Just $ addPref $ Map.elemAt idx l) c
+ where
+  addPref (k,v) = (pref ++ k,v)
 
 data SynthsGame = SynthsGame {
     pianos :: !(Map ClientId (PressedKeys InstrumentId))
@@ -273,10 +308,11 @@ data SynthsGame = SynthsGame {
 } deriving(Show)
 
 instance UIInstructions SynthsGame where
-  instructions color (SynthsGame _ _ _ mayInstr _ edit@(Edition mode _ _) _ rev) = maybe [] (\(_,instr) -> case instr of
+  instructions color@(LayeredColor bg fg) (SynthsGame _ _ _ mayInstr _ edit@(Edition mode _ _ _) _ rev) = maybe [] (\(_,instr) -> case instr of
     Synth osc harmonics release (AHDSR'Envelope a h d r ai di ri s) -> case mode of
       Envelope -> envelopeInstructions
       Tone -> harmonicsInstructions
+      Reverb -> reverbInstructions
 
      where
 
@@ -306,20 +342,41 @@ instance UIInstructions SynthsGame where
         ]
 
       harmonicsInstructions =
-        [ hInst "Harmo. vol." volume 0
-        , hInst "Harmo. ang." phase firstPhaseIdx
-        , ConfigUI "Oscillator"
+        [ ConfigUI "Oscillator"
             [ mkChoice oscillatorIdx $ show osc]
-        , ConfigUI "Reverb"
-            [ mkChoice reverbIdx $ prettyShowReverb rev]
-        , ConfigUI "Reverb ratio"
-            [ mkChoice reverbWetIdx $ show $ wetRatio rev]
-            ]
+        , hInst "Harmo. vol." volume $ oscillatorIdx + 1
+        , hInst "Harmo. ang." phase $ firstPhaseIdx
+        ]
        where
          hInst title f startIdx = ConfigUI title $
           map
            (\(i,har) -> mkChoice i $ show $ f har)
            (zip [startIdx..] $ S.toList $ unHarmonics harmonics)
+
+
+      reverbInstructions =
+        [ ConfigUI "Reverb" $ maybe [List color ["None"]] (\(pathRev, i) ->
+          let (dirName, fileName) = splitFileName $ dropExtension pathRev
+          in [ --List (LayeredColor bg $ dim 2 fg) [pack $ commonPref rev],
+               List color [pack fileName]
+             , List (LayeredColor bg $ dim 2 fg) [pack $ drop (length $ commonPref rev) dirName]
+             -- we dim the foreground color to indicate that it's not editable.
+             , List (LayeredColor bg $ dim 2 fg) $ map pack $
+                   [ (showFFloat (Just 2) (lengthInSeconds i) "") ++ " s"
+                   , (show $ countChannels i) ++ " channels"
+                   ]
+             ]) $ currentReverb rev
+        , ConfigUI "Browse by index" $
+            [ mkChoice reverbIdx $ unwords [ maybe
+                "0"
+                (\n -> show $ n+1)
+                $ curRev rev
+                , "of"
+                , show $ Map.size $ allRevs rev ]
+            ]
+        , ConfigUI "Reverb ratio"
+            [ mkChoice reverbWetIdx $ show $ wetRatio rev]
+        ]
 
       mkChoice x v =
         Choice $ UI.Choice (pack v) right left color
@@ -348,10 +405,11 @@ countHarmonics :: Int
 countHarmonics = 10
 
 firstPhaseIdx, oscillatorIdx, reverbIdx, reverbWetIdx :: Int
-firstPhaseIdx = countHarmonics
-oscillatorIdx = 2*firstPhaseIdx
-reverbIdx = oscillatorIdx + 1
-reverbWetIdx = reverbIdx + 1
+oscillatorIdx = 0
+firstPhaseIdx = 1 + countHarmonics
+
+reverbIdx = 0
+reverbWetIdx = 1
 
 predefinedAttackItp, predefinedDecayItp, predefinedReleaseItp :: Set Interpolation
 predefinedDecayItp = allInterpolations
@@ -389,10 +447,13 @@ withMinimumHarmonicsCount i =
           (S.fromList $ replicate (countHarmonics - S.length prevH) (HarmonicProperties 0 0))
         }
 
-allReverbs :: IO [FilePath]
-allReverbs =
+allReverbs :: IO (Map FilePath SpaceResponse)
+allReverbs = do
   let extensions = [".wav",".wir"]
-  in filter (flip elem extensions . map toLower . takeExtension) <$> listFilesRecursively "/Users/Olivier/Dev/audio.ir"
+  paths <- filter (flip elem extensions . map toLower . takeExtension) <$> listFilesRecursively "/Users/Olivier/Dev/audio.ir"
+  Map.fromList . catMaybes <$> mapM
+    (\p -> fmap ((,) p) <$> uncurry getReverbInfo (splitFileName p))
+    paths
 
 initialGame :: IO SynthsGame
 initialGame =
@@ -478,7 +539,7 @@ instance GameExternalUI SynthsGame where
     mkCenteredRectContainer center $ Size 45 100
 
 changeInstrumentValue :: Instrument -> Edition -> Int -> Instrument
-changeInstrumentValue instr edit@(Edition mode _ _) inc =
+changeInstrumentValue instr edit@(Edition mode _ _ _) inc =
   case instr of
     Synth osc _ _ _ ->
       case mode of
@@ -489,11 +550,8 @@ changeInstrumentValue instr edit@(Edition mode _ _) inc =
             then
               instr { oscillator = cycleOscillator inc osc }
             else
-              if idx == reverbIdx || idx == reverbWetIdx
-                then
-                  error "logic"
-                else
-                  changeInstrumentHarmonic idx instr inc
+              changeInstrumentHarmonic (idx-(oscillatorIdx+1)) instr inc
+        Reverb -> error "logic"
     _ -> instr
  where
   idx = getEditionIndex edit
@@ -535,7 +593,7 @@ changeInstrumentHarmonic idx instr@(Synth _ (Harmonics harmonics) _ _) inc =
   instr { harmonics_ = Harmonics $ h' S.// [(idx', newVal)] }
  where
   idx'
-   | idx >= firstPhaseIdx = idx - firstPhaseIdx
+   | idx >= countHarmonics = idx - countHarmonics
    | otherwise = idx
 
   h'
@@ -546,10 +604,25 @@ changeInstrumentHarmonic idx instr@(Synth _ (Harmonics harmonics) _ _) inc =
   oldVal = S.unsafeIndex h' idx'
 
   newVal
-    | idx >= firstPhaseIdx =
+    | idx >= countHarmonics =
         oldVal { phase = changeParam predefinedHarmonicsPhases (phase oldVal) inc }
     | otherwise =
         oldVal { volume = changeParam predefinedHarmonicsVolumes (volume oldVal) inc }
+
+changeInstrumentOrReverb :: Maybe Instrument -> Edition -> Int -> Maybe (Event SynthsGameEvent)
+changeInstrumentOrReverb mayInstr edit inc
+  | editMode edit == Reverb =
+     let ev
+          | idx == reverbIdx    = ChangeReverb
+          | idx == reverbWetIdx = ChangeReverbWet
+          | otherwise = error "logic"
+     in Just $ AppEvent $ ev inc
+  | otherwise =
+      maybe Nothing (\instr -> case instr of
+        Synth{} -> Just $ AppEvent $ ChangeInstrument $ changeInstrumentValue instr edit inc
+        _ -> Nothing) mayInstr
+ where
+  idx = getEditionIndex edit
 
 data SynthsStatefullKeys
 instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
@@ -570,10 +643,10 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
     return [Evt $ AppEvent $ ToggleEnvelopeViewMode]
   mapStateKey _ GLFW.Key'F10 GLFW.KeyState'Pressed _ _ _ =
     return [CliEvt $ ClientAppEvt ForgetCurrentRecording]
-  mapStateKey _ k st _ _ g = maybe
-    (return [])
+  mapStateKey _ k st _ _ g = return $ maybe
+    []
     (\(SynthsGame _ _ pressed mayInstr _ edit _ _) -> maybe
-      (return $ case st of
+      (case st of
         GLFW.KeyState'Repeating -> []
         GLFW.KeyState'Pressed -> maybe
             []
@@ -593,39 +666,25 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
               , Evt $ AppEvent $ RemovePressedKey $ GLFWKey k])
             $ Map.lookup (GLFWKey k) pressed)
       (\dir -> do
-        let idx = getEditionIndex edit
-        if (dir == RIGHT || dir == LEFT) && (idx == reverbIdx || idx == reverbWetIdx)
-        then do
-         let inc = case dir of
-              RIGHT -> 1
-              LEFT  -> -1
-              _ -> error "logic"
-             ev
-              | idx == reverbIdx    = ChangeReverb
-              | idx == reverbWetIdx = ChangeReverbWet
-              | otherwise = error "logic"
-             res = [Evt $ AppEvent $ ev inc]
-         return $ case st of
-           GLFW.KeyState'Pressed -> res
-           GLFW.KeyState'Repeating -> res
-           _ -> []
-        else
-         return $
-          maybe [] (\(_, instr) -> case instr of
-            Synth{} -> case st of
-              GLFW.KeyState'Pressed -> [configureInstrument]
-              GLFW.KeyState'Repeating -> [configureInstrument]
-              _ -> []
-
-             where
-
-              configureInstrument = case dir of
-                LEFT  -> Evt $ AppEvent $ ChangeInstrument $ changeInstrumentValue instr edit (-1)
-                RIGHT -> Evt $ AppEvent $ ChangeInstrument $ changeInstrumentValue instr edit 1
-                Up   -> Evt $ AppEvent $ ChangeEditedFeature $ idx - 1
-                Down -> Evt $ AppEvent $ ChangeEditedFeature $ idx + 1
-
-            _ -> []) mayInstr)
+          let mayInc = case dir of
+               RIGHT -> Just 1
+               LEFT  -> Just $ -1
+               _ -> Nothing
+          case st of
+            GLFW.KeyState'Released -> []
+            -- pressed or repeating:
+            _ ->
+              maybe
+                (maybe [] (\(_, instr) -> case instr of
+                  Synth{} -> case dir of
+                      Up   -> [Evt $ AppEvent $ ChangeEditedFeature $ idx - 1]
+                      Down -> [Evt $ AppEvent $ ChangeEditedFeature $ idx + 1]
+                      _ -> error "logic"
+                     where
+                      idx = getEditionIndex edit
+                  _ -> []) mayInstr)
+                (map Evt . maybeToList . changeInstrumentOrReverb (fmap snd mayInstr) edit)
+                mayInc)
         $ isArrow k)
     $ _game $ getGameState' g
 
@@ -814,71 +873,73 @@ instance GameLogic SynthsGame where
                           (return ([],[]))
                           (\(SynthsGame _ _ pressed mayInstr _ edit maySourceIdx _) -> maybe
                             (return ([],[])) -- should not happen once connected.
-                            (\srcIdx ->
-                                maybe
-                                  (return ([],[]))
-                                  (\(iid, instr) -> foldl' (\(a,b) (c,d) -> (a++c, b++d)) ([],[]).
-                                      map
-                                        (\(PortMidi.PMEvent msg time) ->
-                                        -- Portmidi time is in milliseconds, we convert it to nanoseconds.
-                                        let mi = Just $ MidiInfo (fromIntegral $ time * 1000000) srcIdx
-                                            off k =
-                                              let key = MIDIKey k
-                                              in maybe
-                                                  ([],[])
-                                                  (\spec ->
-                                                    ([AppEvent $ RemovePressedKey key]
-                                                    ,[ClientAppEvt $ PlayNote $ StopNote mi spec]))
-                                                  $ Map.lookup key pressed
-                                            on k v =
-                                              let i = mkInstrumentNote k iid
-                                              in ([AppEvent $ InsertPressedKey (MIDIKey k) i]
-                                                , [ClientAppEvt $ PlayNote $ StartNote mi i $ mkNoteVelocity v])
-                                            ctrl control value
-                                              | control == 12 =
-                                                  (AppEvent . ChangeEditedFeature . (+ (getEditionIndex edit))) <$>
-                                                    relativeValue (Just 1) value
-                                              | control == 13 =
-                                                  (AppEvent . ChangeInstrument . (changeInstrumentValue instr edit)) <$>
-                                                    relativeValue (Just 1) value
-                                              | control == 24 =
+                            (\srcIdx -> -- maybe () (\(iid, instr) -> ...) mayInstr
+                              (foldl' (\(a,b) (c,d) -> (a++c, b++d)) ([],[]).
+                                  map
+                                    (\(PortMidi.PMEvent msg time) ->
+                                    -- Portmidi time is in milliseconds, we convert it to nanoseconds.
+                                    let mi = Just $ MidiInfo (fromIntegral $ time * 1000000) srcIdx
+                                        off k =
+                                          let key = MIDIKey k
+                                          in maybe
+                                              ([],[])
+                                              (\spec ->
+                                                ([AppEvent $ RemovePressedKey key]
+                                                ,[ClientAppEvt $ PlayNote $ StopNote mi spec]))
+                                              $ Map.lookup key pressed
+                                        on k v = maybe
+                                          ([],[])
+                                          (\(iid, _) ->
+                                           let i = mkInstrumentNote k iid
+                                           in ([AppEvent $ InsertPressedKey (MIDIKey k) i]
+                                             , [ClientAppEvt $ PlayNote $ StartNote mi i $ mkNoteVelocity v]))
+                                          mayInstr
+                                        ctrl control value
+                                          | control == 12 =
+                                              (AppEvent . ChangeEditedFeature . (+ (getEditionIndex edit))) <$>
+                                                relativeValue (Just 1) value
+                                          | control == 13 = maybe Nothing
+                                              (changeInstrumentOrReverb (fmap snd mayInstr) edit)
+                                              $ relativeValue (Just 1) value
+                                          | otherwise = maybe Nothing (ctrl' . snd) mayInstr
+                                         where
+                                          ctrl' instr
+                                            | control == 24 =
                                                   Just $ AppEvent $ ChangeInstrument $ instr { oscillator = toEnum $ value `mod` countOscillators }
-                                              | control >= 14 && control <= 23 =
-                                                  (AppEvent . ChangeInstrument . changeInstrumentHarmonic (control - 14) instr) <$>
-                                                    relativeValue (Just 1) value
-                                              | control >= 52 && control <= 61 =
-                                                  (AppEvent . ChangeInstrument . changeInstrumentHarmonic (firstPhaseIdx + control - 52) instr) <$>
-                                                    relativeValue (Just 1) value
-                                              | otherwise =
-                                                  maybe
-                                                    Nothing
-                                                    (\i ->
-                                                      (AppEvent . ChangeInstrument . changeInstrumentEnvelopeIndexedValue instr i) <$>
-                                                        relativeValue (Just 1) value) $
-                                                    controlToIndex control
-                                              where
-                                                relativeValue _ 64 = Nothing
-                                                relativeValue mayMaxChange x
-                                                  | x > 64 = Just $ min maxChange $ x-64
-                                                  | otherwise = Just $ negate $ min maxChange $ (64-x)
-                                                  where maxChange = fromMaybe maxBound mayMaxChange
-                                        in maybe
-                                            ([],[])
-                                            (\m -> {-traceShow (time,m) $ -} case m of
-                                              NoteOff _ key _ -> off $ fromIntegral key
-                                              NoteOn _ key 0 -> off $ fromIntegral key
-                                              NoteOn _ key vel -> on (fromIntegral key) vel
-                                              ControlChange _ control value ->
+                                            | control >= 14 && control <= 23 =
+                                                (AppEvent . ChangeInstrument . changeInstrumentHarmonic (control - 14) instr) <$>
+                                                  relativeValue (Just 1) value
+                                            | control >= 52 && control <= 61 =
+                                                (AppEvent . ChangeInstrument . changeInstrumentHarmonic (countHarmonics + control - 52) instr) <$>
+                                                  relativeValue (Just 1) value
+                                            | otherwise =
                                                 maybe
-                                                  ([],[])
-                                                  (flip (,) [] . (:[]))
-                                                  $ ctrl control value
-                                              _ -> ([],[]))
-                                            $ msgToMidi $ PortMidi.decodeMsg msg)
-                                          <$> flip peekArray ptr nReads)
-                                        mayInstr)
-                                      maySourceIdx)
-                          mayGame
+                                                  Nothing
+                                                  (\i ->
+                                                    (AppEvent . ChangeInstrument . changeInstrumentEnvelopeIndexedValue instr i) <$>
+                                                      relativeValue (Just 1) value) $
+                                                  controlToIndex control
+
+                                          relativeValue _ 64 = Nothing
+                                          relativeValue mayMaxChange x
+                                            | x > 64 = Just $ min maxChange $ x-64
+                                            | otherwise = Just $ negate $ min maxChange $ (64-x)
+                                            where maxChange = fromMaybe maxBound mayMaxChange
+                                    in maybe
+                                        ([],[])
+                                        (\m -> {-traceShow (time,m) $ -} case m of
+                                          NoteOff _ key _ -> off $ fromIntegral key
+                                          NoteOn _ key 0 -> off $ fromIntegral key
+                                          NoteOn _ key vel -> on (fromIntegral key) vel
+                                          ControlChange _ control value ->
+                                            maybe
+                                              ([],[])
+                                              (flip (,) [] . (:[]))
+                                              $ ctrl control value
+                                          _ -> ([],[]))
+                                        $ msgToMidi $ PortMidi.decodeMsg msg)
+                                      <$> flip peekArray ptr nReads))
+                                      maySourceIdx) mayGame
                         return (l1,l2,nReads)
                   go' a b = do
                     -- read until there is nothing to read.
@@ -912,7 +973,7 @@ instance GameLogic SynthsGame where
               (\(_, instr) -> Just . toParts (toggleView viewmode) <$> liftIO (envelopeShape instr))
               mayInstr
           _ -> return Nothing
-    getIGame >>= maybe (liftIO initialGame) return >>= \g@(SynthsGame _ _ pressed _ _ _ maySourceIdx (Reverbs wet revs mayCurIndex)) -> withAnim $ case e of
+    getIGame >>= maybe (liftIO initialGame) return >>= \g@(SynthsGame _ _ pressed _ _ _ maySourceIdx (Reverbs wet revs cpref mayCurIndex)) -> withAnim $ case e of
       ChangeInstrument i -> do
         useInstrument maySourceIdx i >>= maybe (return ()) (\instrId ->
           putIGame g {
@@ -920,20 +981,27 @@ instance GameLogic SynthsGame where
             , envelopePlot = EnvelopePlot (fromMaybe (error "logic") mayNewEnvMinMaxs) $ envViewMode $ envelopePlot g
             })
       ChangeReverb i -> do
-        let nullIndex = length revs
+        let nullIndex = Map.size revs
             newIndex = (i + (fromMaybe nullIndex mayCurIndex)) `mod` (nullIndex + 1)
-        if newIndex == nullIndex
-          then do
-            putIGame g { reverbs = Reverbs wet revs Nothing }
+            mayNewIndex
+              | newIndex == nullIndex = Nothing
+              | otherwise = Just newIndex
+        putIGame g { reverbs = Reverbs wet revs cpref mayNewIndex }
+        maybe
+          (do
             liftIO (useReverb Nothing) >>= either (const $ liftIO $ putStrLn "error while unsetting reverb (see logs above)") return
-          else do
-            let revPath = revs !! newIndex
-            putIGame g { reverbs = Reverbs wet revs $ Just newIndex }
-            liftIO $ putStrLn $ "using reverb " ++ revPath
-            liftIO (useReverb $ Just $ splitFileName revPath) >>= either (const $ liftIO $ putStrLn "error while setting reverb (see logs above)") return
+            )
+          (\newIdx -> do
+            let (revPath, _) = Map.elemAt newIdx revs
+            liftIO $
+              useReverb (Just $ splitFileName $ cpref ++ revPath) >>= either
+                (const $ liftIO $ putStrLn "error while setting reverb (see logs above)")
+                return
+            )
+          mayNewIndex
       ChangeReverbWet i -> do
         let newWet = changeParam predefinedWetRatios wet i
-        putIGame g { reverbs = Reverbs newWet revs mayCurIndex }
+        putIGame g { reverbs = Reverbs newWet revs cpref mayCurIndex }
         liftIO (setReverbWetRatio $ realToFrac newWet) >>= either (const $ liftIO $ putStrLn "error while setting reverb wet ratio (see logs above)") return
       ToggleEnvelopeViewMode -> putIGame g {
         envelopePlot = EnvelopePlot (fromMaybe (error "logic") mayNewEnvMinMaxs) $ toggleView $ envViewMode $ envelopePlot g }
@@ -965,8 +1033,8 @@ instance GameLogic SynthsGame where
 
 instance GameDraw SynthsGame where
 
-  drawBackground (Screen _ center@(Coords _ centerC)) g@(SynthsGame pianoClients pianoLoops_ _ _ (EnvelopePlot curves _) _ _ _) = do
-    drawInstructions Horizontally (Just 15) g (mkCentered $ move 21 Up center) >>= \(Alignment _ ref) -> do
+  drawBackground (Screen _ center@(Coords _ centerC)) g@(SynthsGame pianoClients pianoLoops_ _ _ (EnvelopePlot curves _) edit _ _) = do
+    drawInstructions Horizontally (Just $ widthEditMode edit) g (mkCentered $ move 21 Up center) >>= \(Alignment _ ref) -> do
       ref2 <- case curves of
         [] -> return ref
         [ahds,r] -> do

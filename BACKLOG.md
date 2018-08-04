@@ -1,22 +1,35 @@
+- panning of music in game-synths (each player could be assigned a different position)
+
 - add reverb in game-synths.
 
+. display of nearby reverb names:
+
+  ...
+  revA
+  revB
+  revC
+< revD >
+  revE
+  revF
+  revG
+  ...
+
+. several browsing modes
+by index
+ < 6 >
+
+by duration
+ < 2.23s >
+
 . embed some reverbs
-. make an argument with "path to reverbs"
+. make an argument with "path to reverbs" to allow adding more reverbs
 
 . let user adjust reverb gain (in addition to dry/wet)
 
-. true stereo have 3 responses : maybe they should be interpreted as 4 responses:
-3 +-1 and 3 +- 2 ?
-
-. visual feedback when the compressor kicks in (rt thread sets a flag, non rt trhead checks every second)
-
 . send the reverb file OTN (or first a file path + hash to see if the client has it)
 
-. merge step / get in convolutions
-for firfilter, the get is really expensive, so merging will be a good thing
-
-. display full reverb name in UI
 . make it easy to navigate through reverbs hierarchically, using folders.
+. sort / filter reverbs by characteristics
 
 . take the cost of the first convolution into account when dynamically optimizing:
 
@@ -39,14 +52,13 @@ but if it's similar, we may have a problem, because early worst is 1.5x late wor
 A first approach is to measure the peak overhead, by sample, of early coefficients handling,
 and give this information to the algorithm, along with the timing (what is in sync with which grain?).
 
+- visual feedback when the compressor kicks in (rt thread sets a flag, non rt trhead checks every second)
+
 - should we compress network messages? to analyze traffic:
 sudo tcpdump -i lo0 -v -nnXSs 0
 
-- change the sound in real time, when harmonics change.
-.. enqueue parameter changes :
-   change volume / phase of harmonic 6 to ...
-the changes should be linearily smoothed over a long time so that there is
-  no sound discontinuity
+- harmonics param changes should change the sound in real time
+(use same technique as reverb wet)
 
 - When playing a loop, the server should offset the miditimestamps by
 period of the loop * loop number, else jitter compensation will not work.

@@ -461,7 +461,7 @@ withMinimumHarmonicsCount i =
 allReverbs :: IO (Map FilePath SpaceResponse)
 allReverbs = do
   let extensions = [".wav",".wir"]
-  paths <- filter (flip elem extensions . map toLower . takeExtension) <$> listFilesRecursively "/Users/Olivier/Dev/audio.ir"
+  paths <- filter (flip elem extensions . map toLower . takeExtension) <$> listFilesRecursively "../audio.ir"
   Map.fromList . catMaybes <$> mapM
     (\p -> fmap ((,) p) <$> uncurry getReverbInfo (splitFileName p))
     paths

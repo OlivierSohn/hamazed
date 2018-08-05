@@ -42,11 +42,10 @@ And it features:
                                       Using FFTs from:
                                      Accelerate   naive
     2-channels, 17 seconds long   :   12%          30%
-    4-channels, 12 seconds long   :   17%          
+    4-channels, 12 seconds long   :   17%          45%, with buffer underruns.
 
   Accelerate is available on OSX, so on Linux only shorter room responses can be used
-  without underruns. This could be fixed by using an optimized FFT library on linux, too,
-  like FFTW or Blas.
+  without underruns. This could be fixed by using an optimized FFT library on linux, too.
 
   - A compressor limits the audio output to prevent it from clipping.
 

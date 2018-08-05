@@ -35,18 +35,24 @@ And it features:
   - Zero-latency convolution reverbs. Very long responses can be used
   and the computation scheme uses dynamic optimization to figure out the best
   way to carry the computation, so that every audio callback finishes in time.
-  On a 2015 MacBook Air:
-    - a convolution reverb with 2-channels and a 17 seconds long impulse response
-      uses 12% CPU.
-    - a convolution reverb with 4-channels (aka true stereo) and a 12 seconds long impulse response
-      uses 17% CPU.
-  Performances on Linux may not be as good, because on OSX
-  we use the Accelerate framework to do the FFTs and some vectorized vector operations,
-  which we don't have on Linux.
+
+  CPU usage (in percentages of a single core) for a 2015 MacBook Air laptop,
+    Intel Core i7 / 2,2 GHz:
+
+                                      Using FFTs from:
+                                     Accelerate   naive
+    2-channels, 17 seconds long   :   12%          30%
+    4-channels, 12 seconds long   :   17%          
+
+  Accelerate is available on OSX, so on Linux only shorter room responses can be used
+  without underruns. This could be fixed by using an optimized FFT library on linux, too,
+  like FFTW or Blas.
+
   - A compressor limits the audio output to prevent it from clipping.
 
 # What's next ?
 
+- Fix performance on Linux by using the equivalent of Accelerate on OSX (Blas or FFTW)
 - The ability to modify the sound characteristics while a note is being played.
 - Make more audio engine instruments available:
   some are based on frequency sweeps, to emulate birds singing, others are

@@ -2,8 +2,14 @@
 i.e 1.6 Mb / s
 
 - release imj-audio
+. Fix linux perf:
+optimize imj-fft :
+first, use pointers instead of iterators to allow compilers to vectorize stuff.
+then, use restrict
+then, use assume_aligned (?)
+then, ...
+
 . documentation will likely fail to build, I'll need to upload it manually.
-. document performances, using longest available reverb (stereo / true stereo) on Linux.
 
 - test MIDI input on linux
 

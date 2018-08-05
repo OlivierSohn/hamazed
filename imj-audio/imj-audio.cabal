@@ -25,8 +25,10 @@ Tested-With: GHC == 8.2.2, GHC == 8.4.3
 -- [Benchmarks]
 --                                      "To lock, or not to lock."
 --
---    Using 'imj-audio-exe', with the 'LogTime' flag set to 'True', you can verify
+--    Using 'imj-audio-exe',
+--    with the 'LogTime' flag set to 'True', you can verify
 --    that, under contention, the best value for the 'Lock' flag is 'False'.
+--    (You'll need to uncomment tha call to 'stressTest'.)
 --
 --    The durations reported below were collected using 'imj-audio-exe',
 --    on a 2-core CPU '2,2 GHz Intel Core i7', with an audio-buffer length of
@@ -34,21 +36,27 @@ Tested-With: GHC == 8.2.2, GHC == 8.4.3
 --    Contention was simulated by running a parallel compilation on the side
 --    that continuously required 90% of cpu.
 --
---   - when the 'Lock' flag is 'False':
---      > average : 15 microseconds, max 80 microseconds
+--   - when the 'Lock' flag is 'False',
 --      there is no duration peak, the audio runs smoothly.
+--      A typical log will look like:
+--      > average : 15 microseconds, max 80 microseconds
 --   - when the 'Lock' flag is 'True':
+--      Due to the priority inversion effect, there are occasionally
+--      long duration peaks like this one:
 --      > average : 15 microseconds, max 10000 microseconds
---      there are occasionally long duration peaks like the one above,
---      due to the priority inversion effect.
---      Audio buffer overflows occur, with (very loud) audio cracks.
+--      which result in audio buffer underruns, hence (very loud) audio cracks.
+--      An attempt was made to fix this by raising the priority of the thread
+--      to realtime before taking the lock, but the priority inversion effect
+--      was still here (I honnestly don't know why exactly).
+--      A second, successfull attempt was then made to fix this, by removing the
+--      need for a lock, using lockfree datastructures and algorithms.
 
 Flag Lock
     Description: When false (recommended), the audio engine callback doesn't use any lock,
                  lock-free datastructures are used and audio runs smoothly, even under contention.
                  When true (not recommended, very unsafe), the audio-engine callback uses a lock to protect
                  access to non-lockfree datastructures. Under contention, priority inversion arise
-                 when a non-realtime thread owns this lock, leading to unwanted audio-buffer overflows
+                 when a non-realtime thread owns this lock, leading to unwanted audio-buffer underruns
                  generating (very loud) audio cracks.
     Manual: True
     Default: False
@@ -87,6 +95,14 @@ Flag Assertions
                  and the program will crash.
     Manual: True
     Default: False
+
+Flag SlowFFT
+    Description: DO NOT USE unless for benchmarking purposes.
+                 Forces to use the naive unoptimized FFT implementation, even
+                 on platforms where faster alternatives are available.
+    Manual: True
+    Default: False
+
 --------------------------------------------------------------------------------
 
 -- This convenience library builds cxx sources.
@@ -111,10 +127,13 @@ library imj-audio-cxx
   else
     extra-libraries:   portaudio
 
-  if os(darwin)
-    extra-libraries:   vDSP
-    -- This path is valid on OSX 10.13.3:
-    extra-lib-dirs:    /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A
+  if(flag(SlowFFT))
+    cc-options:        -DIMJ_USE_SLOW_FFT
+  else
+    if os(darwin)
+      extra-libraries:   vDSP
+      -- This path is valid on OSX 10.13.3, it may require to be adjusted on other versions:
+      extra-lib-dirs:    /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A
 
   cc-options:          -std=c++17 -D_USE_MATH_DEFINES -O2 -ffast-math
   if os(linux)

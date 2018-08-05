@@ -17,8 +17,13 @@ import           Imj.Music.Compositions.Vivaldi
 main :: IO ()
 main = void $ usingAudioOutput -- WithMinLatency 0
      $ do
-  --stressTest
-  --threadDelay 10000
+  -- comment the following line out to do benchmarks: it will generate a lot of note events
+  -- in a short period of time, and allows to produce the priority inversion effect
+  -- when a global lock is used:
+  {-
+  _ <- stressTest
+  threadDelay 10000
+  --}
   putStrLn "playing tech"
   uncurry (flip playVoicesAtTempo techInstrument) tech >>= print
   threadDelay 10000

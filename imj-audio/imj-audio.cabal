@@ -116,7 +116,7 @@ library imj-audio-cxx
     -- This path is valid on OSX 10.13.3:
     extra-lib-dirs:    /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A
 
-  cc-options:          -std=c++17 -D_USE_MATH_DEFINES -Os -ffast-math
+  cc-options:          -std=c++17 -D_USE_MATH_DEFINES -O2 -ffast-math
   if os(linux)
     cc-options:        -fpermissive
   if os(windows)

@@ -1,18 +1,22 @@
-
-- reverb in game-synths.
-
-. several browsing modes
-by index
- < 6 >
-
-by duration
- < 2.23s >
-
-(shift + right = max)
+- we could stream audio at 200 kBytes per second ( 4bytes per frame, i.e 16 bits per channel in stereo)
+i.e 1.6 Mb / s
 
 - release imj-audio (effects will be fully handled in a later version)
+. documentation will likely fail to build, I'll nee to upload it manually.
 . document performances, using longest available reverb (stereo / true stereo)
-. chose C++ compilation options based on convolution reverbs performance.
+. measure the effect of changing the size of audioelement buffers (x4).
+
+using reverb 214 :                            with 'tyui' notes:
+-ffast-math -Os : 17.4 - 20.5    18.75 avg    25.9 - 26.8
+-ffast-math -O3 : 16.0 18.1      17    avg    24.1 - 25.3
+            -O2 :                17.6  avg    24.9 - 25.4
+-ffast-math -O2 : 15.1 17.8      17.5  avg    24.3 - 25.6    <- seems a good compromise (perf / time to build)
+ and blas copy  : 16.9 17.7      17.1  avg     25
+
+blas 12
+- chose a better default for midi polling, it is using 40% CPU !
+. Also, ideally Haskell could be used to setup the thread, but the midipolling should occur outside ghc's
+scope to avoid GC pauses, and the Haskell overhead.
 
 - Effects
 . Allow to play multiple notes of the same wind at the same time (I'm not sure it works today)
@@ -25,7 +29,12 @@ by duration
 in the stereo field.
 When using true stereo reverbs, we could pan each player to far left / far right.
 
-- display of nearby reverb names:
+- reverbs
+
+. embed some reverbs
+. make an argument with "path to reverbs" to allow adding more reverbs
+
+. display of nearby reverb names:
 
   ...
   revA
@@ -36,9 +45,6 @@ When using true stereo reverbs, we could pan each player to far left / far right
   revF
   revG
   ...
-
-. embed some reverbs
-. make an argument with "path to reverbs" to allow adding more reverbs
 
 . let user adjust reverb gain (in addition to dry/wet)
 

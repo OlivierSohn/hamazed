@@ -7,8 +7,7 @@ The C++ audio engine is designed with performance in mind:
 - caring about memory locality / alignment to make algorithms run faster,
 - using dynamic optimization where necessary (for example in convolution reverb)
 
-It used double precision arithmetic, so as to drastically reduce the numeric
-noise due to floating point approximations.
+It used double precision arithmetic, so as to reduce the numeric noise.
 
 It features:
 
@@ -29,9 +28,9 @@ It features:
 - The count of simultaneously used synthesizers is limited only by the amount of RAM
   that is present on your machine.
 - Postprocessing:
-  - Zero-latency convolution reverbs are available. Very long responses can be used
+  - Zero-latency (in terms of overhead) convolution reverbs. Very long responses can be used
   and the computation scheme uses dynamic optimization to figure out the best
-  way to carry the computation.
+  way to carry the computation, so that every audio callback finishes in time.
   (TODO provide an example of CPU usage for 15 second long reverb at 44 kHz).
   - A compressor limits the audio output to prevent it from clipping.
 

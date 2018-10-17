@@ -61,11 +61,6 @@ before_install:
   then
     brew bundle --verbose
     brew info llvm
-    export CC="/usr/local/opt/llvm/bin/clang"
-    export CXX="/usr/local/opt/llvm/bin/clang++"
-    export LDFLAGS="-L/usr/local/opt/llvm/lib"
-    export CPPFLAGS="-I/usr/local/opt/llvm/include"
-    export PATH="/usr/local/opt/llvm/bin:$PATH"
   fi
 - mkdir -p ~/.local/bin
 - export PATH=$HOME/.local/bin:$PATH

@@ -22,11 +22,13 @@ import           Control.Concurrent.STM(TQueue, atomically, newTQueueIO, writeTQ
 import           Data.ByteString(ByteString)
 import           Data.Char(isHexDigit, digitToInt)
 import           Data.Text(pack)
+import           Data.IORef(IORef, newIORef, readIORef, writeIORef)
 import qualified Graphics.Rendering.FTGL as FTGL
 import qualified Graphics.Rendering.OpenGL as GL
 import qualified Graphics.UI.GLFW          as GLFW
 import           Foreign.Ptr(nullPtr)
 import           System.IO(print, putStrLn)
+import           System.IO.Unsafe (unsafePerformIO)
 
 import           Data.Vector.Unboxed.Mutable(unsafeRead)
 import qualified Imj.Data.Vector.Unboxed.Mutable.Dynamic as Dyn
@@ -108,10 +110,43 @@ data RenderingStyle = AllFont
                     | HexDigitAsBits
                     deriving(Generic, NFData, Eq, Show, PrettyVal)
 
+
+-- needed to workaround https://github.com/glfw/glfw/pull/1346
+data HackState =
+    NeedToMoveWindow
+    -- ^ this is the first time the window was drawn:
+    -- we need to move the window to force a window update by GLFW.
+  | NeedToRestoreInitialPosition
+    -- ^ restore the initial position, after the window has been moved.
+
+hackState :: IORef (Maybe HackState)
+{-# NOINLINE hackState #-}
+hackState = unsafePerformIO (newIORef $ Just NeedToMoveWindow)
+
+mojaveHack :: GLFW.Window -> IO ()
+mojaveHack win =
+  -- hack for OSX mojave to work around a GLFW limitation:
+  -- see https://github.com/glfw/glfw/pull/1346
+  readIORef hackState >>= maybe (return ()) (\case
+    NeedToMoveWindow -> do
+      move 1
+      writeIORef hackState $ Just NeedToRestoreInitialPosition
+    NeedToRestoreInitialPosition -> do
+      move $ -1
+      writeIORef hackState Nothing)
+ where
+  move n = do
+    (x,y) <- GLFW.getWindowPos win
+    GLFW.setWindowPos win (x + n) y
+
 instance DeltaRenderBackend OpenGLBackend where
   render (OpenGLBackend win _ mFont) d w =
-    liftIO $ readMVar mFont >>= \(RenderingOptions _ rs ppu _ fonts) ->
-      deltaRenderOpenGL win ppu fonts rs d w
+    liftIO $ readMVar mFont >>= \(RenderingOptions _ rs ppu _ fonts) -> do
+      res <- deltaRenderOpenGL win ppu fonts rs d w
+
+      mojaveHack win
+
+      return res
 
   cleanup (OpenGLBackend win _ _) = liftIO $ destroyWindow win
 
@@ -256,8 +291,9 @@ createWindow title s = do
     s
   -- Single buffering goes well with delta-rendering, hence we use single buffering.
   GLFW.windowHint $ GLFW.WindowHint'DoubleBuffer False
-  m <- GLFW.createWindow width height title mon Nothing
-  let win = fromMaybe (error $ "could not create a GLFW window of size " ++ show s) m
+  win <- fromMaybe (error $ "could not create a GLFW window of size " ++ show s) <$>
+    GLFW.createWindow width height title mon Nothing
+
   GLFW.setCursorInputMode win GLFW.CursorInputMode'Hidden
   GLFW.makeContextCurrent (Just win)
 
@@ -269,6 +305,7 @@ createWindow title s = do
   --GL.lighting   GL.$= GL.Enabled
   --GL.cullFace   GL.$= Just GL.Back
   --GL.depthFunc  GL.$= Just GL.Less
+
   return win
 
 destroyWindow :: GLFW.Window -> IO ()

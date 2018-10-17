@@ -8,6 +8,7 @@ os:
   - osx
   - linux
 
+# not sure if that is required. at the time of writing this comment, the default xcode version is 9.4
 osx_image: xcode10
 
 env:
@@ -55,7 +56,6 @@ before_install:
     sudo unlink /usr/bin/gcc && sudo ln -s /usr/bin/gcc-7 /usr/bin/gcc
     gcc --version
   fi
-# We need to install clang on osx
 - |
   if [[ $TRAVIS_OS_NAME == 'osx' ]]
   then

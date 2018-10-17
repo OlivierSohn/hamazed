@@ -32,6 +32,7 @@ module Imj.Music.Instrument
       , shortInstrument
       , testInstrument
       , stringsInstrument
+      , synthInstrument
       , longInstrument
       , longBellInstrument
       , trapezoidalInstrument

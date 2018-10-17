@@ -1,13 +1,17 @@
 - we could stream audio at 200 kBytes per second ( 4bytes per frame, i.e 16 bits per channel in stereo)
 i.e 1.6 Mb / s
 
+- write a paper on auto optimizations used in the singlethread 0-latency convolution reverb algorithm.
+Buzzwords:
+. Robust (no need to synchronize with other threads)
+. Predictable (pure computations, auto-benchmarks)
+. Callback-length aware : we optimize for
+  worst case cost per audio callback (max duration over all possible phases)
+
 - release imj-audio
-. Fix linux perf:
-optimize imj-fft :
-first, use pointers instead of iterators to allow compilers to vectorize stuff.
-then, use restrict
-then, use assume_aligned (?)
-then, ...
+. Document linux performance limitation for fft:
+we could optimize imj-fft by using assume_aligned
+and/or using fft libraries
 
 . documentation will likely fail to build, I'll need to upload it manually.
 

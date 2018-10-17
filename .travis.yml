@@ -8,12 +8,12 @@ os:
   - osx
   - linux
 
-# not sure if that is required. at the time of writing this comment, the default xcode version is 9.4
+# not sure if that is required: at the time of writing this comment,
+# the default travis xcode version is 9.4 and may work fine as well.
 osx_image: xcode10
 
 env:
   - RESOLVER="lts-11.22"          # ghc 8.2.2
-  - RESOLVER="nightly-2018-06-26" # ghc 8.4.3
   - RESOLVER="lts-12.13"          # ghc 8.4.3
   - RESOLVER="nightly"
 

@@ -2,9 +2,9 @@
 
 # resolver by ghc version:
 #
-#   8.4.3:  nightly-2018-06-26
+#   8.4.3:  lts-12.13
 #   8.2.2:  lts-11.22
-resolver: nightly-2018-06-26
+resolver: lts-12.13
 
 image:
   containers:

@@ -8,6 +8,8 @@ os:
   - osx
   - linux
 
+osx_image: xcode10
+
 env:
   - RESOLVER="lts-11.22"          # ghc 8.2.2
   - RESOLVER="nightly-2018-06-26" # ghc 8.4.3

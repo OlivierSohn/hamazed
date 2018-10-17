@@ -266,13 +266,22 @@ marimba = Synth Sinus'VolumeAdjusted (mkHarmonics $ map (uncurry HarmonicPropert
 
 
 simpleInstrument, bellInstrument, organicInstrument, shortInstrument, testInstrument, stringsInstrument :: Instrument
-longInstrument, longBellInstrument, bell2Instrument :: Instrument
+longInstrument, longBellInstrument, bell2Instrument, synthInstrument :: Instrument
 simpleInstrument = Synth Sinus'VolumeAdjusted defaultHarmonics KeyRelease $
   AHDSR'Envelope
     401 0 0 401
     Linear
     Linear
     Linear
+    1
+synthInstrument = Synth
+  Triangle {-Square makes a nive variation -}
+  (harmonicsFromVolumes [1,1,0,1,0,0,0,0.1]) AutoRelease $
+  AHDSR'Envelope
+    100 2560 100 12800
+    (Eased EaseInOut Circ)
+    Linear
+    (Eased EaseOut Circ)
     1
 bellInstrument = Synth Sinus'VolumeAdjusted defaultHarmonics AutoRelease $
   AHDSR'Envelope

@@ -8,9 +8,6 @@ os:
   - osx
   - linux
 
-# earlier clang versions may induce "symbols not found" errors
-osx_image: xcode9.3
-
 env:
   - RESOLVER="lts-11.22"          # ghc 8.2.2
   - RESOLVER="nightly-2018-06-26" # ghc 8.4.3

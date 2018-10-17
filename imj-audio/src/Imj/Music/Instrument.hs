@@ -275,7 +275,7 @@ simpleInstrument = Synth Sinus'VolumeAdjusted defaultHarmonics KeyRelease $
     Linear
     1
 synthInstrument = Synth
-  Triangle {-Square makes a nive variation -}
+  Triangle {-Square makes a nice variation -}
   (harmonicsFromVolumes [1,1,0,1,0,0,0,0.1]) AutoRelease $
   AHDSR'Envelope
     100 2560 100 12800

@@ -2,9 +2,9 @@
 
 # resolver by ghc version:
 #
-#   8.4.3:  nightly-2018-06-26
-#   8.2.2:  lts-11.9
-resolver: nightly-2018-06-26
+#   8.4.3:  lts-12.13
+#   8.2.2:  lts-11.22
+resolver: lts-12.13
 
 image:
   containers:
@@ -42,13 +42,10 @@ packages:
     git: https://github.com/OlivierSohn/mwc-random.git
     commit: 89a5657db7cf0a6b95a6fba8467445208f9313e6
   extra-dep: true
-- location:
-    git: https://github.com/ninegua/PortMidi.git
-    commit: fae3710f4d1eeecf021b806a9b95ba54e869c51a
-  extra-dep: true
 
 extra-deps:
 - FTGL-2.1              # for all resolvers (not part of stackage)
+- PortMidi-0.2.0.0      # for all resolvers (not part of stackage)
 - GLFW-b-3.2.1.0        # for 8.2.2 resolver
 - bindings-GLFW-3.2.1.1 # for 8.2.2 resolver
 - clay-0.13.1           # for 8.2.2 resolver

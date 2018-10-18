@@ -5,7 +5,8 @@
 
 module Imj.Data.List
     ( -- * List utilities
-      dedup
+      indexesBy
+    , dedup
     , dedupAsc
     , replicateElements
     , intersperse'
@@ -24,8 +25,22 @@ import qualified Prelude as Unsafe(maximum)
 import           Control.Exception(assert)
 import           Data.Int(Int)
 import           Data.List(reverse, length, splitAt, foldl', replicate)
+import qualified Data.Map.Strict as Map
 import           Data.Maybe(Maybe(..))
 import qualified Data.Set as Set
+
+
+{-# INLINABLE indexesBy #-}
+indexesBy :: Ord a
+          => (v -> a)
+          -- ^ Defines the ordering according to which the index is built.
+          -> [v]
+          -- ^ The 'List'
+          -> [Int]
+          -- ^ The list of indices (into the given 'List'), ascending
+          -- according to the given function.
+indexesBy f values =
+  concat $ Map.elems $ fst $ foldl' (\(m,i) v -> (Map.insertWith (++) (f v) [i] m, i+1)) (Map.empty,0) values
 
 -- | removes duplicates, and returns elements in ascending order.
 {-# INLINABLE dedup #-}

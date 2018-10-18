@@ -32,6 +32,7 @@ module Imj.Music.Instrument
       , shortInstrument
       , testInstrument
       , stringsInstrument
+      , synthInstrument
       , longInstrument
       , longBellInstrument
       , trapezoidalInstrument
@@ -130,7 +131,7 @@ mkNoteVelocity i
 --
 -- * The first list covers phases from attack to the beginning of sustain.
 -- * The second list covers the end of sustain to the release phase.
-envelopeShape :: Instrument -> IO [Vector Float]
+envelopeShape :: Instrument -> IO [Vector Double]
 envelopeShape = \case
   Synth _ _ e ahdsr -> analyzeAHDSREnvelope e ahdsr
   Wind _ -> return []
@@ -266,13 +267,22 @@ marimba = Synth Sinus'VolumeAdjusted (mkHarmonics $ map (uncurry HarmonicPropert
 
 
 simpleInstrument, bellInstrument, organicInstrument, shortInstrument, testInstrument, stringsInstrument :: Instrument
-longInstrument, longBellInstrument, bell2Instrument :: Instrument
+longInstrument, longBellInstrument, bell2Instrument, synthInstrument :: Instrument
 simpleInstrument = Synth Sinus'VolumeAdjusted defaultHarmonics KeyRelease $
   AHDSR'Envelope
     401 0 0 401
     Linear
     Linear
     Linear
+    1
+synthInstrument = Synth
+  Triangle {-Square makes a nice variation -}
+  (harmonicsFromVolumes [1,1,0,1,0,0,0,0.1]) AutoRelease $
+  AHDSR'Envelope
+    100 2560 100 12800
+    (Eased EaseInOut Circ)
+    Linear
+    (Eased EaseOut Circ)
     1
 bellInstrument = Synth Sinus'VolumeAdjusted defaultHarmonics AutoRelease $
   AHDSR'Envelope

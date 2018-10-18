@@ -11,7 +11,7 @@
 main = usingAudioOutput $ playAtTempo 70 simpleInstrument $ [voice|do ré mi|]
 @
       -}
-      module Imj.Audio.Output
+        module Imj.Audio.Output
       , module Imj.Music.Play
       , module Imj.Music.Instrument
       , module Imj.Audio.Envelope

@@ -60,12 +60,13 @@ List of packages, inverse-topologically sorted wrt dependencies, with keywords /
      - In the terminal
   - Player input, window management.
 - [imj-space](/imj-space)
-  - Creates random 2D game levels, given some topological constraints.
+  - Randomized creation of 2D game levels, given some topological constraints.
 - [imj-particlesystem](/imj-particlesystem) (formerly `imj-animation`)
   - Physics-based and geometric particle systems.
 - [imj-measure-stdout](/imj-measure-stdout)
   - An executable to measure the maximum capacity of stdout, and observe
-  the effect of different buffering modes.
+  the effect of different buffering modes. This was used while developing
+	[delta-rendering](/imj-base/src/Imj/Graphics/Render/Delta.hs).
 - [imj-server](/imj-server)
   - Using [websockets] to communicate between server and clients.
   - Broadcast messages to all clients
@@ -146,11 +147,13 @@ Passing no command line argument will run the games in single player mode:
 stack exec <game-executable>
 ```
 
-# Run the games in Multi-player mode
+# Deploy a game server for Multi-player mode
 
 Use the [deployment script] to host the games on a [Heroku] server.
 
-## Connect to a running game server
+# Run the games in Multi-player mode
+
+### Connect to a running game server
 
 ```shell
 stack exec -- <game-executable> -n <serverName> -p<serverPort>

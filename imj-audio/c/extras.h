@@ -17,7 +17,7 @@
 namespace imajuscule {
   namespace audioelement {
 
-    using AudioFloat = float;
+    using AudioFloat = double;
 
     // in sync with the corresponding Haskel Enum instance
     enum class OscillatorType {
@@ -121,18 +121,18 @@ namespace imajuscule {
     };
 
     template<typename Env>
-    std::pair<std::vector<float>, int> envelopeGraphVec(typename Env::Param const & envParams) {
+    std::pair<std::vector<double>, int> envelopeGraphVec(typename Env::Param const & envParams) {
       Env e;
       e.setAHDSR(envParams);
       // emulate a key-press
       e.onKeyPressed(0);
       int splitAt = -1;
 
-      std::vector<float> v, v2;
+      std::vector<double> v, v2;
       v.reserve(10000);
       for(int i=0; e.getRelaxedState() != EnvelopeState::EnvelopeDone1; ++i) {
         e.step();
-        v.push_back(static_cast<float>(e.value()));
+        v.push_back(e.value());
         if(!e.afterAttackBeforeSustain()) {
           splitAt = v.size();
           if constexpr (Env::Release == EnvelopeRelease::WaitForKeyRelease) {

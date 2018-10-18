@@ -7,6 +7,7 @@ module Imj.File
     ( createDirectories
     , renameDirectoryIfExists
     , deleteOrRename
+    , listFilesRecursively
     ) where
 
 import           Imj.Prelude
@@ -14,9 +15,10 @@ import           Prelude(FilePath)
 import           Data.Binary(decodeFileOrFail, encodeFile)
 import           Data.UUID(UUID)
 import           Data.Time.Format(iso8601DateFormat, formatTime, defaultTimeLocale)
-import           System.FilePath(takeDirectory)
+import           System.FilePath(takeDirectory, combine)
 import           System.Directory(createDirectoryIfMissing, doesDirectoryExist, doesFileExist
-                                 , renameDirectory, getModificationTime, removeDirectoryRecursive)
+                                 , renameDirectory, getModificationTime, removeDirectoryRecursive
+                                 , listDirectory, doesDirectoryExist)
 
 createDirectories :: FilePath -> IO ()
 createDirectories p =
@@ -55,3 +57,9 @@ deleteOrRename dir uuid = do
         (== uuid) <$> decodeFileOrFail keyPath
 
   keyPath = dir ++ "/" ++ "key"
+
+listFilesRecursively :: FilePath -> IO [FilePath]
+listFilesRecursively d =
+  fmap mconcat $ listDirectory d >>= mapM (go . combine d)
+ where
+  go x = doesDirectoryExist x >>= bool (return [x]) (listFilesRecursively x)

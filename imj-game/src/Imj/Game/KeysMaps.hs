@@ -39,6 +39,7 @@ shiftOnly = GLFW.ModifierKeys {
   , GLFW.modifierKeysSuper   = False
   }
 
+
 translatePlatformEvent :: (GameLogicT e ~ g
                          , MonadState (AppState g) m
                          , MonadReader e m, Client e)

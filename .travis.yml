@@ -8,12 +8,13 @@ os:
   - osx
   - linux
 
-# earlier clang versions may induce "symbols not found" errors
-osx_image: xcode9.3
+# not sure if that is required: at the time of writing this comment,
+# the default travis xcode version is 9.4 and may work fine as well.
+osx_image: xcode10
 
 env:
-  - RESOLVER="lts-11.9"           # ghc 8.2.2
-  - RESOLVER="nightly-2018-06-26" # ghc 8.4.3
+  - RESOLVER="lts-11.22"          # ghc 8.2.2
+  - RESOLVER="lts-12.13"          # ghc 8.4.3
   - RESOLVER="nightly"
 
 matrix:
@@ -55,20 +56,11 @@ before_install:
     sudo unlink /usr/bin/gcc && sudo ln -s /usr/bin/gcc-7 /usr/bin/gcc
     gcc --version
   fi
-# We need to install clang on osx
 - |
   if [[ $TRAVIS_OS_NAME == 'osx' ]]
   then
     brew bundle --verbose
     brew info llvm
-    brew update
-    brew install llvm
-    brew info llvm
-    export CC="/usr/local/opt/llvm/bin/clang"
-    export CXX="/usr/local/opt/llvm/bin/clang++"
-    export LDFLAGS="-L/usr/local/opt/llvm/lib"
-    export CPPFLAGS="-I/usr/local/opt/llvm/include"
-    export PATH="/usr/local/opt/llvm/bin:$PATH"
   fi
 - mkdir -p ~/.local/bin
 - export PATH=$HOME/.local/bin:$PATH

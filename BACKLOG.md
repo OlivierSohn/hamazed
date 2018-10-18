@@ -1,13 +1,76 @@
-- add reverb in game-synths.
+- we could stream audio at 200 kBytes per second ( 4bytes per frame, i.e 16 bits per channel in stereo)
+i.e 1.6 Mb / s
+
+- write a paper on auto optimizations used in the singlethread 0-latency convolution reverb algorithm.
+Buzzwords:
+. Robust (no need to synchronize with other threads)
+. Predictable (pure computations, auto-benchmarks)
+. Callback-length aware : we optimize for
+  worst case cost per audio callback (max duration over all possible phases)
+
+- release imj-audio
+. Document linux performance limitation for fft:
+we could optimize imj-fft by using assume_aligned
+and/or using fft libraries
+
+. documentation will likely fail to build, I'll need to upload it manually.
+
+- test MIDI input on linux
+
+- chose a better default for midi polling, it is using 40% CPU !
+. Also, ideally Haskell could be used to setup the thread, but the midipolling should occur outside ghc's
+scope to avoid GC pauses, and the Haskell overhead.
+
+- Effects
+. Allow to play multiple notes of the same wind at the same time (I'm not sure it works today)
+. Allow to play different kinds of Wind at the same time
+. give each wind preset a Haskell constructor.
+. do the same thing for robots
+
+- Panning
+. allow panning of instruments
+. in game-synths, each player could be automatically assigned a different position
+in the stereo field.
+When using true stereo reverbs, we could pan each player to far left / far right.
+
+- reverbs in imj-game-synths
+
+. embed some reverbs
+. make an argument with "path to reverbs" to allow adding more reverbs
+
+. let user adjust reverb gain (in addition to dry/wet)
+
+. send the reverb file OTN : the key is "file path + hash", to see if the client has it.
+(hash should be part of spaceResponse_t)
+
+. take the cost of the first convolution into account when dynamically optimizing:
+
+worst case:
+
+early part (once every 2^n sample):
+----------
+for k : [nDropped..n]
+  1 forward FFT (size 2^k),
+  1 inverse FFT (size 2^k),
+  2 multiply add  (size 2^k)
+
+late part ():
+---------
+
+if the number of late coefficients is much bigger than the number of early ones,
+the cost of early will be negligible.
+but if it's similar, we may have a problem, because early worst is 1.5x late worst in that case
+
+A first approach is to measure the peak overhead, by sample, of early coefficients handling,
+and give this information to the algorithm, along with the timing (what is in sync with which grain?).
+
+- visual feedback when the compressor kicks in (rt thread sets a flag, non rt thread checks every second)
 
 - should we compress network messages? to analyze traffic:
 sudo tcpdump -i lo0 -v -nnXSs 0
 
-- change the sound in real time, when harmonics change.
-.. enqueue parameter changes :
-   change volume / phase of harmonic 6 to ...
-the changes should be linearily smoothed over a long time so that there is
-  no sound discontinuity
+- harmonics param changes should change the sound in real time
+(use same technique as reverb wet)
 
 - When playing a loop, the server should offset the miditimestamps by
 period of the loop * loop number, else jitter compensation will not work.

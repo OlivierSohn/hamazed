@@ -36,8 +36,8 @@ namespace imajuscule::audioelement {
 
 
   template<typename Env>
-  float* envelopeGraph(typename Env::Param const & rawEnvParams, int*nElems, int*splitAt) {
-    std::vector<float> v;
+  double* envelopeGraph(typename Env::Param const & rawEnvParams, int*nElems, int*splitAt) {
+    std::vector<double> v;
     int split;
     std::tie(v, split) = envelopeGraphVec<Env>(rawEnvParams);
     if(nElems) {
@@ -49,10 +49,10 @@ namespace imajuscule::audioelement {
     auto n_bytes = v.size()*sizeof(decltype(v[0]));
     auto c_arr = imj_c_malloc(n_bytes); // will be freed by haskell finalizer.
     memcpy(c_arr, v.data(), n_bytes);
-    return static_cast<float*>(c_arr);
+    return static_cast<double*>(c_arr);
   }
 
-  float* analyzeEnvelopeGraph(EnvelopeRelease t, AHDSR p, int* nElems, int*splitAt) {
+  double* analyzeEnvelopeGraph(EnvelopeRelease t, AHDSR p, int* nElems, int*splitAt) {
     static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
     switch(t) {
       case EnvelopeRelease::ReleaseAfterDecay:
@@ -277,7 +277,7 @@ extern "C" {
     return convert(midiEventAHDSR(osc, t, {hars, har_sz}, p, n, maybeMts));
   }
 
-  float* analyzeAHDSREnvelope_(imajuscule::audioelement::EnvelopeRelease t, int a, int ai, int h, int d, int di, float s, int r, int ri, int*nElems, int*splitAt) {
+  double* analyzeAHDSREnvelope_(imajuscule::audioelement::EnvelopeRelease t, int a, int ai, int h, int d, int di, float s, int r, int ri, int*nElems, int*splitAt) {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;
@@ -300,6 +300,37 @@ extern "C" {
       return false;
     }
     return convert(stopPlaying(windVoice(),getAudioContext().getChannelHandler(),*getXfadeChannels(),pitch));
+  }
+
+  bool getConvolutionReverbSignature_(const char * dirPath, const char * filePath, spaceResponse_t * r) {
+    using namespace imajuscule::audio;
+    return getConvolutionReverbSignature(dirPath, filePath, *r);
+  }
+
+  bool dontUseReverb_() {
+    using namespace imajuscule::audio;
+    if(unlikely(!getAudioContext().Initialized())) {
+      return false;
+    }
+    dontUseConvolutionReverbs(getAudioContext().getChannelHandler());
+    return true;
+  }
+  bool useReverb_(const char * dirPath, const char * filePath) {
+    using namespace imajuscule::audio;
+    if(unlikely(!getAudioContext().Initialized())) {
+      return false;
+    }
+    return useConvolutionReverb(getAudioContext().getChannelHandler(), dirPath, filePath);
+  }
+  bool setReverbWetRatio(double wet) {
+    using namespace imajuscule::audio;
+    if(unlikely(!getAudioContext().Initialized())) {
+      return false;
+    }
+    getAudioContext().getChannelHandler().enqueueOneShot([wet](auto & chans) {
+      chans.getPost().transitionConvolutionReverbWetRatio(wet);
+    });
+    return true;
   }
 }
 

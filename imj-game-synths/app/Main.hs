@@ -101,55 +101,6 @@ import           Imj.Timing
 main :: IO ()
 main = runGame (Proxy :: Proxy SynthsGame)
 
-
--- TODO make a PortMidi example out of this for https://github.com/ninegua/PortMidi/issues/4
-{-
-main2 = usingAudioOutput readMidi
-readMidi :: IO ()
-readMidi = do
-  PortMidi.initialize >>= either
-    (\err -> putStrLn $ "midi initialize : " ++ show err)
-    (const $ return ())
-  PortMidi.getDefaultInputDeviceID >>= maybe
-    (error "no default device")
-    (\did -> do
-      PortMidi.getDeviceInfo did >>= print
-      PortMidi.openInput did >>= either
-        (\err -> error $ "open:" ++ show err)
-        (\stream -> do
-            let f =
-                  PortMidi.poll stream >>= either
-                    (\err -> error $ "poll:" ++ show err)
-                    (\case
-                        PortMidi.NoError'NoData -> f
-                        PortMidi.GotData ->
-                          PortMidi.readEvents stream >>= \evts -> do
-                            putStrLn ""
-                            print evts
-                            forM_ evts
-                              (maybe
-                                (putStrLn "unhandled")
-                                (\case
-                                    NoteOn _ key 0 -> onNoteOff key
-                                    NoteOn _ key vel -> do
-                                     let n = mkInstrumentNote (fromIntegral key) simpleInstrument
-                                     play (StartNote n $ mkNoteVelocity vel) >>= either (error . show) return
-                                    NoteOff _ key _ -> onNoteOff key
-                                    _ -> putStrLn "unhandled"
-                                    ) . msgToMidi . PortMidi.decodeMsg . PortMidi.message)
-                            f
-                           where
-                             onNoteOff k = do
-                               let n = mkInstrumentNote (fromIntegral k) simpleInstrument
-                               play (StopNote n) >>= either (error . show) return
-                            )
-            f)
-          )
-  PortMidi.terminate >>= either
-    (\err -> putStrLn $ "midi terminate : " ++ show err)
-    (const $ return ())
--}
-
 -- from https://hackage.haskell.org/package/Euterpea-2.0.2/src/Euterpea/IO/MIDI/MidiIO.lhs
 msgToMidi :: PortMidi.PMMsg -> Maybe Message
 msgToMidi (PortMidi.PMMsg m d1 d2) =
@@ -865,6 +816,12 @@ instance GameLogic SynthsGame where
           PortMidi.terminate >>= either (putStrLn . (++) "PortMidi termination failed:" . show) (const $ return ())
           return $ Right Nothing)
         (\_ -> do
+          PortMidi.countDevices >>= \n -> do
+            putStrLn $ unwords [show n, "MIDI devices detected."]
+            mapM_
+              (\i -> PortMidi.getDeviceInfo i >>=
+                      putStrLn . (++) (unwords ["Midi device", show i, ":"]) . show)
+              [0..n-1]
           putStrLn "PortMidi is looking for a default MIDI device."
           PortMidi.getDefaultInputDeviceID >>= maybe
             (do

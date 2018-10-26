@@ -21,7 +21,7 @@ The music is shared between all players.
 module Main where
 
 import           Imj.Prelude
-import           Prelude(length, putStrLn)
+import           Prelude(length, putStrLn, print)
 --import Debug.Trace(trace)
 import           Codec.Midi hiding(key, Key)
 import           Control.Concurrent(forkIO, threadDelay)
@@ -33,7 +33,7 @@ import           Data.Binary(Binary(..), encode, decodeOrFail)
 import           Data.Bits (shiftR, shiftL, (.&.))
 import qualified Data.ByteString.Lazy as BL
 import           Data.Char (toLower)
-import           Data.List(replicate, concat, take, foldl', elem, unwords)
+import           Data.List(replicate, concat, take, foldl', elem, unwords, isInfixOf)
 import           Data.Map.Internal(Map(..))
 import qualified Data.Map.Strict as Map
 import           Data.Set(Set)
@@ -795,6 +795,16 @@ midiPollPeriodArg =
           return $ fromIntegral i)
     . readMaybe
 
+-- | We filter devices that contain "through" in their name (these are fake devices on linux).
+--
+-- You may need to tweak this function if you have mutliple midi devices to chose from,
+-- and the one selected is the wrong one.
+selectDevice :: [(a, PortMidi.DeviceInfo)]
+             -> Maybe (a, PortMidi.DeviceInfo)
+selectDevice inputDevices =
+  let inputDevicesNotThrough = filter (not . isInfixOf "through" . map toLower . PortMidi.name . snd) inputDevices
+  in listToMaybe inputDevicesNotThrough
+
 instance GameLogic SynthsGame where
 
   type ClientArgsT SynthsGame = SynthsClientArgs
@@ -818,29 +828,28 @@ instance GameLogic SynthsGame where
         (\_ -> do
           PortMidi.countDevices >>= \n -> do
             putStrLn $ unwords [show n, "MIDI devices detected."]
-            mapM_
-              (\i -> PortMidi.getDeviceInfo i >>=
-                      putStrLn . (++) (unwords ["Midi device", show i, ":"]) . show)
-              [0..n-1]
-          putStrLn "PortMidi is looking for a default MIDI device."
-          PortMidi.getDefaultInputDeviceID >>= maybe
-            (do
-              putStrLn "PortMidi: No default midi device exists."
-              putStrLn "PortMidi: You will be able to play sounds using your pc-keyboard only."
-              PortMidi.terminate >>= either (putStrLn . (++) "PortMidi termination failed:" . show) (const $ return ())
-              return $ Right Nothing)
-            (\did -> do
-              PortMidi.getDeviceInfo did >>= putStrLn . (++) "Default midi device:" . show
-              putStrLn "PortMidi is opening the default MIDI device."
-              PortMidi.openInput did >>= either
-                (\err -> do
-                  putStrLn $ "PortMidi: Failed to open the device:" ++ show err
+            devices <- mapM (\i -> (,) i <$> PortMidi.getDeviceInfo i) [0..n-1]
+            mapM_ print devices
+            let mayInputDevice = selectDevice $ filter (PortMidi.input . snd) devices
+            maybe
+                (do
+                  putStrLn "PortMidi: No valid input midi device exists."
                   putStrLn "PortMidi: You will be able to play sounds using your pc-keyboard only."
                   PortMidi.terminate >>= either (putStrLn . (++) "PortMidi termination failed:" . show) (const $ return ())
                   return $ Right Nothing)
-                (\res -> do
-                  putStrLn "PortMidi: opened the device."
-                  return $ Right $ Just $ mkMidiDeviceContext res period)))
+                (\(did, inputDevice) -> do
+                     putStrLn $ (++) "Chosen MIDI device:" $ show inputDevice
+                     putStrLn "PortMidi is opening the MIDI device."
+                     PortMidi.openInput did >>= either
+                        (\err -> do
+                          putStrLn $ "PortMidi: Failed to open the device:" ++ show err
+                          putStrLn "PortMidi: You will be able to play sounds using your pc-keyboard only."
+                          PortMidi.terminate >>= either (putStrLn . (++) "PortMidi termination failed:" . show) (const $ return ())
+                          return $ Right Nothing)
+                        (\res -> do
+                          putStrLn "PortMidi: opened the device."
+                          return $ Right $ Just $ mkMidiDeviceContext res period))
+                 mayInputDevice)
     , produceEvents = \(MidiDeviceContext stream period buffer) mayGame -> do
       -- 100 microseconds is the minimal time between calls (measured using console prints).
       -- but this is achieved only by setting a lower value like so:

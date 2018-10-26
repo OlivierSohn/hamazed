@@ -48,10 +48,10 @@ library
                      , Imj.Game.Hamazed.World.Draw
                      , Imj.Game.Hamazed.World.Size
                      , Imj.Game.Hamazed.World.Types
-  build-depends:       base >= 4.9 && < 4.12
+  build-depends:       base >= 4.9 && < 4.13
                      , async >=2.1 && < 2.3
                      , binary ==0.8.*
-                     , containers ==0.5.*
+                     , containers >= 0.5 && < 0.7
                      , deepseq ==1.4.*
                      , imj-audio ==0.1.*
                      , imj-base ==0.1.*
@@ -76,7 +76,7 @@ library
 executable imj-game-hamazed-exe
   hs-source-dirs:      app
   main-is:             Main.hs
-  build-depends:       base >= 4.9 && < 4.12
+  build-depends:       base >= 4.9 && < 4.13
                      , imj-base ==0.1.*
                      , imj-game ==0.1.*
                      , imj-game-hamazed
@@ -87,7 +87,7 @@ test-suite imj-game-hamazed-test
   hs-source-dirs:      test
   other-modules:
   main-is:             Spec.hs
-  build-depends:       base >= 4.9 && < 4.12
+  build-depends:       base >= 4.9 && < 4.13
   default-language:    Haskell2010
 
 source-repository head

@@ -19,10 +19,10 @@ Tested-With: GHC == 8.2.2, GHC == 8.4.3
 executable imj-game-synths-exe
   hs-source-dirs:      app
   main-is:             Main.hs
-  build-depends:       base >= 4.9 && < 4.12
+  build-depends:       base >= 4.9 && < 4.13
                      , binary ==0.8.*
                      , bytestring == 0.10.*
-                     , containers ==0.5.*
+                     , containers >= 0.5 && < 0.7
                      , deepseq ==1.4.*
                      , directory ==1.3.*
                      , filepath ==1.4.*
@@ -48,7 +48,7 @@ test-suite imj-game-synths-test
   hs-source-dirs:      test
   other-modules:       Test.Imj.Jitter
   main-is:             Spec.hs
-  build-depends:       base >= 4.9 && < 4.12
+  build-depends:       base >= 4.9 && < 4.13
                      , imj-base ==0.1.*
                      , imj-time ==0.1.*
                      , imj-prelude ==0.1.*

@@ -34,10 +34,10 @@ library
                      , Imj.Server.Types
                      , Imj.ServerView
                      , Imj.ServerView.Types
-  build-depends:       base >= 4.9 && < 4.12
+  build-depends:       base >= 4.9 && < 4.13
                      , attoparsec ==0.13.*
                      , binary ==0.8.*
-                     , containers ==0.5.*
+                     , containers >= 0.5 && < 0.7
                      , deepseq ==1.4.*
                      , imj-base ==0.1.*
                      , imj-audio ==0.1.*
@@ -58,7 +58,7 @@ test-suite imj-server-test
   hs-source-dirs:      test
   other-modules:       Test.Imj.ParseCommand
   main-is:             Spec.hs
-  build-depends:       base >= 4.9 && < 4.12
+  build-depends:       base >= 4.9 && < 4.13
                      , attoparsec ==0.13.*
                      , deepseq ==1.4.*
                      , imj-base ==0.1.*

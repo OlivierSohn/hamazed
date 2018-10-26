@@ -48,11 +48,11 @@ library
                      , Imj.Game.Status
                      , Imj.Game.Timing
                      , Imj.Game.Update
-  build-depends:       base >= 4.9 && < 4.12
+  build-depends:       base >= 4.9 && < 4.13
                      , async >=2.1 && < 2.3
                      , attoparsec ==0.13.*
                      , binary ==0.8.*
-                     , containers ==0.5.*
+                     , containers >= 0.5 && < 0.7
                      , deepseq ==1.4.*
                      , GLFW-b ==3.2.*
                      , imj-base ==0.1.*
@@ -63,9 +63,9 @@ library
                      , imj-server ==0.1.*
                      , imj-time ==0.1.*
                      , mtl >= 2.2.1 && < 2.3
-                     , network ==2.6.*
+                     , network >= 2.6 && < 2.9
                      , optparse-applicative == 0.14.*
-                     , stm ==2.4.*
+                     , stm >= 2.4 && < 2.6
                      , strict-concurrency ==0.2.*
                      , text >=1.2.3 && < 1.3
                      , unix ==2.7.*
@@ -78,7 +78,7 @@ test-suite imj-game-test
   hs-source-dirs:      test
   other-modules:
   main-is:             Spec.hs
-  build-depends:       base >= 4.9 && < 4.12
+  build-depends:       base >= 4.9 && < 4.13
   default-language:    Haskell2010
 
 source-repository head

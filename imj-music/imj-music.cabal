@@ -23,9 +23,9 @@ library
                      , Imj.Music.PressedKeys
                      , Imj.Music.Record
                      , Imj.Music.Types
-  build-depends:       base >= 4.9 && < 4.12
+  build-depends:       base >= 4.9 && < 4.13
                      , binary == 0.8.*
-                     , containers ==0.5.*
+                     , containers >= 0.5 && < 0.7
                      , deepseq ==1.4.*
                      , imj-audio ==0.1.*
                      , imj-prelude ==0.1.*

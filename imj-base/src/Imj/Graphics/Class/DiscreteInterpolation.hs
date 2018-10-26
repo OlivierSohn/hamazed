@@ -2,6 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Imj.Graphics.Class.DiscreteInterpolation
         ( DiscreteInterpolation(..)

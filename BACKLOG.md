@@ -1,10 +1,13 @@
 - Merge setCoefficients and applySetup
 
 - gradual subsampling of room response by dividing sampling frequency by 2:
-use bigger crossfades (try 1000?)
-Verify that on slow system it allows to use long responses.
-Verify that optimization still works for normal-sized reverbs (the start size changed,
-  make sure it won't discard single-scale possibilities)
+use bigger crossfades (try 200?)
+UI: Allow to manually chose the number of scales or chose it automatically.
+
+- When the note on and note off are in the same queue, we have a sticky key!
+(test with 1 second poll period)
+maybe events are dequeued in reverse order of arrival?
+or a bug in the audio engine when note on and note off are generated at the same time?
 
 - we could stream audio at 200 kBytes per second ( 4bytes per frame, i.e 16 bits per channel in stereo)
 i.e 1.6 Mb / s

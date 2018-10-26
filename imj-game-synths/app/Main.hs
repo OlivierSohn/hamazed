@@ -768,7 +768,7 @@ mkMidiDeviceContext s p = MidiDeviceContext s p $ S.create $ SM.new 256
 newtype MIDIPollPeriod = MIDIPollPeriod { unMIDIPollPeriod :: Int64 }
   deriving(Num, Integral, Real, Enum, Show, Eq, Ord)
 defaultMidiPollPeriod :: MIDIPollPeriod
-defaultMidiPollPeriod = 1
+defaultMidiPollPeriod = 10000 -- a sane CPU usage / latency ratio.
 
 data SynthsClientArgs = SynthsClientArgs {
     midiPollPeriod :: {-# UNPACK #-} !MIDIPollPeriod
@@ -778,8 +778,11 @@ instance Arg SynthsClientArgs where
       option midiPollPeriodArg
          (  long "midiPollPeriod"
          <> help (
-         "[Client MIDI] The period (in microseconds) at which the MIDI events are polled." ++
-         " Defaults to \"" ++ show (unMIDIPollPeriod defaultMidiPollPeriod) ++ "\"."
+         "[Client MIDI] The period, in microseconds, of MIDI events polling. " ++
+         "Smaller poll periods reduce MIDI jitter and latency, but require more CPU cycles. " ++
+         "The default period (\"" ++ show (unMIDIPollPeriod defaultMidiPollPeriod) ++
+         "\") makes MIDI latency and jitter almost unnoticeable " ++
+         "and is easy on the CPU."
          )))
 
 

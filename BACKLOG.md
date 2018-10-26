@@ -1,3 +1,11 @@
+- Merge setCoefficients and applySetup
+
+- gradual subsampling of room response by dividing sampling frequency by 2:
+use bigger crossfades (try 1000?)
+Verify that on slow system it allows to use long responses.
+Verify that optimization still works for normal-sized reverbs (the start size changed,
+  make sure it won't discard single-scale possibilities)
+
 - we could stream audio at 200 kBytes per second ( 4bytes per frame, i.e 16 bits per channel in stereo)
 i.e 1.6 Mb / s
 

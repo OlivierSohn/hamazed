@@ -1,5 +1,3 @@
-- Merge setCoefficients and applySetup
-
 - gradual subsampling of room response by dividing sampling frequency by 2:
 use bigger crossfades (try 200?)
 UI: Allow to manually chose the number of scales or chose it automatically.

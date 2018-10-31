@@ -315,12 +315,12 @@ extern "C" {
     dontUseConvolutionReverbs(getAudioContext().getChannelHandler());
     return true;
   }
-  bool useReverb_(const char * dirPath, const char * filePath) {
+  bool useReverb_(const char * dirPath, const char * filePath, imajuscule::ResponseTailSubsampling rts) {
     using namespace imajuscule::audio;
     if(unlikely(!getAudioContext().Initialized())) {
       return false;
     }
-    return useConvolutionReverb(getAudioContext().getChannelHandler(), dirPath, filePath);
+    return useConvolutionReverb(getAudioContext().getChannelHandler(), dirPath, filePath, rts);
   }
   bool setReverbWetRatio(double wet) {
     using namespace imajuscule::audio;

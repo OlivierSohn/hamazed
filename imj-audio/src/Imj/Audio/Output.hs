@@ -38,6 +38,10 @@ module Imj.Audio.Output
       , getReverbInfo
       , useReverb
       , setReverbWetRatio
+      -- ** Response subsampling
+      , ResponseTailSubsampling(..)
+      , showRTS
+      , cycleRTS
       -- * C++ audio-engine implementation details
       {-|
 
@@ -246,15 +250,37 @@ getReverbInfo dirName fileName =
       (return Nothing)
       (Just <$> peek p)
 
+data ResponseTailSubsampling =
+    ScaleCount_1
+  | ScaleCount_2
+  | ScaleCount_3
+  | ScaleCount_4
+  | AutoScale
+  deriving (Enum, Show, Eq)
+
+showRTS :: ResponseTailSubsampling -> String
+showRTS = \case
+  ScaleCount_1 -> "None"
+  ScaleCount_2 -> "Up to 2x"
+  ScaleCount_3 -> "Up to 4x"
+  ScaleCount_4 -> "Up to 8x"
+  AutoScale -> "Auto"
+
+cycleRTS :: ResponseTailSubsampling -> Int -> ResponseTailSubsampling
+cycleRTS cur n =
+  let m = fromEnum cur + n
+      modul = succ $ fromEnum AutoScale
+  in toEnum $ m `mod` modul
+
 foreign import ccall "dontUseReverb_" dontUseReverb_ :: IO Bool
-foreign import ccall "useReverb_" useReverb_ :: CString -> CString -> IO Bool
-useReverb :: Maybe (String, String) -> IO (Either () ())
+foreign import ccall "useReverb_" useReverb_ :: CString -> CString -> Int -> IO Bool
+useReverb :: Maybe (String, String, ResponseTailSubsampling) -> IO (Either () ())
 useReverb =
   fmap (bool (Left ()) (Right ())) .
     maybe
       dontUseReverb_
-      (\(dirName, fileName) ->
-        withCString dirName $ \d -> withCString fileName $ \f -> useReverb_ d f)
+      (\(dirName, fileName, subSampling) ->
+        withCString dirName $ \d -> withCString fileName $ \f -> useReverb_ d f $ fromEnum subSampling)
 
 foreign import ccall "setReverbWetRatio" setReverbWetRatio_ :: CDouble -> IO Bool
 setReverbWetRatio :: Double -> IO (Either () ())

@@ -74,16 +74,15 @@ before_install:
 
 - set +ex
 
-# TODO use travis_wait 119
 script:
 - set -ex
 - |
   echo "$(stack --resolver $RESOLVER exec -- which gcc)"
   echo "$(stack --resolver $RESOLVER exec -- gcc --version)"
-- stack --no-terminal --resolver $RESOLVER build --install-ghc --only-dependencies -j2
+- travis_wait 119 stack --no-terminal --resolver $RESOLVER build --install-ghc --only-dependencies -j2
 # The doc of 'imj-audio' fails to build due to
 #   https://github.com/haskell/cabal/issues/944
 #   https://github.com/haskell/cabal/issues/4215
-#- stack --no-terminal --resolver $RESOLVER test --pedantic --haddock --no-haddock-deps -j2
-- stack --no-terminal --resolver $RESOLVER test --pedantic -j2
+#- travis_wait 119 stack --no-terminal --resolver $RESOLVER test --pedantic --haddock --no-haddock-deps -j2
+- travis_wait 119 stack --no-terminal --resolver $RESOLVER test --pedantic -j2
 - set +ex

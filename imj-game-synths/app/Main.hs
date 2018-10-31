@@ -211,14 +211,14 @@ getEditionIndex (Edition mode i j k) =
     -- 1 for oscillator
     1 + 2 * countHarmonics
   countEditables Reverb =
-    -- 1 for by index, 1 for by size, 1 for reverb dry/wet
-    3
+    -- 1 for by index, 1 for by size, 1 for scaling, 1 for reverb dry/wet
+    4
 
 widthEditMode :: Edition -> Length Width
 widthEditMode (Edition mode _ _ _) = case mode of
   Envelope -> 15
   Tone -> 15
-  Reverb -> 25
+  Reverb -> 15
 
 -- TODO use a Trie for allRevs
 data Reverbs = Reverbs {
@@ -229,6 +229,7 @@ data Reverbs = Reverbs {
   -- ^ This path is shared by all reverbs, it should be prefixed to keys of 'allRevs'
   -- to get the path of the reverb.
   , curRev :: !(Maybe Int)
+  , curRevScaling :: !ResponseTailSubsampling
 } deriving(Show)
 
 mkReverbs :: IO Reverbs
@@ -238,17 +239,17 @@ mkReverbs = do
       cprefLen = length pref
       !b = Map.fromList $ map (\(k,v) -> (drop cprefLen k, v)) $ Map.toList a
       byDuration = V.fromList $ indexesBy lengthInSeconds $ Map.elems b
-  return $ Reverbs (almost 1) b byDuration pref Nothing
+  return $ Reverbs (almost 1) b byDuration pref Nothing AutoScale
 
-currentReverb :: Reverbs -> Maybe (FilePath, SpaceResponse)
-currentReverb (Reverbs _ l _ pref c) =
+currentReverb :: Reverbs -> Maybe (FilePath, SpaceResponse, ResponseTailSubsampling)
+currentReverb (Reverbs _ l _ pref c rts) =
   maybe Nothing (\idx -> if idx >= Map.size l
     then
       Nothing
     else
       Just $ addPref $ Map.elemAt idx l) c
  where
-  addPref (k,v) = (pref ++ k,v)
+  addPref (k,v) = (pref ++ k, v, rts)
 
 data SynthsGame = SynthsGame {
     pianos :: !(Map ClientId (PressedKeys InstrumentId))
@@ -308,7 +309,7 @@ instance UIInstructions SynthsGame where
            (zip [startIdx..] $ S.toList $ unHarmonics harmonics)
 
       reverbInstructions =
-        [ ConfigUI "Reverb" $ maybe [List color ["None"]] (\(pathRev, i) ->
+        [ ConfigUI "Reverb info" $ maybe [List color ["None"]] (\(pathRev, i, _) ->
           let (dirName, fileName) = splitFileName $ dropExtension pathRev
           in [ --List (LayeredColor bg $ dim 2 fg) [pack $ commonPref rev],
                List color [pack fileName]
@@ -319,7 +320,7 @@ instance UIInstructions SynthsGame where
                    , (show $ countChannels i) ++ " channels"
                    ]
              ]) $ currentReverb rev
-        , ConfigUI "Browse by index" $
+        , ConfigUI "By index" $
             [ mkChoice reverbBySizeIdx $ unwords [ maybe
                 "0"
                 (\n -> show $ n+1)
@@ -327,13 +328,16 @@ instance UIInstructions SynthsGame where
                 , "of"
                 , show $ Map.size $ allRevs rev ]
             ]
-        , ConfigUI "Browse by duration" $
+        , ConfigUI "By duration" $
             [ mkChoice reverbByDurationIdx $ maybe
                 "0.00 s"
-                (\(_, i) -> showDur i)
+                (\(_, i, _) -> showDur i)
                 $ currentReverb rev
             ]
-        , ConfigUI "Reverb ratio"
+        , ConfigUI "Subsampling" $
+            [ mkChoice reverbByScalingIdx $ showRTS $ curRevScaling rev
+            ]
+        , ConfigUI "Wet ratio"
             [ mkChoice reverbWetIdx $ show $ wetRatio rev]
         ]
        where
@@ -366,13 +370,14 @@ data Key =
 countHarmonics :: Int
 countHarmonics = 10
 
-firstPhaseIdx, oscillatorIdx, reverbBySizeIdx, reverbByDurationIdx, reverbWetIdx :: Int
+firstPhaseIdx, oscillatorIdx, reverbBySizeIdx, reverbByDurationIdx, reverbWetIdx, reverbByScalingIdx :: Int
 oscillatorIdx = 0
 firstPhaseIdx = 1 + countHarmonics
 
 reverbBySizeIdx = 0
 reverbByDurationIdx = 1
-reverbWetIdx = 2
+reverbByScalingIdx = 2
+reverbWetIdx = 3
 
 predefinedAttackItp, predefinedDecayItp, predefinedReleaseItp :: Set Interpolation
 predefinedDecayItp = allInterpolations
@@ -482,6 +487,7 @@ instance Categorized SynthClientEvent
 data ReverbChangeType =
     ByIndex
   | ByDuration
+  | ByScale
   deriving(Show)
 
 data SynthsGameEvent =
@@ -583,6 +589,7 @@ changeInstrumentOrReverb mayInstr edit inc
      let ev
           | idx == reverbBySizeIdx     = flip ChangeReverb ByIndex
           | idx == reverbByDurationIdx = flip ChangeReverb ByDuration
+          | idx == reverbByScalingIdx  = flip ChangeReverb ByScale
           | idx == reverbWetIdx        = ChangeReverbWet
           | otherwise = error "logic"
      in Just $ AppEvent $ ev inc
@@ -978,7 +985,7 @@ instance GameLogic SynthsGame where
               (\(_, instr) -> Just . toParts (toggleView viewmode) <$> liftIO (envelopeShape instr))
               mayInstr
           _ -> return Nothing
-    getIGame >>= maybe (liftIO initialGame) return >>= \g@(SynthsGame _ _ pressed _ _ _ maySourceIdx rvbs@(Reverbs wet revs indexesByDur cpref mayCurIndex)) -> withAnim $ case e of
+    getIGame >>= maybe (liftIO initialGame) return >>= \g@(SynthsGame _ _ pressed _ _ _ maySourceIdx rvbs@(Reverbs wet revs indexesByDur cpref mayCurIndex rts)) -> withAnim $ case e of
       ChangeInstrument i -> do
         useInstrument maySourceIdx i >>= maybe (return ()) (\instrId ->
           putIGame g {
@@ -987,9 +994,13 @@ instance GameLogic SynthsGame where
             })
       ChangeReverb i changeType -> do
         let nullIndex = Map.size revs
+            newRTS = case changeType of
+              ByScale -> cycleRTS rts i
+              _ -> rts
             mayNewIndex
               | nullIndex == 0 = Nothing
               | otherwise = case changeType of
+                ByScale -> mayCurIndex
                 ByIndex ->
                   let j = (i + (fromMaybe nullIndex mayCurIndex)) `mod` (nullIndex + 1)
                   in if j >= nullIndex || j < 0
@@ -1011,15 +1022,15 @@ instance GameLogic SynthsGame where
                             nullIndex - 1
                           else
                             newVecIdx
-        putIGame g { reverbs = rvbs {curRev = mayNewIndex} }
+        putIGame g { reverbs = rvbs { curRev = mayNewIndex
+                                    , curRevScaling = newRTS} }
         maybe
-          (do
-            liftIO (useReverb Nothing) >>= either (const $ liftIO $ putStrLn "error while unsetting reverb (see logs above)") return
-            )
-          (\newIdx -> when (mayCurIndex /= Just newIdx) $ do
+          (liftIO (useReverb Nothing) >>= either (const $ liftIO $ putStrLn "error while unsetting reverb (see logs above)") return)
+          (\newIdx -> when ((mayCurIndex /= Just newIdx) || (newRTS /= rts)) $ do
               let (revPath, _) = Map.elemAt newIdx revs
+                  (a,b) = splitFileName $ cpref ++ revPath
               liftIO $
-                useReverb (Just $ splitFileName $ cpref ++ revPath) >>= either
+                useReverb (Just (a,b,newRTS)) >>= either
                   (const $ liftIO $ putStrLn "error while setting reverb (see logs above)")
                   return)
           mayNewIndex

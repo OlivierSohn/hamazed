@@ -1,12 +1,3 @@
-- gradual subsampling of room response by dividing sampling frequency by 2:
-use bigger crossfades (try 200?)
-UI: Allow to manually chose the number of scales or chose it automatically.
-
-- When the note on and note off are in the same queue, we have a sticky key!
-(test with 1 second poll period)
-maybe events are dequeued in reverse order of arrival?
-or a bug in the audio engine when note on and note off are generated at the same time?
-
 - we could stream audio at 200 kBytes per second ( 4bytes per frame, i.e 16 bits per channel in stereo)
 i.e 1.6 Mb / s
 
@@ -18,17 +9,15 @@ Buzzwords:
   worst case cost per audio callback (max duration over all possible phases)
 
 - release imj-audio
-. Document linux performance limitation for fft:
-we could optimize imj-fft by using assume_aligned
-and/or using fft libraries
+. Document linux performance limitation for fft.
+. documentation will likely fail to build: upload it manually.
 
-. documentation will likely fail to build, I'll need to upload it manually.
+- naive fft optimization (for linux):
+use assume(N%4 == 0) where applicable and AssumeAligned64 so that compilers
+can generate more efficient simd code.
+we could also use another radix, or use fft libraries.
 
-- test MIDI input on linux
-
-- chose a better default for midi polling, it is using 40% CPU !
-. Also, ideally Haskell could be used to setup the thread, but the midipolling should occur outside ghc's
-scope to avoid GC pauses, and the Haskell overhead.
+- midi polling should occur outside ghc's scope to avoid GC pauses, and Haskell overhead.
 
 - Effects
 . Allow to play multiple notes of the same wind at the same time (I'm not sure it works today)

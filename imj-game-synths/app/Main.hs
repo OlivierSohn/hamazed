@@ -22,7 +22,7 @@ module Main where
 
 import           Imj.Prelude
 import           Prelude(length, putStrLn, print)
---import Debug.Trace(trace)
+--import qualified Debug.Trace as Debug
 import           Codec.Midi hiding(key, Key)
 import           Control.Concurrent(forkIO, threadDelay)
 import           Control.Concurrent.MVar.Strict(MVar, modifyMVar, modifyMVar_, newMVar, putMVar, takeMVar)
@@ -893,12 +893,22 @@ instance GameLogic SynthsGame where
                                     let mi = Just $ MidiInfo (fromIntegral $ time * 1000000) srcIdx
                                         off k =
                                           let key = MIDIKey k
+                                              mayPressedSpec = Map.lookup key pressed
+                                              -- 'pressed' might not be up-to-date if we have a noteon and a note off in the same poll period.
+                                              mayFallbackSpec = fmap
+                                                (\(iid, _) -> mkInstrumentNote k iid)
+                                                mayInstr
+                                              -- TODO we assume that the current instrument will not
+                                              -- change during the poll period. A more robust solution would be
+                                              -- to modify 'pressed' during 'produceEvents' instead of relying on
+                                              -- sending events, after the call. Then we won't need mayFallbackSpec.
+                                              maySpec = mayPressedSpec <|> mayFallbackSpec
                                           in maybe
                                               ([],[])
                                               (\spec ->
                                                 ([AppEvent $ RemovePressedKey key]
                                                 ,[ClientAppEvt $ PlayNote $ StopNote mi spec]))
-                                              $ Map.lookup key pressed
+                                              maySpec
                                         on k v = maybe
                                           ([],[])
                                           (\(iid, _) ->

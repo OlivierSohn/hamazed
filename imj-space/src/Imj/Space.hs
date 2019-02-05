@@ -161,6 +161,7 @@ mkRandomlyFilledSpace :: Int
 mkRandomlyFilledSpace blockSize wallAirRatio s nComponents continue gens optStrats
   | blockSize <= 0 = fail $ "block size should be strictly positive : " ++ show blockSize
   | otherwise = do
+      --putStrLn $ "wallAirRatio" ++ show wallAirRatio
       (closeWorld@(SWCharacteristics smallSz _ _), OptimalStrategy strategy _) <- go blockSize
       let property = mkProperties closeWorld $ fmap (toVariants smallSz) strategy
       mkSmallWorld gens property continue >>= \(res, stats) ->
@@ -180,7 +181,7 @@ mkRandomlyFilledSpace blockSize wallAirRatio s nComponents continue gens optStra
     $ lookupOptimalStrategy userCharacteristics timeBudget optStrats
    where
     userCharacteristics = SWCharacteristics (bigToSmall s bsz) nComponents wallAirRatio
-    timeBudget = fromSecs 1
+    timeBudget = fromSecs 2 -- TODO make it user configurable.
 
 
 bigToSmall :: Size -> Int -> Size
@@ -200,7 +201,10 @@ smallWorldToBigWorld s blockSize small@(SmallWorld (SmallMatInfo _ smallWorldMat
   replicateElems = replicateElements blockSize
   innerMat = replicateElems $ map replicateElems $ Cyclic.toLists smallWorldMat
 
-data MatrixPipeline = MatrixPipeline !MatrixSource !MatrixTransformer
+data MatrixPipeline = MatrixPipeline
+  !Int -- number of elements per matrix
+  !MatrixSource
+  !MatrixTransformer
 
 newtype MatrixSource = MatrixSource (MS.IOVector MaterialAndKey -> GenIO -> IO SmallMatInfo)
 
@@ -224,17 +228,25 @@ mkMatrixPipeline :: ComponentCount
                  -> LowerBounds
                  -> Maybe MatrixVariants
                  -> IO MatrixPipeline
-mkMatrixPipeline nComponents' wallProba (Size (Length nRows) (Length nCols)) lb variants =
-  return $ MatrixPipeline (MatrixSource produce) $ MatrixTransformer consume
+mkMatrixPipeline
+ nComponents'
+ wallProba
+ (Size (Length nRows) (Length nCols))
+ (LowerBounds minAirCount minWallCount countBlocks)
+ variants =
+  return $ MatrixPipeline nBlocks (MatrixSource produce) $ MatrixTransformer consume
  where
   produce v gen =
     fillSmallVector gen wallProba v >>= \nAir ->
       SmallMatInfo (fromIntegral nAir) . Cyclic.fromVector nRows nCols <$> S.unsafeFreeze v
 
   consume s v mat =
-    foldStats (s{countRandomMatrices = 1 + countRandomMatrices s}) $ either
+    foldStats
+      (s{countRandomMatrices = 1 + countRandomMatrices s})
+      $ either
           ((:|[]) . Left)
-          (takeWhilePlus isLeft . matchAndVariate nComponents variants v) $ checkRandomMatrix lb mat
+          (takeWhilePlus isLeft . matchAndVariate nComponents variants v)
+          $ smallWorldIsValid mat
 
   !nComponents = -- relax the constraint on number of components if the size is too small
     min
@@ -243,24 +255,38 @@ mkMatrixPipeline nComponents' wallProba (Size (Length nRows) (Length nCols)) lb 
 
   nBlocks = nRows * nCols
 
-runPipeline :: Int -> NonEmpty GenIO -> IO Bool -> MatrixPipeline -> IO (Maybe SmallWorld, Statistics)
-runPipeline nBlocks generators continue (MatrixPipeline (MatrixSource produce) (MatrixTransformer consume)) = do
+  smallWorldIsValid :: SmallMatInfo -> Either SmallWorldRejection SmallMatInfo
+  smallWorldIsValid  m@(SmallMatInfo countAirBlocks _)
+     | countAirBlocks < minAirCount = Left $ NotEnough Air
+     | countWallBlocks < minWallCount = Left $ NotEnough Wall
+     | otherwise = Right m
+     where
+      !countWallBlocks = countBlocks - countAirBlocks
+
+-- | Runs the computation in parallel (one thread per random number generator).
+--
+-- Returns the result of the first thread that finds a valid matrix.
+runPipeline :: NonEmpty GenIO
+            -- ^ The list of random number generators
+            -> IO Bool
+            -- ^ The computation should stop if this is 'False'
+            -> MatrixPipeline
+            -> IO (Maybe SmallWorld, Statistics)
+runPipeline generators continue (MatrixPipeline nBlocks (MatrixSource produce) (MatrixTransformer consume)) = do
   resVar <- newEmptyMVar :: IO (MVar (Maybe SmallWorld, Statistics))
   run resVar
  where
   run resM =
-    run' (NE.toList generators)
+    run' $ NE.toList generators
    where
-    run' [] =
-      takeMVar resM -- the first will win
+    run' (gen:gens) = withAsync (shortcut gen) $ \_ ->
+      -- print =<< threadCapability (asyncThreadId a)
+      run' gens
 
-    run' (gen:gens) =
-      withAsync (shortcut gen) $ \_ ->
-        -- print =<< threadCapability (asyncThreadId a)
-        run' gens
+    run' []         = takeMVar resM -- the first thread that finishes its computation wins
 
     -- Note that running producer and consummer in separate threads, and forwarding the results
-    -- through an MVar is slower than calling them sequentially, like here.
+    -- from producer to consumer through an MVar is slower than calling them sequentially, like so:
     shortcut gen = do
       -- we align to 64 bytes and allocate a multiple of 64 bytes to avoid false sharing
       -- (assuming a cache line size of 64 bytes)
@@ -279,18 +305,10 @@ runPipeline nBlocks generators continue (MatrixPipeline (MatrixSource produce) (
             consume s ba <$> produce v gen >>= \(BRMV m s') ->
                 either (const $ go s') (void . tryPutMVar resM . flip (,) s' . Just) m
 
-checkRandomMatrix :: LowerBounds -> SmallMatInfo -> Either SmallWorldRejection SmallMatInfo
-checkRandomMatrix (LowerBounds minAirCount minWallCount countBlocks) m@(SmallMatInfo countAirBlocks _)
-   | countAirBlocks < minAirCount = Left $ NotEnough Air
-   | countWallBlocks < minWallCount = Left $ NotEnough Wall
-   | otherwise = Right m
-   where
-    !countWallBlocks = countBlocks - countAirBlocks
-
 mkSmallWorld :: NonEmpty GenIO
              -> Properties
              -> IO Bool
-             -- ^ Can continue?
+             -- ^ The computation should stop if this is 'False'
              -> IO (MkSpaceResult SmallWorld, Statistics)
              -- ^ the "small world"
 mkSmallWorld gens (Properties (SWCharacteristics sz nComponents' userP) variants eitherLowerBounds) continue
@@ -305,8 +323,12 @@ mkSmallWorld gens (Properties (SWCharacteristics sz nComponents' userP) variants
                         }))
       eitherLowerBounds
  where
-  go lowerBounds@(LowerBounds minAirCount minWallCount totalCount) =
-    mkMatrixPipeline nComponents wallProba sz lowerBounds variants >>= runPipeline (area sz) gens continue
+  go lowerBounds@(LowerBounds minAirCount minWallCount totalCount) = do
+    --print userP -- this is not the one the user sees in the UI, it is already adapted
+    --print minP
+    --print maxP
+    --print wallProba
+    mkMatrixPipeline nComponents wallProba sz lowerBounds variants >>= runPipeline gens continue
    where
     wallProba = fromMaybe (error "logic") $ mapRange 0 1 minP maxP userP
     minP =     fromIntegral minWallCount / fromIntegral totalCount
@@ -323,36 +345,36 @@ foldStats :: Statistics -> NonEmpty TopoMatch -> BestRandomMatrixVariation
 foldStats stats (x:|xs) =
   List.foldl' (\(BRMV _ s) v -> BRMV v $ addToStats v s) (BRMV x $ addToStats x stats) xs
 
-addToStats' :: SmallWorldRejection -> Statistics -> Statistics
-addToStats' (NotEnough Air) s = s { countNotEnoughWalls  = 1 + countNotEnoughWalls s }
-addToStats' (NotEnough Wall) s = s { countNotEnoughWalls  = 1 + countNotEnoughWalls s }
-addToStats' UnusedFronteers s = s { countUnusedFronteers = 1 + countUnusedFronteers s }
-addToStats' (CC x nComps) s = addNComp nComps $ case x of
-  ComponentCountMismatch ->
-    s { countComponentCountMismatch = 1 + countComponentCountMismatch s }
-  ComponentsSizesNotWellDistributed ->
-    s { countComponentsSizesNotWellDistributed = 1 + countComponentsSizesNotWellDistributed s }
-  SpaceNotUsedWellEnough ->
-    s { countSpaceNotUsedWellEnough = 1 + countSpaceNotUsedWellEnough s }
-  UnusedFronteers' ->
-    s { countUnusedFronteers = 1 + countUnusedFronteers s }
-
-addToStats'' :: SmallWorld -> Statistics -> Statistics
-addToStats'' (SmallWorld _ topo) s =
-  let nComps = ComponentCount $ length $ getConnectedComponents topo
-  in addNComp nComps s
-
 addToStats :: TopoMatch -> Statistics -> Statistics
 addToStats elt s =
- let s'' = case elt of
-      Right r -> addToStats'' r s
-      Left l  -> addToStats' l s
- in s'' { countGeneratedMatrices = 1 + countGeneratedMatrices s'' }
+  s' { countGeneratedMatrices = 1 + countGeneratedMatrices s' }
+ where
+  s' = either addToStats' addToStats'' elt
 
-addNComp :: ComponentCount -> Statistics -> Statistics
-addNComp n s =
-  s { countGeneratedGraphsByComponentCount =
-    Map.alter (Just . (+1) . fromMaybe 0) n $ countGeneratedGraphsByComponentCount s }
+  addToStats' :: SmallWorldRejection -> Statistics
+  addToStats' (NotEnough Air) = s { countNotEnoughWalls  = 1 + countNotEnoughWalls s }
+  addToStats' (NotEnough Wall) = s { countNotEnoughWalls  = 1 + countNotEnoughWalls s }
+  addToStats' UnusedFronteers = s { countUnusedFronteers = 1 + countUnusedFronteers s }
+  addToStats' (CC x nComps) = addNComp nComps $ case x of
+    ComponentCountMismatch ->
+      s { countComponentCountMismatch = 1 + countComponentCountMismatch s }
+    ComponentsSizesNotWellDistributed ->
+      s { countComponentsSizesNotWellDistributed = 1 + countComponentsSizesNotWellDistributed s }
+    SpaceNotUsedWellEnough ->
+      s { countSpaceNotUsedWellEnough = 1 + countSpaceNotUsedWellEnough s }
+    UnusedFronteers' ->
+      s { countUnusedFronteers = 1 + countUnusedFronteers s }
+
+  addToStats'' :: SmallWorld -> Statistics
+  addToStats'' (SmallWorld _ topo) =
+    let nComps = ComponentCount $ length $ getConnectedComponents topo
+    in addNComp nComps s
+
+
+  addNComp :: ComponentCount -> Statistics -> Statistics
+  addNComp n s2 =
+    s2 { countGeneratedGraphsByComponentCount =
+      Map.alter (Just . (+1) . fromMaybe 0) n $ countGeneratedGraphsByComponentCount s }
 
 matchAndVariate :: ComponentCount
                 -> Maybe MatrixVariants
@@ -381,7 +403,7 @@ matchAndVariate nComponents curB v info =
 
               produceVariations (Rotate (RotationDetail order _)) =
                 Cyclic.produceRotations order m
-          -- TODO try conduit or pipes or https://www.twanvl.nl/blog/haskell/streaming-vector in
+          -- TODO try conduit or pipes or https://www.twanvl.nl/blog/haskell/streaming-vector in:
           --    matchAndVariate
           --    random matrix creation
           --    matrix production.
@@ -635,12 +657,13 @@ data AccumSource = AS {
 }
 
 fillSmallVector :: GenIO
+                -- ^ Random number generator
                 -> AlmostFloat
                 -- ^ Probability to generate a wall
                 -> MS.IOVector MaterialAndKey
-                -- ^ Use this memory
+                -- ^ The "small vector" that will be filled by this function
                 -> IO Word16
-                -- ^ The count of air keys
+                -- ^ The count of 'air' keys
 fillSmallVector gen wallProba v = do
   let countBlocks = MS.length v
       !limit = mapNormalizedToDiscrete wallProba maxBound :: Word8

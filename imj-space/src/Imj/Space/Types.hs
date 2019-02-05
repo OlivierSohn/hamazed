@@ -346,8 +346,7 @@ data RotationDetail = RotationDetail {
   -- /Rotated/ variations "preserve" the topology more than /interleaved/ variations, this is the reason why
   -- we don't use this criteria for interleaved rotations.
   --
-  -- TODO We could have a function here : depending on the distance, we could
-  --
+  -- TODO We could have a function here : depending on the distance, we could:
   --  * chose one type of rotation or the other (the choice of Cyclic.RotationOrder could be automated this way)
   --  * chose to rotate "less", i.e take one out of n rotations
 } deriving(Generic, Eq, Ord, Lift)

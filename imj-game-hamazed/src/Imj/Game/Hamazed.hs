@@ -140,7 +140,6 @@ instance GameDraw HamazedGame where
 
 instance GameLogic HamazedGame where
   type ServerT        HamazedGame = HamazedServer
-  type ClientOnlyEvtT HamazedGame = ()
   type ColorThemeT    HamazedGame = ColorCycles
 
   -- Swaps the future world with the current one, and notifies the server using 'IsReady'
@@ -157,11 +156,12 @@ instance GameLogic HamazedGame where
   {-# INLINABLE onClientOnlyEvent #-}
   onClientOnlyEvent = \case
     () -> return ()
+
   {-# INLINABLE onServerEvent #-}
   onServerEvent = \case
     WorldRequest wid arg -> case arg of
       GetGameState ->
-        maybe Nothing (mkGameStateEssence wid) <$> getIGame >>= sendToServer . CurrentGameState wid
+        (join . (fmap $ mkGameStateEssence wid) <$> getIGame) >>= sendToServer . CurrentGameState wid
       Build dt spec ->
         asks sendToServer' >>= \send -> asks belongsTo' >>= \ownedByRequest ->
           void $ liftIO $ forkIO $ flip withAsync (`ownedByRequest` (fromIntegral wid)) $
@@ -170,7 +170,7 @@ instance GameLogic HamazedGame where
             mkOneGenPerCapability >>= \gens -> do
               let go = do
                     deadline <- addDuration dt <$> liftIO getSystemTime
-                    -- TODO getSystemTime can be costly... instead, we should have a thread that queries time every second,
+                    -- TODO if getSystemTime is costly, we can have a thread that queries time every second,
                     -- and atomicModifyIORef an IORef Bool. this same IORef Bool can be used to cancel the async gracefully.
                     -- But we should also read the IORef in the inner loop of matrix transformations to ensure prompt finish.
                     let continue = getSystemTime >>= \t -> return (t < deadline)

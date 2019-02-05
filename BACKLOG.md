@@ -1,3 +1,7 @@
+- When an async is cancelled, we see "imj-game-hamazed-exe: AsyncCancelled"
+in the console. This will be problematic for console-only rendering, as it will interfere
+with the game content. So we should catch these exceptions instead.
+
 - we could stream audio at 200 kBytes per second ( 4bytes per frame, i.e 16 bits per channel in stereo)
 i.e 1.6 Mb / s
 
@@ -13,8 +17,13 @@ Buzzwords:
 . documentation will likely fail to build: upload it manually.
 
 - naive fft optimization (for linux):
-use assume(N%4 == 0) where applicable and AssumeAligned64 so that compilers
-can generate more efficient simd code.
+. use assume(N%4 == 0) where applicable and AssumeAligned64 so that compilers
+    can generate more efficient simd code.
+. use a non-recursive cooley-tuckey (see gpgpu-experiments), but make sure cache is
+  well used (measure naive implementation vs. tiling : maybe the prefetcher will do
+  a better job for the naive implementation)
+.. as suggested in https://www.mathworks.com/help/signal/ref/bitrevorder.html,
+   avoid having to bit-reverse the input by bit-reversing the coefficients.
 we could also use another radix, or use fft libraries.
 
 - midi polling should occur outside ghc's scope to avoid GC pauses, and Haskell overhead.

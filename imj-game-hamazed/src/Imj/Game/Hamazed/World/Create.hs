@@ -69,8 +69,12 @@ data Association = Association {
 mkMinimalWorldEssence :: WorldEssence
 mkMinimalWorldEssence = WorldEssence Map.empty Map.empty mkZeroSpace
 
-mkWorldEssence :: WorldSpec -> IO Bool -> NonEmpty GenIO -> IO (MkSpaceResult WorldEssence, Map Properties Statistics)
-mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shape (WallDistribution blockSize wallProba))) continue gens@(gen:|_) =
+mkWorldEssence :: WorldSpec
+               -> IO Bool
+               -> NonEmpty GenIO
+               -> IO (MkSpaceResult WorldEssence, Map Properties Statistics)
+mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shape (WallDistribution blockSize wallProba))) continue gens@(gen:|_) = do
+  --putStrLn $ "wallProba:" ++ show wallProba
   -- 4 is the max number of components in the file containing optimal strategies.
   go (min 4 $ max 1 $ fromIntegral nShips) [] Map.empty
  where

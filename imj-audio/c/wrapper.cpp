@@ -53,7 +53,7 @@ namespace imajuscule::audioelement {
   }
 
   double* analyzeEnvelopeGraph(EnvelopeRelease t, AHDSR p, int* nElems, int*splitAt) {
-    static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
+    static constexpr auto A = audio::getAtomicity<audio::Ctxt::policy>();
     switch(t) {
       case EnvelopeRelease::ReleaseAfterDecay:
         return envelopeGraph<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>>(p, nElems, splitAt);
@@ -68,7 +68,7 @@ namespace imajuscule::audioelement {
                                       CConstArray<harmonicProperties_t> const & harmonics,
                                       AHDSR p, audio::Event n, Optional<audio::MIDITimestampAndSource> maybeMts) {
     using namespace audio;
-    static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
+    static constexpr auto A = audio::getAtomicity<audio::Ctxt::policy>();
     switch(t) {
       case EnvelopeRelease::ReleaseAfterDecay:
         return midiEvent_<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>>(osc, harmonics, p, n, maybeMts);
@@ -315,12 +315,12 @@ extern "C" {
     dontUseConvolutionReverbs(getAudioContext().getChannelHandler());
     return true;
   }
-  bool useReverb_(const char * dirPath, const char * filePath, imajuscule::ResponseTailSubsampling rts) {
+  bool useReverb_(const char * dirPath, const char * filePath) {
     using namespace imajuscule::audio;
     if(unlikely(!getAudioContext().Initialized())) {
       return false;
     }
-    return useConvolutionReverb(getAudioContext().getChannelHandler(), dirPath, filePath, rts);
+    return useConvolutionReverb(getAudioContext().getChannelHandler().getPost(), dirPath, filePath);
   }
   bool setReverbWetRatio(double wet) {
     using namespace imajuscule::audio;

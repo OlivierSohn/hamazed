@@ -158,6 +158,7 @@ library imj-audio-cxx
 library
   hs-source-dirs:      src
   include-dirs:        c/cpp.audio/include
+                     , c/cpp.algorithms/include
   exposed-modules:     Imj.Audio
                      , Imj.Audio.Envelope
                      , Imj.Audio.Harmonics

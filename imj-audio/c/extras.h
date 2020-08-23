@@ -165,7 +165,7 @@ namespace imajuscule {
     using NoXFadeChans = typename AllChans::NoXFadeChans;
     using XFadeChans = typename AllChans::XFadeChans;
 
-    using ChannelHandler = outputDataBase< AllChans >;
+    using ChannelHandler = outputDataBase< AllChans, ReverbType::Realtime_Synchronous >;
 
     using Ctxt = AudioOutContext<
       ChannelHandler,

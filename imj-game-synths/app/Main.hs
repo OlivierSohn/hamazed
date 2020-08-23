@@ -229,7 +229,6 @@ data Reverbs = Reverbs {
   -- ^ This path is shared by all reverbs, it should be prefixed to keys of 'allRevs'
   -- to get the path of the reverb.
   , curRev :: !(Maybe Int)
-  , curRevScaling :: !ResponseTailSubsampling
 } deriving(Show)
 
 mkReverbs :: IO Reverbs
@@ -239,17 +238,17 @@ mkReverbs = do
       cprefLen = length pref
       !b = Map.fromList $ map (\(k,v) -> (drop cprefLen k, v)) $ Map.toList a
       byDuration = V.fromList $ indexesBy lengthInSeconds $ Map.elems b
-  return $ Reverbs (almost 1) b byDuration pref Nothing AutoScale
+  return $ Reverbs (almost 1) b byDuration pref Nothing
 
-currentReverb :: Reverbs -> Maybe (FilePath, SpaceResponse, ResponseTailSubsampling)
-currentReverb (Reverbs _ l _ pref c rts) =
+currentReverb :: Reverbs -> Maybe (FilePath, SpaceResponse)
+currentReverb (Reverbs _ l _ pref c) =
   maybe Nothing (\idx -> if idx >= Map.size l
     then
       Nothing
     else
       Just $ addPref $ Map.elemAt idx l) c
  where
-  addPref (k,v) = (pref ++ k, v, rts)
+  addPref (k,v) = (pref ++ k, v)
 
 data SynthsGame = SynthsGame {
     pianos :: !(Map ClientId (PressedKeys InstrumentId))
@@ -309,7 +308,7 @@ instance UIInstructions SynthsGame where
            (zip [startIdx..] $ S.toList $ unHarmonics harmonics)
 
       reverbInstructions =
-        [ ConfigUI "Reverb info" $ maybe [List color ["None"]] (\(pathRev, i, _) ->
+        [ ConfigUI "Reverb info" $ maybe [List color ["None"]] (\(pathRev, i) ->
           let (dirName, fileName) = splitFileName $ dropExtension pathRev
           in [ --List (LayeredColor bg $ dim 2 fg) [pack $ commonPref rev],
                List color [pack fileName]
@@ -331,11 +330,8 @@ instance UIInstructions SynthsGame where
         , ConfigUI "By duration" $
             [ mkChoice reverbByDurationIdx $ maybe
                 "0.00 s"
-                (\(_, i, _) -> showDur i)
+                (\(_, i) -> showDur i)
                 $ currentReverb rev
-            ]
-        , ConfigUI "Subsampling" $
-            [ mkChoice reverbByScalingIdx $ showRTS $ curRevScaling rev
             ]
         , ConfigUI "Wet ratio"
             [ mkChoice reverbWetIdx $ show $ wetRatio rev]
@@ -995,7 +991,7 @@ instance GameLogic SynthsGame where
               (\(_, instr) -> Just . toParts (toggleView viewmode) <$> liftIO (envelopeShape instr))
               mayInstr
           _ -> return Nothing
-    getIGame >>= maybe (liftIO initialGame) return >>= \g@(SynthsGame _ _ pressed _ _ _ maySourceIdx rvbs@(Reverbs wet revs indexesByDur cpref mayCurIndex rts)) -> withAnim $ case e of
+    getIGame >>= maybe (liftIO initialGame) return >>= \g@(SynthsGame _ _ pressed _ _ _ maySourceIdx rvbs@(Reverbs wet revs indexesByDur cpref mayCurIndex)) -> withAnim $ case e of
       ChangeInstrument i -> do
         useInstrument maySourceIdx i >>= maybe (return ()) (\instrId ->
           putIGame g {
@@ -1004,9 +1000,6 @@ instance GameLogic SynthsGame where
             })
       ChangeReverb i changeType -> do
         let nullIndex = Map.size revs
-            newRTS = case changeType of
-              ByScale -> cycleRTS rts i
-              _ -> rts
             mayNewIndex
               | nullIndex == 0 = Nothing
               | otherwise = case changeType of
@@ -1032,15 +1025,14 @@ instance GameLogic SynthsGame where
                             nullIndex - 1
                           else
                             newVecIdx
-        putIGame g { reverbs = rvbs { curRev = mayNewIndex
-                                    , curRevScaling = newRTS} }
+        putIGame g { reverbs = rvbs { curRev = mayNewIndex} }
         maybe
           (liftIO (useReverb Nothing) >>= either (const $ liftIO $ putStrLn "error while unsetting reverb (see logs above)") return)
-          (\newIdx -> when ((mayCurIndex /= Just newIdx) || (newRTS /= rts)) $ do
+          (\newIdx -> when (mayCurIndex /= Just newIdx) $ do
               let (revPath, _) = Map.elemAt newIdx revs
                   (a,b) = splitFileName $ cpref ++ revPath
               liftIO $
-                useReverb (Just (a,b,newRTS)) >>= either
+                useReverb (Just (a,b)) >>= either
                   (const $ liftIO $ putStrLn "error while setting reverb (see logs above)")
                   return)
           mayNewIndex

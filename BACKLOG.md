@@ -1,3 +1,5 @@
+- Fix audio transpoitions (cracks)
+
 - When an async is cancelled, we see "imj-game-hamazed-exe: AsyncCancelled"
 in the console. This will be problematic for console-only rendering, as it will interfere
 with the game content. So we should catch these exceptions instead.

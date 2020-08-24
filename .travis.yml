@@ -36,6 +36,8 @@ addons:
     # g++ versions before 7 won't work, as some needed C++17 features are not implemented.
     - g++-7
     - libstdc++-7-dev
+  homebrew:
+    update: true # https://travis-ci.community/t/macos-build-fails-because-of-homebrew-bundle-unknown-command/7296/10
 
 cache:
   directories:

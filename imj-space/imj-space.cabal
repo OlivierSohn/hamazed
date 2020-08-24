@@ -23,7 +23,7 @@ library
                      , Imj.Space.Draw
                      , Imj.Space.Strategies
                      , Imj.Space.Types
-  build-depends:       base >= 4.9 && < 4.13
+  build-depends:       base >= 4.9 && < 4.14
                      , array == 0.5.*
                      , async >=2.1 && < 2.3
                      , binary ==0.8.*
@@ -35,8 +35,8 @@ library
                      , imj-time ==0.1.*
                      , mwc-random ==0.13.*
                      , mtl >= 2.2.1 && < 2.3
-                     , primitive ==0.6.*
-                     , template-haskell >=2.12 && < 2.15
+                     , primitive >=0.6 && < 0.8
+                     , template-haskell >=2.12 && < 2.16
                      , text >=1.2.3 && < 1.3
                      , vector >= 0.12.0.1 && < 0.13
                      , vector-th-unbox == 0.2.*
@@ -47,12 +47,12 @@ test-suite imj-space-test
   hs-source-dirs:      test
   other-modules:       Test.Imj.Topology
   main-is:             Spec.hs
-  build-depends:       base >= 4.9 && < 4.13
+  build-depends:       base >= 4.9 && < 4.14
                      , imj-base ==0.1.*
                      , imj-prelude ==0.1.*
                      , imj-space
                      , mwc-random ==0.13.*
-                     , primitive ==0.6.*
+                     , primitive >=0.6 && < 0.8
                      , vector >= 0.12.0.1 && < 0.13
   default-language:    Haskell2010
 

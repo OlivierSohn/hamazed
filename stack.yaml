@@ -2,11 +2,17 @@
 
 # resolver by ghc version:
 #
-#   8.6.1:  nightly-2018-10-26
-#   8.4.3:  lts-12.14
-#   8.2.2:  lts-11.22
-resolver: lts-12.14
+#   8.8.3: lts-16.10
+#   8.6.5: lts-14.27
+#   8.4.4: lts-12.26
+#   8.4.3: lts-12.14 #TODO remove
+#   8.2.2: lts-11.22
+#resolver: lts-12.14
+resolver: lts-14.27
+#resolver: lts-16.10  # need to rewrite freetype code for this?
 
+# TODO 'stack image' this is not supported anymore in stack 2,
+# use instead : https://www.fpcomplete.com/blog/2017/12/building-haskell-apps-with-docker/
 image:
   containers:
   - base: imajuscule/game-rt
@@ -39,12 +45,10 @@ packages:
 - './imj-space'
 - './imj-time'
 
-- location:
-    git: https://github.com/OlivierSohn/mwc-random.git
-    commit: 89a5657db7cf0a6b95a6fba8467445208f9313e6
-  extra-dep: true
 
 extra-deps:
+- git: https://github.com/OlivierSohn/mwc-random.git
+  commit: 89a5657db7cf0a6b95a6fba8467445208f9313e6
 - FTGL-2.1              # for all resolvers (not part of stackage)
 - PortMidi-0.2.0.0      # for all resolvers (not part of stackage)
 - GLFW-b-3.2.1.0        # for 8.2.2 resolver

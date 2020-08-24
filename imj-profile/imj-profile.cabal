@@ -37,7 +37,7 @@ library
                      , Imj.Profile.Scheduler
                      , Imj.Profile.Types
   other-modules:
-  build-depends:       base >= 4.9 && < 4.13
+  build-depends:       base >= 4.9 && < 4.14
                      , binary == 0.8.*
                      , blaze-html ==0.9.*
                      , bytestring == 0.10.*
@@ -62,9 +62,12 @@ library
 
 
 executable imj-profile-exe
+  -- https://gitlab.haskell.org/ghc/ghc/-/issues/11829
+  if os(darwin)
+    ld-options: -Wl,-keep_dwarf_unwind
   hs-source-dirs:      app
   main-is:             Main.hs
-  build-depends:       base >= 4.9 && < 4.13
+  build-depends:       base >= 4.9 && < 4.14
                      , containers >= 0.5 && < 0.7
                      , imj-game-hamazed ==0.1.*
                      , imj-base ==0.1.*
@@ -84,7 +87,7 @@ test-suite imj-profile-test
   hs-source-dirs:      test
   other-modules:       Test.Imj.ShouldTest
   main-is:             Spec.hs
-  build-depends:       base >= 4.9 && < 4.13
+  build-depends:       base >= 4.9 && < 4.14
                      , containers >= 0.5 && < 0.7
                      , imj-prelude ==0.1.*
                      , imj-profile

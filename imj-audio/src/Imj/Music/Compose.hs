@@ -107,7 +107,7 @@ symbol =
         "lad"  -> return Sib
         "la#"  -> return Sib
         "sib"  -> return Sib
-        str -> fail $"Wrong note:" ++ str
+        str -> error $"Wrong note:" ++ str  -- we used fail instead of error before GHC 8.8
       return $ Note noteName (x + noOctave)
 
 location' :: Q SourcePos

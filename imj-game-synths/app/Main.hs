@@ -211,8 +211,8 @@ getEditionIndex (Edition mode i j k) =
     -- 1 for oscillator
     1 + 2 * countHarmonics
   countEditables Reverb =
-    -- 1 for by index, 1 for by size, 1 for scaling, 1 for reverb dry/wet
-    4
+    -- 1 for by index, 1 for by size, 1 for reverb dry/wet
+    3
 
 widthEditMode :: Edition -> Length Width
 widthEditMode (Edition mode _ _ _) = case mode of
@@ -366,14 +366,13 @@ data Key =
 countHarmonics :: Int
 countHarmonics = 10
 
-firstPhaseIdx, oscillatorIdx, reverbBySizeIdx, reverbByDurationIdx, reverbWetIdx, reverbByScalingIdx :: Int
+firstPhaseIdx, oscillatorIdx, reverbBySizeIdx, reverbByDurationIdx, reverbWetIdx :: Int
 oscillatorIdx = 0
 firstPhaseIdx = 1 + countHarmonics
 
 reverbBySizeIdx = 0
 reverbByDurationIdx = 1
-reverbByScalingIdx = 2
-reverbWetIdx = 3
+reverbWetIdx = 2
 
 predefinedAttackItp, predefinedDecayItp, predefinedReleaseItp :: Set Interpolation
 predefinedDecayItp = allInterpolations
@@ -483,7 +482,6 @@ instance Categorized SynthClientEvent
 data ReverbChangeType =
     ByIndex
   | ByDuration
-  | ByScale
   deriving(Show)
 
 data SynthsGameEvent =
@@ -585,7 +583,6 @@ changeInstrumentOrReverb mayInstr edit inc
      let ev
           | idx == reverbBySizeIdx     = flip ChangeReverb ByIndex
           | idx == reverbByDurationIdx = flip ChangeReverb ByDuration
-          | idx == reverbByScalingIdx  = flip ChangeReverb ByScale
           | idx == reverbWetIdx        = ChangeReverbWet
           | otherwise = error "logic"
      in Just $ AppEvent $ ev inc
@@ -1003,7 +1000,6 @@ instance GameLogic SynthsGame where
             mayNewIndex
               | nullIndex == 0 = Nothing
               | otherwise = case changeType of
-                ByScale -> mayCurIndex
                 ByIndex ->
                   let j = (i + (fromMaybe nullIndex mayCurIndex)) `mod` (nullIndex + 1)
                   in if j >= nullIndex || j < 0

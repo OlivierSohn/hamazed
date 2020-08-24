@@ -18,9 +18,12 @@ cabal-version:       >=1.10
 Tested-With: GHC == 8.2.2, GHC == 8.4.3
 
 executable imj-game-tutorial-increment-exe
+  -- https://gitlab.haskell.org/ghc/ghc/-/issues/11829
+  if os(darwin)
+    ld-options: -Wl,-keep_dwarf_unwind
   hs-source-dirs:      app
   main-is:             Main.hs
-  build-depends:       base >= 4.9 && < 4.13
+  build-depends:       base >= 4.9 && < 4.14
                      , attoparsec ==0.13.*
                      , binary ==0.8.*
                      , containers >= 0.5 && < 0.7

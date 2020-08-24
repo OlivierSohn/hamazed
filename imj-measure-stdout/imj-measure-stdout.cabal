@@ -29,13 +29,16 @@ cabal-version:       >=1.10
 Tested-With: GHC == 8.2.2, GHC == 8.4.3
 
 executable imj-measure-stdout-exe
+  -- https://gitlab.haskell.org/ghc/ghc/-/issues/11829
+  if os(darwin)
+    ld-options: -Wl,-keep_dwarf_unwind
   hs-source-dirs:      app, src
   main-is:             Main.hs
   other-modules:       Imj.Measure.Stdout
-  build-depends:       base >= 4.9 && < 4.13
+  build-depends:       base >= 4.9 && < 4.14
                      , imj-prelude ==0.1.*
                      , imj-time ==0.1.*
-                     , optparse-applicative == 0.14.*
+                     , optparse-applicative >=0.14 && < 0.16
   default-language:    Haskell2010
 
 source-repository head

@@ -14,7 +14,7 @@
 
 #ifdef __cplusplus
 
-namespace imajuscule {
+namespace imajuscule::audio {
   namespace audioelement {
 
     using AudioFloat = double;
@@ -149,8 +149,6 @@ namespace imajuscule {
       return {std::move(v),splitAt};
     }
   }
-
-  namespace audio {
 
 #ifdef IMJ_AUDIO_MASTERGLOBALLOCK
 #pragma message "IMJ_AUDIO_MASTERGLOBALLOCK mode is not recommended, it will lead to audio glitches under contention."
@@ -443,7 +441,6 @@ namespace imajuscule {
 
     VoiceWindImpl & windVoice();
 
-  } // NS audio
-} // NS imajuscule
+} // NS imajuscule::audio
 
 #endif

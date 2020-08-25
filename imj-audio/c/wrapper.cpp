@@ -32,7 +32,7 @@ namespace imajuscule::audio {
   }
 }
 
-namespace imajuscule::audioelement {
+namespace imajuscule::audio::audioelement {
 
 
   template<typename Env>
@@ -53,7 +53,7 @@ namespace imajuscule::audioelement {
   }
 
   double* analyzeEnvelopeGraph(EnvelopeRelease t, AHDSR p, int* nElems, int*splitAt) {
-    static constexpr auto A = audio::getAtomicity<audio::Ctxt::policy>();
+    static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
     switch(t) {
       case EnvelopeRelease::ReleaseAfterDecay:
         return envelopeGraph<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>>(p, nElems, splitAt);
@@ -67,8 +67,7 @@ namespace imajuscule::audioelement {
   audio::onEventResult midiEventAHDSR(OscillatorType osc, EnvelopeRelease t,
                                       CConstArray<harmonicProperties_t> const & harmonics,
                                       AHDSR p, audio::Event n, Optional<audio::MIDITimestampAndSource> maybeMts) {
-    using namespace audio;
-    static constexpr auto A = audio::getAtomicity<audio::Ctxt::policy>();
+    static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
     switch(t) {
       case EnvelopeRelease::ReleaseAfterDecay:
         return midiEvent_<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>>(osc, harmonics, p, n, maybeMts);
@@ -80,7 +79,7 @@ namespace imajuscule::audioelement {
     }
   }
 
-} // NS imajuscule::audioelement
+} // NS imajuscule::audio::audioelement
 
 
 
@@ -193,7 +192,7 @@ extern "C" {
   void teardownAudioOutput() {
     using namespace imajuscule;
     using namespace imajuscule::audio;
-    using namespace imajuscule::audioelement;
+    using namespace imajuscule::audio::audioelement;
 
     std::lock_guard l(initMutex());
 
@@ -240,14 +239,14 @@ extern "C" {
     maxMIDIJitter() = v;
   }
 
-  bool midiNoteOnAHDSR_(imajuscule::audioelement::OscillatorType osc,
-                        imajuscule::audioelement::EnvelopeRelease t,
+  bool midiNoteOnAHDSR_(imajuscule::audio::audioelement::OscillatorType osc,
+                        imajuscule::audio::audioelement::EnvelopeRelease t,
                        int a, int ai, int h, int d, int di, float s, int r, int ri,
                        harmonicProperties_t * hars, int har_sz,
                        int16_t pitch, float velocity, int midiSource, uint64_t maybeMIDITime) {
     using namespace imajuscule;
     using namespace imajuscule::audio;
-    using namespace imajuscule::audioelement;
+    using namespace imajuscule::audio::audioelement;
     if(unlikely(!getAudioContext().Initialized())) {
       return false;
     }
@@ -258,14 +257,14 @@ extern "C" {
       Optional<MIDITimestampAndSource>{};
     return convert(midiEventAHDSR(osc, t, {hars, har_sz}, p, n, maybeMts));
   }
-  bool midiNoteOffAHDSR_(imajuscule::audioelement::OscillatorType osc,
-                         imajuscule::audioelement::EnvelopeRelease t,
+  bool midiNoteOffAHDSR_(imajuscule::audio::audioelement::OscillatorType osc,
+                         imajuscule::audio::audioelement::EnvelopeRelease t,
                          int a, int ai, int h, int d, int di, float s, int r, int ri,
                          harmonicProperties_t * hars, int har_sz,
                          int16_t pitch, int midiSource, uint64_t maybeMIDITime) {
     using namespace imajuscule;
     using namespace imajuscule::audio;
-    using namespace imajuscule::audioelement;
+    using namespace imajuscule::audio::audioelement;
     if(unlikely(!getAudioContext().Initialized())) {
       return false;
     }
@@ -277,10 +276,10 @@ extern "C" {
     return convert(midiEventAHDSR(osc, t, {hars, har_sz}, p, n, maybeMts));
   }
 
-  double* analyzeAHDSREnvelope_(imajuscule::audioelement::EnvelopeRelease t, int a, int ai, int h, int d, int di, float s, int r, int ri, int*nElems, int*splitAt) {
+  double* analyzeAHDSREnvelope_(imajuscule::audio::audioelement::EnvelopeRelease t, int a, int ai, int h, int d, int di, float s, int r, int ri, int*nElems, int*splitAt) {
     using namespace imajuscule;
     using namespace imajuscule::audio;
-    using namespace imajuscule::audioelement;
+    using namespace imajuscule::audio::audioelement;
     auto p = AHDSR{a,itp::toItp(ai),h,d,itp::toItp(di),r,itp::toItp(ri),s};
     return analyzeEnvelopeGraph(t, p, nElems, splitAt);
   }

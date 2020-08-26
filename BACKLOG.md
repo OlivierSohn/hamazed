@@ -1,4 +1,5 @@
-- Fix audio transpoitions (cracks)
+- Fix cracks that sometimes appear after setting a reverb (before the reverb no crack, after crack)
+. try to reproduce in Grid3D , then use memory checker (cannot use memory checker in haskell program)    
 
 - When an async is cancelled, we see "imj-game-hamazed-exe: AsyncCancelled"
 in the console. This will be problematic for console-only rendering, as it will interfere

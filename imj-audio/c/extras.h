@@ -27,6 +27,7 @@ namespace imajuscule::audio {
       Square,
       Triangle
     };
+    std::ostream & operator << (std::ostream &, OscillatorType);
 
     template<template<OscillatorType> typename F>
     void foreachOscillatorType() {

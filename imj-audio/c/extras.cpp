@@ -4,6 +4,23 @@
 
 
 namespace imajuscule::audio {
+    namespace audioelement {
+        std::ostream & operator << (std::ostream & os, OscillatorType t) {
+            switch(t) {
+                case OscillatorType::SinusVolumeAdjusted:
+                  os << "SinusVolumeAdjusted"; break;
+                case OscillatorType::Sinus:
+                  os << "Sinus"; break;
+                case OscillatorType::Saw:
+                  os << "Saw"; break;
+                case OscillatorType::Square:
+                  os << "Square"; break;
+                case OscillatorType::Triangle:
+                  os << "Triangle"; break;
+            }
+            return os;
+        }
+    }
   Ctxt & getAudioContext() {
     static Ctxt c;
     return c;

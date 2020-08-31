@@ -2,6 +2,8 @@
 #include "extras.h"
 #include "memory.h"
 
+#define IMJ_TRACE_EXTERN_C 0
+
 #ifdef __cplusplus
 
 namespace imajuscule::audio {
@@ -82,6 +84,17 @@ namespace imajuscule::audio::audioelement {
 } // NS imajuscule::audio::audioelement
 
 
+struct Trace {
+    Trace(std::string const & name)
+    : name(name) {
+        std::cout << ">>> " << name << std::endl;
+    }
+    ~Trace() {
+        std::cout << "<<< " << name << std::endl;
+    }
+private:
+    std::string name;
+};
 
 extern "C" {
 
@@ -108,6 +121,10 @@ extern "C" {
   * @returns true on success, false on error.
   */
   bool initializeAudioOutput (float minLatencySeconds, int portaudioMinLatencyMillis) {
+#if IMJ_TRACE_EXTERN_C
+    Trace trace("initializeAudioOutput");
+    std::cout << minLatencySeconds << " " << portaudioMinLatencyMillis << std::endl;
+#endif
     using namespace std;
     using namespace imajuscule;
     using namespace imajuscule::audio;
@@ -190,6 +207,9 @@ extern "C" {
   * must be matched by a call to this function.
   */
   void teardownAudioOutput() {
+#if IMJ_TRACE_EXTERN_C
+    Trace trace("teardownAudioOutput");
+#endif
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audio::audioelement;
@@ -235,6 +255,10 @@ extern "C" {
   }
 
   void setMaxMIDIJitter(uint64_t v) {
+#if IMJ_TRACE_EXTERN_C
+    Trace trace("setMaxMIDIJitter");
+    std::cout << v << std::endl;
+#endif
     using namespace imajuscule::audio;
     maxMIDIJitter() = v;
   }
@@ -244,6 +268,24 @@ extern "C" {
                        int a, int ai, int h, int d, int di, float s, int r, int ri,
                        harmonicProperties_t * hars, int har_sz,
                        int16_t pitch, float velocity, int midiSource, uint64_t maybeMIDITime) {
+#if IMJ_TRACE_EXTERN_C
+    Trace trace("midiNoteOnAHDSR_");
+    std::cout << osc << std::endl;
+    std::cout << t << std::endl;
+    std::cout << a << std::endl;
+    std::cout << ai << std::endl;
+    std::cout << h << std::endl;
+    std::cout << d << std::endl;
+    std::cout << di << std::endl;
+    std::cout << s << std::endl;
+    std::cout << r << std::endl;
+    std::cout << ri << std::endl;
+    std::cout << har_sz << std::endl;
+    std::cout << pitch << std::endl;
+    std::cout << velocity << std::endl;
+    std::cout << midiSource << std::endl;
+    std::cout << maybeMIDITime << std::endl;
+#endif
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audio::audioelement;
@@ -262,6 +304,23 @@ extern "C" {
                          int a, int ai, int h, int d, int di, float s, int r, int ri,
                          harmonicProperties_t * hars, int har_sz,
                          int16_t pitch, int midiSource, uint64_t maybeMIDITime) {
+#if IMJ_TRACE_EXTERN_C
+    Trace trace("midiNoteOffAHDSR_");
+    std::cout << osc << std::endl;
+    std::cout << t << std::endl;
+    std::cout << a << std::endl;
+    std::cout << ai << std::endl;
+    std::cout << h << std::endl;
+    std::cout << d << std::endl;
+    std::cout << di << std::endl;
+    std::cout << s << std::endl;
+    std::cout << r << std::endl;
+    std::cout << ri << std::endl;
+    std::cout << har_sz << std::endl;
+    std::cout << pitch << std::endl;
+    std::cout << midiSource << std::endl;
+    std::cout << maybeMIDITime << std::endl;
+#endif
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audio::audioelement;
@@ -277,6 +336,9 @@ extern "C" {
   }
 
   double* analyzeAHDSREnvelope_(imajuscule::audio::audioelement::EnvelopeRelease t, int a, int ai, int h, int d, int di, float s, int r, int ri, int*nElems, int*splitAt) {
+#if IMJ_TRACE_EXTERN_C
+    Trace trace("analyzeAHDSREnvelope_");
+#endif
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audio::audioelement;
@@ -285,6 +347,9 @@ extern "C" {
   }
 
   bool effectOn(int program, int16_t pitch, float velocity) {
+#if IMJ_TRACE_EXTERN_C
+    Trace trace("effectOn");
+#endif
     using namespace imajuscule::audio;
     if(unlikely(!getAudioContext().Initialized())) {
       return false;
@@ -294,6 +359,9 @@ extern "C" {
   }
 
   bool effectOff(int16_t pitch) {
+#if IMJ_TRACE_EXTERN_C
+    Trace trace("effectOff");
+#endif
     using namespace imajuscule::audio;
     if(unlikely(!getAudioContext().Initialized())) {
       return false;
@@ -302,11 +370,17 @@ extern "C" {
   }
 
   bool getConvolutionReverbSignature_(const char * dirPath, const char * filePath, spaceResponse_t * r) {
+#if IMJ_TRACE_EXTERN_C
+    Trace trace("getConvolutionReverbSignature_");
+#endif
     using namespace imajuscule::audio;
     return getConvolutionReverbSignature(dirPath, filePath, *r);
   }
 
   bool dontUseReverb_() {
+#if IMJ_TRACE_EXTERN_C
+    Trace trace("dontUseReverb_");
+#endif
     using namespace imajuscule::audio;
     if(unlikely(!getAudioContext().Initialized())) {
       return false;
@@ -315,6 +389,10 @@ extern "C" {
     return true;
   }
   bool useReverb_(const char * dirPath, const char * filePath) {
+#if IMJ_TRACE_EXTERN_C
+    Trace trace("useReverb_");
+    std::cout << dirPath << " " << filePath << std::endl;
+#endif
     using namespace imajuscule::audio;
     if(unlikely(!getAudioContext().Initialized())) {
       return false;
@@ -322,6 +400,10 @@ extern "C" {
     return useConvolutionReverb(getAudioContext().getChannelHandler().getPost(), dirPath, filePath);
   }
   bool setReverbWetRatio(double wet) {
+#if IMJ_TRACE_EXTERN_C
+    Trace trace("setReverbWetRatio");
+    std::cout << wet << std::endl;
+#endif
     using namespace imajuscule::audio;
     if(unlikely(!getAudioContext().Initialized())) {
       return false;

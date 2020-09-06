@@ -28,6 +28,7 @@ module Imj.Music.Play
       -- * Play Instruction(s) all at once, with known tempo
       , playAtTempo
       , playVoicesAtTempo
+      , playScoreOnceAtTempo
       -- * Create MusicalEvent(s) for a time quantum
       -- ** From a Voice
       , stepVoice

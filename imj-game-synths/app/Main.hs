@@ -136,6 +136,11 @@ widthPart = length . _plot
 widthEnvelope :: Int
 widthEnvelope = 90
 
+findOscillations :: Instrument -> Maybe (Oscillator, Harmonics)
+findOscillations (Wind _) = Nothing
+findOscillations (Synth Noise _ _) = Nothing
+findOscillations (Synth (Oscillations osc har) _ _) = Just (osc, har)
+
 toParts :: EnvelopeViewMode -> [Vector Double] -> [EnvelopePart]
 toParts mode l@[ahds,r]
   | totalSamples == 0 = []
@@ -208,8 +213,8 @@ getEditionIndex (Edition mode i j k) =
 
   countEditables Envelope = 9
   countEditables Tone =
-    -- 1 for oscillator
-    1 + 2 * countHarmonics
+    -- 1 for sound source, 1 for oscillator
+    1 + 1 + 2 * countHarmonics
   countEditables Reverb =
     -- 1 for by index, 1 for by size, 1 for reverb dry/wet
     3
@@ -217,7 +222,7 @@ getEditionIndex (Edition mode i j k) =
 widthEditMode :: Edition -> Length Width
 widthEditMode (Edition mode _ _ _) = case mode of
   Envelope -> 15
-  Tone -> 15
+  Tone -> 20
   Reverb -> 15
 
 -- TODO use a Trie for allRevs
@@ -256,14 +261,16 @@ data SynthsGame = SynthsGame {
   , clientPressedKeys :: !(Map Key (InstrumentNote InstrumentId))
   , instrument :: !(Maybe (InstrumentId,Instrument))
   , envelopePlot :: !EnvelopePlot
+  , mayLastOscillations_ :: !(Maybe SoundSource)
+  -- ^ We store the last used 'Oscillation' to restore it when needed
   , edition :: !Edition
-  , sourceIdx :: !(Maybe MidiSourceIdx)
+  , midiSourceIdx :: !(Maybe MidiSourceIdx)
   , reverbs :: !Reverbs
 } deriving(Show)
 
 instance UIInstructions SynthsGame where
-  instructions color@(LayeredColor bg fg) (SynthsGame _ _ _ mayInstr _ edit@(Edition mode _ _ _) _ rev) = maybe [] (\(_,instr) -> case instr of
-    Synth osc harmonics release (AHDSR'Envelope a h d r ai di ri s) -> case mode of
+  instructions color@(LayeredColor bg fg) (SynthsGame _ _ _ mayInstr _ _ edit@(Edition mode _ _ _) _ rev) = maybe [] (\(_,instr) -> case instr of
+    Synth oscs release (AHDSR'Envelope a h d r ai di ri s) -> case mode of
       Envelope -> envelopeInstructions
       Tone -> harmonicsInstructions
       Reverb -> reverbInstructions
@@ -295,17 +302,27 @@ instance UIInstructions SynthsGame where
             ]
         ]
 
-      harmonicsInstructions =
-        [ ConfigUI "Oscillator"
-            [ mkChoice oscillatorIdx $ show osc]
-        , hInst "Harmo. vol." volume $ oscillatorIdx + 1
-        , hInst "Harmo. ang." phase $ firstPhaseIdx
-        ]
-       where
-         hInst title f startIdx = ConfigUI title $
-          map
-           (\(i,har) -> mkChoice i $ show $ f har)
-           (zip [startIdx..] $ S.toList $ unHarmonics harmonics)
+      harmonicsInstructions = case oscs of
+        Oscillations osc harmonics ->
+          [ ConfigUI "Source"
+              [mkChoice sourceIdx $ "Oscillators"]
+          , ConfigUI "Oscillator"
+              [ mkChoice oscillatorIdx $ show osc ]
+          , hInst "Harmo. vol." volume firstHarVolIdx
+          , hInst "Harmo. ang." phase firstHarPhaseIdx
+          ]
+         where
+           hInst title f startIdx = ConfigUI title $
+            map
+             (\(i,har) -> mkChoice i $ show $ f har)
+             (zip [startIdx..] $ S.toList $ unHarmonics harmonics)
+        Noise ->
+          [ ConfigUI "Source"
+              [mkChoice sourceIdx $ "Noise"]
+          , ConfigUI "Oscillator" []
+          , ConfigUI "Harmo. vol." []
+          , ConfigUI "Harmo. ang." []
+          ]
 
       reverbInstructions =
         [ ConfigUI "Reverb info" $ maybe [List color ["None"]] (\(pathRev, i) ->
@@ -363,12 +380,17 @@ data Key =
     -- ^ A key pressed from a MIDI device
  deriving(Show, Ord, Eq)
 
+defaultSynth :: Instrument
+defaultSynth = organicInstrument
+
 countHarmonics :: Int
 countHarmonics = 10
 
-firstPhaseIdx, oscillatorIdx, reverbBySizeIdx, reverbByDurationIdx, reverbWetIdx :: Int
-oscillatorIdx = 0
-firstPhaseIdx = 1 + countHarmonics
+sourceIdx, oscillatorIdx, firstHarVolIdx, firstHarPhaseIdx, reverbBySizeIdx, reverbByDurationIdx, reverbWetIdx :: Int
+sourceIdx = 0
+oscillatorIdx = sourceIdx + 1
+firstHarVolIdx = oscillatorIdx + 1
+firstHarPhaseIdx = firstHarVolIdx + countHarmonics
 
 reverbBySizeIdx = 0
 reverbByDurationIdx = 1
@@ -403,12 +425,15 @@ predefinedSustains =
   in Set.fromDistinctAscList $ 0:takeWhile (< 1) l ++ [1]
 
 withMinimumHarmonicsCount :: Instrument -> Instrument
-withMinimumHarmonicsCount i =
-  let prevH = unHarmonics $ harmonics_ i
-  in i { harmonics_ = Harmonics $
-          prevH S.++
-          (S.fromList $ replicate (countHarmonics - S.length prevH) (HarmonicProperties 0 0))
-        }
+withMinimumHarmonicsCount i@(Wind _) = i
+withMinimumHarmonicsCount i@(Synth src _ _) = case src of
+  Noise -> i
+  Oscillations osc hars ->
+    let prevH = unHarmonics hars
+    in i { source_ = Oscillations osc $ Harmonics $
+            prevH S.++
+            (S.fromList $ replicate (countHarmonics - S.length prevH) (HarmonicProperties 0 0))
+          }
 
 allReverbs :: IO (Map FilePath SpaceResponse)
 allReverbs = do
@@ -420,7 +445,7 @@ allReverbs = do
 
 initialGame :: IO SynthsGame
 initialGame =
-  SynthsGame mempty mempty mempty Nothing (EnvelopePlot [] LogView) mkEdition Nothing <$> mkReverbs
+  SynthsGame mempty mempty mempty Nothing (EnvelopePlot [] LogView) Nothing mkEdition Nothing <$> mkReverbs
 
 data SynthsMode =
     PlaySynth
@@ -506,19 +531,23 @@ instance GameExternalUI SynthsGame where
   getViewport _ (Screen _ center) SynthsGame{} =
     mkCenteredRectContainer center $ Size 45 100
 
-changeInstrumentValue :: Instrument -> Edition -> Int -> Instrument
-changeInstrumentValue instr edit@(Edition mode _ _ _) inc =
+changeInstrumentValue :: Instrument -> Maybe SoundSource -> Edition -> Int -> Instrument
+changeInstrumentValue instr mayLastOscillations edit@(Edition mode _ _ _) inc =
   case instr of
-    Synth osc _ _ _ ->
+    synth@(Synth src _ _) ->
       case mode of
         Envelope ->
           changeInstrumentEnvelopeIndexedValue instr (fromIntegral idx) inc
         Tone ->
-          if idx == oscillatorIdx
-            then
-              instr { oscillator = cycleOscillator inc osc }
-            else
-              changeInstrumentHarmonic (idx-(oscillatorIdx+1)) instr inc
+          if idx == sourceIdx then synth {
+              source_ = case src of
+                Noise -> maybe (source_ defaultSynth) id mayLastOscillations
+                Oscillations _ _ -> Noise
+            }
+          else if idx == oscillatorIdx then case src of
+            Noise -> error "UI consistency : Noise has no oscillator"
+            Oscillations osc har -> synth { source_ = Oscillations (cycleOscillator inc osc) har }
+          else changeInstrumentHarmonic (idx-(oscillatorIdx+1)) instr inc
         Reverb -> error "logic"
     _ -> instr
  where
@@ -542,7 +571,7 @@ newtype EnvelopeParamIndex = EnvelopeParamIndex Int
 
 changeInstrumentEnvelopeIndexedValue :: Instrument -> EnvelopeParamIndex -> Int -> Instrument
 changeInstrumentEnvelopeIndexedValue i@(Wind _) _ _ = i
-changeInstrumentEnvelopeIndexedValue instr@(Synth _ _ release p@(AHDSR'Envelope a h d r ai di ri s)) idx inc =
+changeInstrumentEnvelopeIndexedValue instr@(Synth _ release p@(AHDSR'Envelope a h d r ai di ri s)) idx inc =
   case idx of
     0 -> instr { envelope_ = p {ahdsrAttack = changeParam predefinedAttack a inc} }
     1 -> instr { envelope_ = p {ahdsrAttackItp = changeParam predefinedAttackItp ai inc} }
@@ -557,8 +586,9 @@ changeInstrumentEnvelopeIndexedValue instr@(Synth _ _ release p@(AHDSR'Envelope 
 
 changeInstrumentHarmonic :: Int -> Instrument -> Int -> Instrument
 changeInstrumentHarmonic _ instr@(Wind _ ) _ = instr
-changeInstrumentHarmonic idx instr@(Synth _ (Harmonics harmonics) _ _) inc =
-  instr { harmonics_ = Harmonics $ h' S.// [(idx', newVal)] }
+changeInstrumentHarmonic _ instr@(Synth Noise _ _) _ = instr
+changeInstrumentHarmonic idx instr@(Synth (Oscillations osc (Harmonics harmonics)) _ _) inc =
+  instr { source_ = Oscillations osc $ Harmonics $ h' S.// [(idx', newVal)] }
  where
   idx'
    | idx >= countHarmonics = idx - countHarmonics
@@ -577,8 +607,8 @@ changeInstrumentHarmonic idx instr@(Synth _ (Harmonics harmonics) _ _) inc =
     | otherwise =
         oldVal { volume = changeParam predefinedHarmonicsVolumes (volume oldVal) inc }
 
-changeInstrumentOrReverb :: Maybe Instrument -> Edition -> Int -> Maybe (Event SynthsGameEvent)
-changeInstrumentOrReverb mayInstr edit inc
+changeInstrumentOrReverb :: Maybe Instrument -> Maybe SoundSource -> Edition -> Int -> Maybe (Event SynthsGameEvent)
+changeInstrumentOrReverb mayInstr mayLastOscillations edit inc
   | editMode edit == Reverb =
      let ev
           | idx == reverbBySizeIdx     = flip ChangeReverb ByIndex
@@ -588,7 +618,7 @@ changeInstrumentOrReverb mayInstr edit inc
      in Just $ AppEvent $ ev inc
   | otherwise =
       maybe Nothing (\instr -> case instr of
-        Synth{} -> Just $ AppEvent $ ChangeInstrument $ changeInstrumentValue instr edit inc
+        Synth{} -> Just $ AppEvent $ ChangeInstrument $ changeInstrumentValue instr mayLastOscillations edit inc
         _ -> Nothing) mayInstr
  where
   idx = getEditionIndex edit
@@ -614,7 +644,7 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
     return [CliEvt $ ClientAppEvt ForgetCurrentRecording]
   mapStateKey _ k st m _ g = return $ maybe
     []
-    (\(SynthsGame _ _ pressed mayInstr _ edit _ _) -> maybe
+    (\(SynthsGame _ _ pressed mayInstr _ mayLastOsc edit _ _) -> maybe
       (case st of
         GLFW.KeyState'Repeating -> []
         GLFW.KeyState'Pressed -> maybe
@@ -656,7 +686,7 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
                      where
                       idx = getEditionIndex edit
                   _ -> []) mayInstr)
-                (map Evt . maybeToList . changeInstrumentOrReverb (fmap snd mayInstr) edit)
+                (map Evt . maybeToList . changeInstrumentOrReverb (fmap snd mayInstr) mayLastOsc edit)
                 mayInc)
         $ isArrow k)
     $ _game $ getGameState' g
@@ -732,7 +762,7 @@ instrumentFile = "instruments/last.inst"
 
 loadInstrument :: IO Instrument
 loadInstrument = doesFileExist instrumentFile >>= bool
-  (return organicInstrument)
+  (return defaultSynth)
   (do
     bl <- BL.readFile instrumentFile
     let len = BL.length bl
@@ -876,7 +906,7 @@ instance GameLogic SynthsGame where
                           -- in that case, we don't use the events we just read,
                           -- but reading them serves the purpose of not overflowing the queue.
                           (return ([],[]))
-                          (\(SynthsGame _ _ pressed mayInstr _ edit maySourceIdx _) -> maybe
+                          (\(SynthsGame _ _ pressed mayInstr _ mayLastOsc edit maySourceIdx _) -> maybe
                             (return ([],[])) -- should not happen once connected.
                             (\srcIdx -> -- maybe () (\(iid, instr) -> ...) mayInstr
                               (foldl' (\(a,b) (c,d) -> (a++c, b++d)) ([],[]).
@@ -914,13 +944,14 @@ instance GameLogic SynthsGame where
                                               (AppEvent . ChangeEditedFeature . (+ (getEditionIndex edit))) <$>
                                                 relativeValue (Just 1) value
                                           | control == 13 = maybe Nothing
-                                              (changeInstrumentOrReverb (fmap snd mayInstr) edit)
+                                              (changeInstrumentOrReverb (fmap snd mayInstr) mayLastOsc edit)
                                               $ relativeValue (Just 1) value
                                           | otherwise = maybe Nothing (ctrl' . snd) mayInstr
                                          where
                                           ctrl' instr
-                                            | control == 24 =
-                                                  Just $ AppEvent $ ChangeInstrument $ instr { oscillator = toEnum $ value `mod` countOscillators }
+                                            | control == 24 = maybe Nothing
+                                                (\(_, har) -> Just $ AppEvent $ ChangeInstrument $ instr { source_ = Oscillations (toEnum $ value `mod` countOscillators) har })
+                                                $ findOscillations instr
                                             | control >= 14 && control <= 23 =
                                                 (AppEvent . ChangeInstrument . changeInstrumentHarmonic (control - 14) instr) <$>
                                                   relativeValue (Just 1) value
@@ -976,7 +1007,7 @@ instance GameLogic SynthsGame where
 
   onClientOnlyEvent e = do
     mayNewEnvMinMaxs <-
-      getIGame >>= maybe (liftIO initialGame) return >>= \(SynthsGame _ _ _ mayInstr (EnvelopePlot _ viewmode) _ _ _) -> do
+      getIGame >>= maybe (liftIO initialGame) return >>= \(SynthsGame _ _ _ mayInstr (EnvelopePlot _ viewmode) _ _ _ _) -> do
         case e of
           ChangeInstrument i -> do
             liftIO $ saveInstrument i
@@ -988,11 +1019,14 @@ instance GameLogic SynthsGame where
               (\(_, instr) -> Just . toParts (toggleView viewmode) <$> liftIO (envelopeShape instr))
               mayInstr
           _ -> return Nothing
-    getIGame >>= maybe (liftIO initialGame) return >>= \g@(SynthsGame _ _ pressed _ _ _ maySourceIdx rvbs@(Reverbs wet revs indexesByDur cpref mayCurIndex)) -> withAnim $ case e of
+    getIGame >>= maybe (liftIO initialGame) return >>= \g@(SynthsGame _ _ pressed mayInstr _ mayLastOscs _ maySourceIdx rvbs@(Reverbs wet revs indexesByDur cpref mayCurIndex)) -> withAnim $ case e of
       ChangeInstrument i -> do
         useInstrument maySourceIdx i >>= maybe (return ()) (\instrId ->
           putIGame g {
-              instrument = Just (instrId, i)
+              mayLastOscillations_ = maybe mayLastOscs
+                (maybe mayLastOscs (Just . uncurry Oscillations) . findOscillations . snd)
+                mayInstr
+            , instrument = Just (instrId, i)
             , envelopePlot = EnvelopePlot (fromMaybe (error "logic") mayNewEnvMinMaxs) $ envViewMode $ envelopePlot g
             })
       ChangeReverb i changeType -> do
@@ -1052,7 +1086,7 @@ instance GameLogic SynthsGame where
     -- TODO force withAnim when using putIGame ?
     getIGame >>= maybe (liftIO initialGame) return >>= \g -> withAnim $ case e of
       AssignedSourceIdx s -> do
-        putIGame g { sourceIdx = Just s }
+        putIGame g { midiSourceIdx = Just s }
         asks writeToClient' >>= \f -> liftIO $ do
           FromClient . AppEvent . ChangeInstrument . withMinimumHarmonicsCount <$> loadInstrument >>= f
       NewLine seqId loopId ->
@@ -1066,7 +1100,7 @@ instance GameLogic SynthsGame where
 
 instance GameDraw SynthsGame where
 
-  drawBackground (Screen _ center@(Coords _ centerC)) g@(SynthsGame pianoClients pianoLoops_ _ _ (EnvelopePlot curves _) edit _ _) = do
+  drawBackground (Screen _ center@(Coords _ centerC)) g@(SynthsGame pianoClients pianoLoops_ _ _ (EnvelopePlot curves _) _ edit _ _) = do
     drawInstructions Horizontally (Just $ widthEditMode edit) g (mkCentered $ move 21 Up center) >>= \(Alignment _ ref) -> do
       ref2 <- case curves of
         [] -> return ref

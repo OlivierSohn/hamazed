@@ -167,6 +167,7 @@ library
                      , Imj.Audio.SpaceResponse
                      , Imj.Music.Alter
                      , Imj.Music.Compose
+                     , Imj.Music.Compositions.Me
                      , Imj.Music.Compositions.Tchaikovski
                      , Imj.Music.Compositions.Tech
                      , Imj.Music.Compositions.Vivaldi

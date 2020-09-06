@@ -15,7 +15,11 @@ import           Imj.Music.Instruction
 import           Imj.Music.Instrument
 
 techInstrument :: Instrument
-techInstrument = Synth Triangle (harmonicsFromVolumes [1, 0, 0, 0, 0, 1, 0, 0, 0, 1]) AutoRelease
+techInstrument = Synth
+  (Oscillations
+    Triangle
+    (harmonicsFromVolumes [1, 0, 0, 0, 0, 1, 0, 0, 0, 1]))
+  AutoRelease
   $ AHDSR'Envelope
       400 5120 50 12800
       (Eased EaseIn Sine)

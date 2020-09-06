@@ -21,6 +21,8 @@ namespace imajuscule::audio {
 
     // in sync with the corresponding Haskel Enum instance
     enum class OscillatorType {
+      Noise = -1,
+      // values >= 0 are in sync with the corresponding Haskell enum
       SinusVolumeAdjusted,
       Sinus,
       Saw,
@@ -36,6 +38,7 @@ namespace imajuscule::audio {
       F<OscillatorType::Saw>{}();
       F<OscillatorType::Square>{}();
       F<OscillatorType::Triangle>{}();
+      F<OscillatorType::Noise>{}();
     }
 
     template<OscillatorType o>
@@ -44,27 +47,29 @@ namespace imajuscule::audio {
     template <>
     struct ToFOsc<OscillatorType::Saw> {
       static constexpr auto convert = FOscillator::SAW;
-      static constexpr bool canConvert = true;
     };
     template <>
     struct ToFOsc<OscillatorType::Square> {
       static constexpr auto convert = FOscillator::SQUARE;
-      static constexpr bool canConvert = true;
     };
     template <>
     struct ToFOsc<OscillatorType::Triangle> {
       static constexpr auto convert = FOscillator::TRIANGLE;
-      static constexpr bool canConvert = true;
     };
     template <>
     struct ToFOsc<OscillatorType::Sinus> {
+      // never used
       static constexpr auto convert = FOscillator::SAW;
-      static constexpr bool canConvert = false;
     };
     template <>
     struct ToFOsc<OscillatorType::SinusVolumeAdjusted> {
+      // never used
       static constexpr auto convert = FOscillator::SAW;
-      static constexpr bool canConvert = false;
+    };
+    template <>
+    struct ToFOsc<OscillatorType::Noise> {
+      // never used
+      static constexpr auto convert = FOscillator::SAW;
     };
 
     template<OscillatorType O, typename FPT>
@@ -76,7 +81,11 @@ namespace imajuscule::audio {
             std::conditional_t<
               O == OscillatorType::Sinus,
                 OscillatorAlgo< FPT, eNormalizePolicy::FAST >,
-                FOscillatorAlgo< FPT, ToFOsc<O>::convert >
+                std::conditional_t<
+                  O == OscillatorType::Noise,
+                    PinkNoiseAlgo,
+                    FOscillatorAlgo< FPT, ToFOsc<O>::convert >
+                >
             >
         >;
     };
@@ -431,9 +440,8 @@ namespace imajuscule::audio {
           return midiEvent<Env, OscillatorType::Sinus, HarmonicsArray>(harmonics, p, n, maybeMts);
         case OscillatorType::SinusVolumeAdjusted:
           return midiEvent<Env, OscillatorType::SinusVolumeAdjusted, HarmonicsArray>(harmonics, p, n, maybeMts);
-        default:
-          Assert(0);
-          return onEventResult::DROPPED_NOTE;
+        case OscillatorType::Noise:
+          return midiEvent<Env, OscillatorType::Noise, HarmonicsArray>(harmonics, p, n, maybeMts);
       }
     }
 

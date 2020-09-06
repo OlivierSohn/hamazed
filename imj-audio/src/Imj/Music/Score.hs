@@ -10,6 +10,7 @@
 module Imj.Music.Score
       ( Score(..)
       , mkScore
+      , mergeScores
       , scoreLength
       , Voice(..)
       , mkVoice
@@ -29,6 +30,9 @@ newtype Score i = Score [Voice i]
 
 mkScore :: i -> [[Instruction]] -> Score i
 mkScore i s = Score $ map (mkVoice i) s
+
+mergeScores :: Score i -> Score i -> Score i
+mergeScores (Score i) (Score j) = Score (i ++ j)
 
 scoreLength :: Score i -> Int
 scoreLength (Score l) = fromMaybe 0 $ maximumMaybe $ map voiceLength l

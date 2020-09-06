@@ -96,6 +96,13 @@ private:
     std::string name;
 };
 
+harmonicProperties_t const * getUnityHarmonics() {
+     static harmonicProperties_t har[1]{
+             {0.f, 1.f}
+     };
+     return har;
+}
+
 extern "C" {
 
   /*
@@ -266,7 +273,7 @@ extern "C" {
   bool midiNoteOnAHDSR_(imajuscule::audio::audioelement::OscillatorType osc,
                         imajuscule::audio::audioelement::EnvelopeRelease t,
                        int a, int ai, int h, int d, int di, float s, int r, int ri,
-                       harmonicProperties_t * hars, int har_sz,
+                       harmonicProperties_t const * hars, int har_sz,
                        int16_t pitch, float velocity, int midiSource, uint64_t maybeMIDITime) {
 #if IMJ_TRACE_EXTERN_C
     Trace trace("midiNoteOnAHDSR_");
@@ -297,12 +304,16 @@ extern "C" {
     auto maybeMts = (midiSource >= 0) ?
       Optional<MIDITimestampAndSource>{{maybeMIDITime, static_cast<uint64_t>(midiSource)}} :
       Optional<MIDITimestampAndSource>{};
+    if (osc == OscillatorType::Noise) {
+        har_sz = 1;
+        hars = getUnityHarmonics();
+    }
     return convert(midiEventAHDSR(osc, t, {hars, har_sz}, p, n, maybeMts));
   }
   bool midiNoteOffAHDSR_(imajuscule::audio::audioelement::OscillatorType osc,
                          imajuscule::audio::audioelement::EnvelopeRelease t,
                          int a, int ai, int h, int d, int di, float s, int r, int ri,
-                         harmonicProperties_t * hars, int har_sz,
+                         harmonicProperties_t const * hars, int har_sz,
                          int16_t pitch, int midiSource, uint64_t maybeMIDITime) {
 #if IMJ_TRACE_EXTERN_C
     Trace trace("midiNoteOffAHDSR_");
@@ -332,6 +343,10 @@ extern "C" {
     auto maybeMts = (midiSource >= 0) ?
       Optional<MIDITimestampAndSource>{{maybeMIDITime, static_cast<uint64_t>(midiSource)}} :
       Optional<MIDITimestampAndSource>{};
+    if (osc == OscillatorType::Noise) {
+        har_sz = 1;
+        hars = getUnityHarmonics();
+    }
     return convert(midiEventAHDSR(osc, t, {hars, har_sz}, p, n, maybeMts));
   }
 

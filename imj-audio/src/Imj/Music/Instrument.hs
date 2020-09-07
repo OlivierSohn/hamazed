@@ -159,7 +159,9 @@ data SoundSource =
     }
     -- ^ Oscillator with harmonics and phase randomization.
   | Noise
-  -- ^ Noise
+    -- ^ Noise
+  | Sweep
+    -- ^ Sine sweep
   deriving(Generic,Show, Eq, Data, Ord)
 instance Binary SoundSource
 instance NFData SoundSource

@@ -1,3 +1,5 @@
+- rename ::sine to ::osc ? :: simple ?
+
 - Fix cracks that sometimes appear after setting a reverb (before the reverb no crack, after crack)
 . try to reproduce in Grid3D + memory checker (cannot use memory checker in haskell program)
 

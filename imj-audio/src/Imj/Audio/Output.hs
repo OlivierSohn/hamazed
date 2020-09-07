@@ -201,8 +201,9 @@ play (StartNote mayMidi n@(InstrumentNote _ _ i) (NoteVelocity v)) = bool (Left 
   Synth (Oscillations osc har) e ahdsr ->
     let (harPtr, harSz) = S.unsafeToForeignPtr0 $ unHarmonics har
     in withForeignPtr harPtr $ \harmonicsPtr ->
-         midiNoteOnAHDSR (Just osc) e ahdsr (harmonicsPtr, harSz) pitch vel mayMidi
-  Synth Noise e ahdsr -> midiNoteOnAHDSR Nothing e ahdsr (nullPtr, 0) pitch vel mayMidi
+         midiNoteOnAHDSR (Right osc) e ahdsr (harmonicsPtr, harSz) pitch vel mayMidi
+  Synth Noise e ahdsr -> midiNoteOnAHDSR (Left $ -1) e ahdsr (nullPtr, 0) pitch vel mayMidi
+  Synth Sweep e ahdsr -> midiNoteOnAHDSR (Left $ -2) e ahdsr (nullPtr, 0) pitch vel mayMidi
   Wind k -> effectOn (fromIntegral k) pitch vel
  where
   (MidiPitch pitch) = instrumentNoteToMidiPitch n
@@ -211,17 +212,18 @@ play (StopNote mayMidi n@(InstrumentNote _ _ i)) = bool (Left ()) (Right ()) <$>
   Synth (Oscillations osc har) e ahdsr ->
     let (harPtr, harSz) = S.unsafeToForeignPtr0 $ unHarmonics har
     in withForeignPtr harPtr $ \harmonicsPtr ->
-         midiNoteOffAHDSR (Just osc) e ahdsr (harmonicsPtr, harSz) pitch mayMidi
-  Synth Noise e ahdsr -> midiNoteOffAHDSR Nothing e ahdsr (nullPtr, 0) pitch mayMidi
+         midiNoteOffAHDSR (Right osc) e ahdsr (harmonicsPtr, harSz) pitch mayMidi
+  Synth Noise e ahdsr -> midiNoteOffAHDSR (Left $ -1) e ahdsr (nullPtr, 0) pitch mayMidi
+  Synth Sweep e ahdsr -> midiNoteOffAHDSR (Left $ -1) e ahdsr (nullPtr, 0) pitch mayMidi
   Wind _ -> effectOff pitch
  where
   (MidiPitch pitch) = instrumentNoteToMidiPitch n
 
-midiNoteOffAHDSR :: Maybe Oscillator -> ReleaseMode -> AHDSR'Envelope -> (Ptr HarmonicProperties, Int) -> CShort -> Maybe MidiInfo -> IO Bool
-midiNoteOnAHDSR :: Maybe Oscillator -> ReleaseMode -> AHDSR'Envelope -> (Ptr HarmonicProperties, Int) -> CShort -> CFloat -> Maybe MidiInfo -> IO Bool
+midiNoteOffAHDSR :: Either Int Oscillator -> ReleaseMode -> AHDSR'Envelope -> (Ptr HarmonicProperties, Int) -> CShort -> Maybe MidiInfo -> IO Bool
+midiNoteOnAHDSR :: Either Int Oscillator -> ReleaseMode -> AHDSR'Envelope -> (Ptr HarmonicProperties, Int) -> CShort -> CFloat -> Maybe MidiInfo -> IO Bool
 midiNoteOffAHDSR osc t (AHDSR'Envelope a h d r ai di ri s) (harmonicsPtr, harmonicsSz) i mayMidi =
     midiNoteOffAHDSR_
-      (maybe (-1) (fromIntegral . fromEnum) osc)
+      (either fromIntegral (fromIntegral . fromEnum) osc)
       (fromIntegral $ fromEnum t)
       (fromIntegral a)
       (interpolationToCInt ai)
@@ -241,7 +243,7 @@ midiNoteOffAHDSR osc t (AHDSR'Envelope a h d r ai di ri s) (harmonicsPtr, harmon
 
 midiNoteOnAHDSR osc t (AHDSR'Envelope a h d r ai di ri s) (harmonicsPtr, harmonicsSz) i v mayMidi =
     midiNoteOnAHDSR_
-      (maybe (-1) (fromIntegral . fromEnum) osc)
+      (either fromIntegral (fromIntegral . fromEnum) osc)
       (fromIntegral $ fromEnum t)
       (fromIntegral a)
       (interpolationToCInt ai)

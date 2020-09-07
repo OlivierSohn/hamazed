@@ -304,7 +304,7 @@ extern "C" {
     auto maybeMts = (midiSource >= 0) ?
       Optional<MIDITimestampAndSource>{{maybeMIDITime, static_cast<uint64_t>(midiSource)}} :
       Optional<MIDITimestampAndSource>{};
-    if (osc == OscillatorType::Noise) {
+    if (osc <= OscillatorType::Noise) {
         har_sz = 1;
         hars = getUnityHarmonics();
     }
@@ -343,7 +343,7 @@ extern "C" {
     auto maybeMts = (midiSource >= 0) ?
       Optional<MIDITimestampAndSource>{{maybeMIDITime, static_cast<uint64_t>(midiSource)}} :
       Optional<MIDITimestampAndSource>{};
-    if (osc == OscillatorType::Noise) {
+    if (osc <= OscillatorType::Noise) {
         har_sz = 1;
         hars = getUnityHarmonics();
     }

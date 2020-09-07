@@ -19,6 +19,8 @@ namespace imajuscule::audio {
                   os << "Triangle"; break;
                 case OscillatorType::Noise:
                   os << "Noise"; break;
+                case OscillatorType::Sweep:
+                  os << "Sweep"; break;
             }
             return os;
         }

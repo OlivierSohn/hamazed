@@ -21,6 +21,7 @@ namespace imajuscule::audio {
 
     // in sync with the corresponding Haskel Enum instance
     enum class OscillatorType {
+      Sweep = -2,
       Noise = -1,
       // values >= 0 are in sync with the corresponding Haskell enum
       SinusVolumeAdjusted,
@@ -39,6 +40,7 @@ namespace imajuscule::audio {
       F<OscillatorType::Square>{}();
       F<OscillatorType::Triangle>{}();
       F<OscillatorType::Noise>{}();
+      F<OscillatorType::Sweep>{}();
     }
 
     template<OscillatorType o>
@@ -71,6 +73,11 @@ namespace imajuscule::audio {
       // never used
       static constexpr auto convert = FOscillator::SAW;
     };
+    template <>
+    struct ToFOsc<OscillatorType::Sweep> {
+      // never used
+      static constexpr auto convert = FOscillator::SAW;
+    };
 
     template<OscillatorType O, typename FPT>
     struct GenericOscillator {
@@ -84,7 +91,11 @@ namespace imajuscule::audio {
                 std::conditional_t<
                   O == OscillatorType::Noise,
                     PinkNoiseAlgo,
-                    FOscillatorAlgo< FPT, ToFOsc<O>::convert >
+                    std::conditional_t<
+                      O == OscillatorType::Sweep,
+                        FreqSingleRampAlgo< FPT >,
+                        FOscillatorAlgo< FPT, ToFOsc<O>::convert >
+                    >
                 >
             >
         >;
@@ -108,19 +119,38 @@ namespace imajuscule::audio {
     template<OscillatorType O, typename Env>
     using audioElementOf = typename AudioElementOf<O, Env>::type;
 
-    template<typename S>
+    template<typename Envelope, OscillatorType>
     struct SetParam;
-    template<typename S>
+    template<typename Envelope>
     struct HasNoteOff;
 
-    template<Atomicity A, typename T, EnvelopeRelease Rel>
-    struct SetParam<AHDSREnvelope<A, T, Rel>> {
+    template<Atomicity A, typename T, EnvelopeRelease Rel, OscillatorType Osc>
+    struct SetParam<AHDSREnvelope<A, T, Rel>, Osc> {
       template<typename HarmonicsArray, typename B>
       static void set(AHDSR const & env, HarmonicsArray const & props, B & b) {
         b.forEachElems([&env, &props](auto & e) {
           // the order is important, maybe we need a single method.
           e.algo.setHarmonics(props);
           e.algo.editEnvelope().setAHDSR(env);
+        });
+      }
+    };
+
+    template<Atomicity A, typename T, EnvelopeRelease Rel>
+    struct SetParam<AHDSREnvelope<A, T, Rel>, OscillatorType::Sweep> {
+      template<typename HarmonicsArray, typename B>
+      static void set(AHDSR const & env, HarmonicsArray const & props, B & b) {
+        b.forEachElems([&env, &props](auto & e) {
+          // the order is important, maybe we need a single method.
+          e.algo.setHarmonics(props);
+          e.algo.editEnvelope().setAHDSR(env);
+
+          // Side note : for a sweep, MultiEnveloped is overkill because there is a single harmonic.
+          // However, this is what we currently have.
+          e.algo.forEachHarmonic([](auto & h) {
+            int durationSamples = 4000;
+            h.getAlgo().getCtrl().setup(freq_to_angle_increment(80.), durationSamples, itp::LINEAR);
+          });
         });
       }
     };
@@ -189,12 +219,45 @@ namespace imajuscule::audio {
 
     Event mkNoteOff(int pitch);
 
+    constexpr SynchronizePhase syncPhase(audioelement::OscillatorType o){
+      using audioelement::OscillatorType;
+      switch(o) {
+        case OscillatorType::Saw:
+        case OscillatorType::Square:
+        case OscillatorType::Triangle:
+        case OscillatorType::Sinus:
+        case OscillatorType::SinusVolumeAdjusted:
+          return SynchronizePhase::Yes;
+
+        case OscillatorType::Noise:
+        case OscillatorType::Sweep:
+          return SynchronizePhase::No;
+      }
+    }
+    constexpr DefaultStartPhase defaultStartPhase(audioelement::OscillatorType o){
+      using audioelement::OscillatorType;
+      switch(o) {
+        case OscillatorType::Saw:
+        case OscillatorType::Square:
+        case OscillatorType::Triangle:
+        case OscillatorType::Sinus:
+        case OscillatorType::SinusVolumeAdjusted:
+          return DefaultStartPhase::Random;
+
+        case OscillatorType::Noise:
+        case OscillatorType::Sweep:
+          return DefaultStartPhase::Zero;
+      }
+    }
+
     template <typename Env, audioelement::OscillatorType Osc>
-    using synthOf = vasine::Synth <
+    using synthOf = sine::Synth < // the name of the namespace is misleading : it can handle all kinds of oscillators
       Ctxt::policy
     , Ctxt::nAudioOut
     , XfadePolicy::SkipXfade
     , audioelement::audioElementOf<Osc, Env>
+    , syncPhase(Osc)
+    , defaultStartPhase(Osc)
     , audioelement::HasNoteOff<Env>::value
     , EventIterator<IEventList>
     , NoteOnEvent
@@ -318,7 +381,7 @@ namespace imajuscule::audio {
         }
         auto [c,remover] = addNoXfadeChannels(T::n_channels);
         auto p = std::make_unique<withChannels<T>>(c);
-        SetParam<Envel>::set(envelParam, harmonics, p->obj);
+        SetParam<Envel, Osc>::set(envelParam, harmonics, p->obj);
         if(!p->obj.initialize(p->chans)) {
           auto oneSynth = synths.begin();
           if(oneSynth != synths.end()) {
@@ -392,7 +455,7 @@ namespace imajuscule::audio {
 
             Assert(isNew); // because prior to calling this function, we did a lookup
             using namespace audioelement;
-            SetParam<Envel>::set(envelParam, harmonics, inserted->second->obj);
+            SetParam<Envel, Osc>::set(envelParam, harmonics, inserted->second->obj);
             return inserted->second.get();
           }
           else {
@@ -442,6 +505,8 @@ namespace imajuscule::audio {
           return midiEvent<Env, OscillatorType::SinusVolumeAdjusted, HarmonicsArray>(harmonics, p, n, maybeMts);
         case OscillatorType::Noise:
           return midiEvent<Env, OscillatorType::Noise, HarmonicsArray>(harmonics, p, n, maybeMts);
+        case OscillatorType::Sweep:
+          return midiEvent<Env, OscillatorType::Sweep, HarmonicsArray>(harmonics, p, n, maybeMts);
       }
     }
 

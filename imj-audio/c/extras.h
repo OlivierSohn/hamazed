@@ -168,7 +168,7 @@ namespace imajuscule::audio {
       e.onKeyPressed(0);
       int splitAt = -1;
 
-      std::vector<double> v, v2;
+      std::vector<double> v;
       v.reserve(10000);
       for(int i=0; e.getRelaxedState() != EnvelopeState::EnvelopeDone1; ++i) {
         e.step();

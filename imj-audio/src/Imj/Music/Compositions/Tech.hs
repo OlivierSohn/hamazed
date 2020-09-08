@@ -24,7 +24,7 @@ techInstrument = Synth
       400 5120 50 12800
       (Eased EaseIn Sine)
       Linear
-      (Eased EaseOut Circ)
+      (Eased EaseOut Exp)
       1.0
 
 tech :: (Float,[[Instruction]])

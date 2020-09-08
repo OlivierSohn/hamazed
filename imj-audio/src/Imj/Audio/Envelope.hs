@@ -14,7 +14,9 @@ module Imj.Audio.Envelope
       , analyzeAHDSREnvelope
       -- * Utilities
       , cycleReleaseMode
-      , interpolationToCInt, allInterpolations
+      , interpolationToCInt
+      , allInterpolations
+      , allDifferentiableInterpolations
       ) where
 
 import           Control.DeepSeq as Exported(NFData(..))
@@ -198,6 +200,12 @@ allInterpolations = Set.fromList $
   [Linear, ProportionaValueDerivative] ++
   [Eased e i | e <- allEases, i <- allEasedInterpolations]
 
+-- | The 'Set' of possible 'Interpolation' values that are differentiable everywhere.
+allDifferentiableInterpolations :: Set Interpolation
+allDifferentiableInterpolations = Set.fromList $
+  [Linear, ProportionaValueDerivative] ++
+  [Eased e i | e <- allEases, i <- allEasedDifferentiableInterpolations]
+
 -- | Returns the corresponding value of the C-enum interpolation defined in interpolation.h
 interpolationToCInt :: Interpolation -> CInt
 interpolationToCInt = \case
@@ -219,7 +227,7 @@ data EasedInterpolation =
   | Exp
     -- ^ Exponential easing.
   | Circ
-    -- ^ Cirular easing (using square root).
+    -- ^ Cirular easing (using square root, hence not differentiable everywhere).
   deriving(Generic, Ord, Eq, Data)
 instance Binary EasedInterpolation
 instance NFData EasedInterpolation
@@ -235,7 +243,11 @@ instance Show EasedInterpolation where
     Circ -> "circ"
 
 allEasedInterpolations :: [EasedInterpolation]
-allEasedInterpolations = [Ord2, Ord3, Ord4, Ord5, Sine, Exp, Circ]
+allEasedInterpolations =
+    [Ord2, Ord3, Ord4, Ord5, Sine, Exp, Circ]
+allEasedDifferentiableInterpolations :: [EasedInterpolation]
+allEasedDifferentiableInterpolations =
+    [Ord2, Ord3, Ord4, Ord5, Sine, Exp]
 
 -- cf. enum interpolation in interpolation.h
 interpolationIdx :: EasedInterpolation -> CInt

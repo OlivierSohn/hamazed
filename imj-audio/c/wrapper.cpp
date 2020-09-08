@@ -42,6 +42,11 @@ namespace imajuscule::audio::audioelement {
     std::vector<double> v;
     int split;
     std::tie(v, split) = envelopeGraphVec<Env>(rawEnvParams);
+#if 0
+    // for debugging purposes
+    LG(INFO, "writing envelope as .wav file");
+    write_wav("/Users/Olivier/Dev/hs.hamazed", "env.wav", std::vector<std::vector<double>>{v}, 100);
+#endif
     if(nElems) {
       *nElems = v.size();
     }

@@ -285,7 +285,7 @@ marimba = Synth
     1600 320 100 25600
     (Eased EaseOut Exp)
     Linear
-    (Eased EaseOut Circ)
+    (Eased EaseOut Exp)
     1
 
 
@@ -305,9 +305,9 @@ synthInstrument = Synth
   AutoRelease $
   AHDSR'Envelope
     100 2560 100 12800
-    (Eased EaseInOut Circ)
+    (Eased EaseInOut Exp)
     Linear
-    (Eased EaseOut Circ)
+    (Eased EaseOut Exp)
     1
 bellInstrument = Synth (defaultOscillations Sinus'VolumeAdjusted) AutoRelease $
   AHDSR'Envelope
@@ -328,35 +328,35 @@ organicInstrument = Synth (defaultOscillations Sinus'VolumeAdjusted) AutoRelease
       400 5120 50 12800
       (Eased EaseIn Sine)
       Linear
-      (Eased EaseOut Circ)
+      (Eased EaseOut Exp)
       1.0
 shortInstrument = Synth (defaultOscillations Sinus'VolumeAdjusted) AutoRelease
   $ AHDSR'Envelope
       800 640 50 3200
       (Eased EaseOut Sine)
       Linear
-      (Eased EaseIn Circ)
+      (Eased EaseIn Exp)
       1.0
 testInstrument = Synth (defaultOscillations Sinus'VolumeAdjusted) AutoRelease
   $ AHDSR'Envelope
       800 160 3200 6400
       (Eased EaseInOut Sine)
       ProportionaValueDerivative
-      (Eased EaseInOut Circ)
+      (Eased EaseInOut Exp)
       0.865
 stringsInstrument = Synth (defaultOscillations Sinus'VolumeAdjusted) KeyRelease
   $ AHDSR'Envelope
       12800 160 3200 6400
       Linear
       Linear
-      (Eased EaseInOut Circ)
+      (Eased EaseInOut Exp)
       1.0
 longInstrument = Synth (defaultOscillations Sinus'VolumeAdjusted) KeyRelease
   $ AHDSR'Envelope
       50 160 102400 6400
       Linear
       ProportionaValueDerivative
-      (Eased EaseInOut Circ)
+      (Eased EaseInOut Exp)
       0.138
 longBellInstrument = Synth (defaultOscillations Sinus'VolumeAdjusted) AutoRelease
   $ AHDSR'Envelope

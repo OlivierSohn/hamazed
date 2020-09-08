@@ -24,8 +24,8 @@ meSnare = Synth
   AutoRelease
   $ AHDSR'Envelope
       100 1200 200 15600
-      (Eased EaseIn Circ)
-      (Eased EaseInOut Circ)
+      (Eased EaseIn Exp)
+      (Eased EaseInOut Exp)
       (Eased EaseOut Exp)
       0.665
 
@@ -35,8 +35,8 @@ meKick = Synth
   AutoRelease
   $ AHDSR'Envelope
       100 1200 200 15600
-      (Eased EaseIn Circ)
-      (Eased EaseInOut Circ)
+      (Eased EaseIn Exp)
+      (Eased EaseInOut Exp)
       (Eased EaseOut Exp)
       0.665
 
@@ -50,7 +50,7 @@ meInstrument = Synth
       400 5120 50 12800
       (Eased EaseIn Sine)
       Linear
-      (Eased EaseOut Circ)
+      (Eased EaseOut Exp)
       1.0
 
 meScore :: (Float, Score Instrument)

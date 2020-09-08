@@ -88,6 +88,11 @@ Flag LogMem
     Manual: True
     Default: False
 
+Flag DbgOutput
+    Description: Enables writing the audio output to a .wav file
+    Manual: True
+    Default: False
+
 Flag Assertions
     Description: Enables assertions verifying program consistency. If an assertion
                  fails at runtime, a log will be written, with the assertion content,
@@ -154,6 +159,8 @@ library imj-audio-cxx
     cc-options:        -DIMJ_LOG_MIDI
   if(flag(LogMem))
     cc-options:        -DIMJ_LOG_MEMORY
+  if(flag(DbgOutput))
+    cc-options:        -DIMJ_DEBUG_AUDIO_OUT
 
 library
   hs-source-dirs:      src

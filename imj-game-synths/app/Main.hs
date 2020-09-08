@@ -214,8 +214,8 @@ getEditionIndex (Edition mode i j k) =
 
   countEditables Envelope = 9
   countEditables Tone =
-    -- 1 for sound source, 1 for oscillator
-    1 + 1 + 2 * countHarmonics
+    -- 1 for sound source, 1 for oscillator, 1 for sweep duration
+    1 + 1 + 1 + 2 * countHarmonics
   countEditables Reverb =
     -- 1 for by index, 1 for by size, 1 for reverb dry/wet
     3
@@ -305,10 +305,9 @@ instance UIInstructions SynthsGame where
 
       harmonicsInstructions = case oscs of
         Oscillations osc harmonics ->
-          [ ConfigUI "Source"
-              [mkChoice sourceIdx $ "Oscillators"]
-          , ConfigUI "Oscillator"
-              [ mkChoice oscillatorIdx $ show osc ]
+          [ ConfigUI "Source" [mkChoice sourceIdx "Oscillators"]
+          , ConfigUI "Sweep time" []
+          , ConfigUI "Oscillator" [ mkChoice oscillatorIdx $ show osc ]
           , hInst "Harmo. vol." volume firstHarVolIdx
           , hInst "Harmo. ang." phase firstHarPhaseIdx
           ]
@@ -318,15 +317,15 @@ instance UIInstructions SynthsGame where
              (\(i,har) -> mkChoice i $ show $ f har)
              (zip [startIdx..] $ S.toList $ unHarmonics harmonics)
         Noise ->
-          [ ConfigUI "Source"
-              [mkChoice sourceIdx $ "Noise"]
+          [ ConfigUI "Source" [mkChoice sourceIdx "Noise"]
+          , ConfigUI "Sweep time" []
           , ConfigUI "Oscillator" []
           , ConfigUI "Harmo. vol." []
           , ConfigUI "Harmo. ang." []
           ]
-        Sweep sweep_duration -> -- TODO chose sweep_duration via UI
-          [ ConfigUI "Source"
-              [mkChoice sourceIdx $ "Sweep " ++ (show sweep_duration)]
+        Sweep sweep_duration ->
+          [ ConfigUI "Source" [mkChoice sourceIdx "Sweep"]
+          , ConfigUI "Sweep time" [mkChoice sweepDurationIdx $ show sweep_duration]
           , ConfigUI "Oscillator" []
           , ConfigUI "Harmo. vol." []
           , ConfigUI "Harmo. ang." []
@@ -394,9 +393,10 @@ defaultSynth = organicInstrument
 countHarmonics :: Int
 countHarmonics = 10
 
-sourceIdx, oscillatorIdx, firstHarVolIdx, firstHarPhaseIdx, reverbBySizeIdx, reverbByDurationIdx, reverbWetIdx :: Int
+sourceIdx, oscillatorIdx, sweepDurationIdx, firstHarVolIdx, firstHarPhaseIdx, reverbBySizeIdx, reverbByDurationIdx, reverbWetIdx :: Int
 sourceIdx = 0
-oscillatorIdx = sourceIdx + 1
+sweepDurationIdx = sourceIdx + 1
+oscillatorIdx = sweepDurationIdx + 1
 firstHarVolIdx = oscillatorIdx + 1
 firstHarPhaseIdx = firstHarVolIdx + countHarmonics
 
@@ -418,7 +418,7 @@ predefinedHarmonicsPhases = Set.fromList $ takeWhile (< 2) $ map ((*) 0.1 . from
 predefinedWetRatios :: Set AlmostFloat
 predefinedWetRatios = Set.fromList $ map (flip (/) 10 . fromIntegral) [0::Int ..10]
 
-predefinedAttack, predefinedHolds, predefinedDecays, predefinedReleases :: Set Int
+predefinedAttack, predefinedHolds, predefinedDecays, predefinedReleases, predefinedSweepDurations :: Set Int
 predefinedSustains :: Set AlmostFloat
 predefinedAttack =
   let l = 50:map (*2) l
@@ -431,6 +431,9 @@ predefinedReleases = predefinedAttack
 predefinedSustains =
   let l = 0.01:map (*1.3) l
   in Set.fromDistinctAscList $ 0:takeWhile (< 1) l ++ [1]
+predefinedSweepDurations =
+  let l = 50:map (*2) l
+  in Set.fromDistinctAscList $ take 12 l
 
 withMinimumHarmonicsCount :: Instrument -> Instrument
 withMinimumHarmonicsCount i@(Wind _) = i
@@ -558,6 +561,10 @@ changeInstrumentValue instr mayLastOscillations edit@(Edition mode _ _ _) inc =
             Sweep _ -> error "UI consistency : Sweep has no oscillator"
             Noise -> error "UI consistency : Noise has no oscillator"
             Oscillations osc har -> synth { source_ = Oscillations (cycleOscillator inc osc) har }
+          else if idx == sweepDurationIdx then case src of
+            Sweep duration -> synth { source_ = Sweep (changeParam predefinedSweepDurations duration inc) }
+            Noise -> synth
+            Oscillations _ _ -> synth
           else changeInstrumentHarmonic (idx-(oscillatorIdx+1)) instr inc
         Reverb -> error "logic"
     _ -> instr

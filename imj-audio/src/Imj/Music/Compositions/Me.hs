@@ -40,6 +40,18 @@ meKick = Synth
       (Eased EaseOut Exp)
       0.665
 
+
+meKick2 :: Instrument
+meKick2 = Synth
+  (Sweep 50)
+  AutoRelease
+  $ AHDSR'Envelope
+      50 0 50 800
+      (Linear)
+      (Linear)
+      (Eased EaseOut Exp)
+      1.0
+
 meInstrument :: Instrument
 meInstrument = Synth
   (Oscillations
@@ -60,7 +72,10 @@ meScore =
     (mkScore meInstrument $ snd me)
     $ mergeScores
       (mkScore meSnare meSnareVoice)
-      $ mkScore meKick meKickVoice)
+      $ mergeScores
+        (mkScore meKick meKickVoice)
+        (mkScore meKick2 meKick2Voice)
+    )
 
 me :: (Float,[[Instruction]])
 me = (bpm,part)
@@ -92,5 +107,9 @@ meSnareVoice = [voices|
 
 meKickVoice :: [[Instruction]]
 meKickVoice = [voices|
-    la . la . la . la . : ^la
+    la . la . la . la . la . la . la . . la
+    |]
+meKick2Voice :: [[Instruction]]
+meKick2Voice = [voices|
+    . . . . . . . . . . . . . . la .
     |]

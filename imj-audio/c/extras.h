@@ -119,37 +119,151 @@ namespace imajuscule::audio {
     template<OscillatorType O, typename Env>
     using audioElementOf = typename AudioElementOf<O, Env>::type;
 
-    template<typename Envelope, OscillatorType>
-    struct SetParam;
     template<typename Envelope>
     struct HasNoteOff;
 
-    template<Atomicity A, typename T, EnvelopeRelease Rel, OscillatorType Osc>
-    struct SetParam<AHDSREnvelope<A, T, Rel>, Osc> {
+    struct SweepSetup {
+      int durationSamples;
+
+      bool operator ==(SweepSetup const & o) const {
+        if (durationSamples != o.durationSamples) {
+          return false;
+        }
+        return true;
+      }
+      bool operator != (SweepSetup const & o) const {
+          return !this->operator ==(o);
+      }
+
+      std::size_t combine_hash(std::size_t h) const {
+        hash_combine(h, durationSamples);
+        return h;
+      }
+    };
+
+    template<OscillatorType Osc>
+    struct ExtraParams {
+      std::size_t combine_hash(std::size_t h) const { return h; }
+    };
+
+    template<>
+    struct ExtraParams<OscillatorType::Sweep> {
+      SweepSetup const & sweep;
+
+      std::size_t combine_hash(std::size_t h) const {
+        return sweep.combine_hash(h);
+      }
+    };
+
+    template<OscillatorType Osc>
+    struct ExtraParamsSummary {
+      ExtraParamsSummary(ExtraParams<Osc> const &)
+      {}
+
+      bool operator != (ExtraParamsSummary const & o) const {
+          return !this->operator ==(o);
+      }
+      bool operator == (ExtraParamsSummary const & o) const { return true; }
+    };
+
+    template<>
+    struct ExtraParamsSummary<OscillatorType::Sweep> {
+      ExtraParamsSummary(ExtraParams<OscillatorType::Sweep> const & p)
+      : sweep(p.sweep)
+      {}
+
+      bool operator != (ExtraParamsSummary const & o) const {
+          return !this->operator ==(o);
+      }
+      bool operator == (ExtraParamsSummary const & o) const {
+        if (sweep != o.sweep) {
+          return false;
+        }
+        return true;
+      }
+
+    private:
+      SweepSetup const sweep;
+    };
+
+    template<typename EnvelParamT, typename HarmonicsArray, OscillatorType Osc>
+    struct ParamsFor {
+      HarmonicsArray const & har;
+      EnvelParamT const & env;
+      ExtraParams<Osc> params;
+
+      std::size_t hash() const {
+        std::size_t h = audioelement::hashHarmonics(har);
+        return params.combine_hash(env.combine_hash(h));
+      }
+    };
+
+    // 'ParamsSummary' is a lightweight version of 'ParamsFor':
+    // - If in 'ParamsFor' we have a reference, in 'ParamsSummary' we have the object
+    // - If in 'ParamsFor' we have a dynamically allocated object, in 'ParamsSummary' we have the hash of this object
+    // - and we have a global hash
+    template<typename EnvelParamT, audioelement::OscillatorType Osc>
+    struct ParamsSummary {
+        template<typename Har>
+        ParamsSummary(ParamsFor<EnvelParamT, Har, Osc> const & p)
+        : hash_harmonics(audioelement::hashHarmonics(p.har))
+        , env(p.env)
+        , params_summary(p.params) {
+          hash = p.params.combine_hash(env.combine_hash(hash_harmonics));
+        }
+
+        bool operator == (ParamsSummary const & o) const {
+          if (hash != o.hash) {
+            return false;
+          }
+          if (hash_harmonics != o.hash_harmonics) {
+            return false;
+          }
+          if (env != o.env) {
+            return false;
+          }
+          if (params_summary != o.params_summary) {
+            return false;
+          }
+          return true;
+        }
+
+        std::size_t getHash() const { return hash; }
+
+    private:
+        // for equality test:
+        std::size_t const hash_harmonics;
+        EnvelParamT const env;
+        ExtraParamsSummary<Osc> const params_summary;
+
+        // global hash
+        std::size_t hash;
+    };
+
+    template<typename EnvelParamT, OscillatorType Osc>
+    struct SetParam {
       template<typename HarmonicsArray, typename B>
-      static void set(AHDSR const & env, HarmonicsArray const & props, B & b) {
-        b.forEachElems([&env, &props](auto & e) {
+      static void set(ParamsFor<EnvelParamT, HarmonicsArray, Osc> const & p, B & b) {
+        b.forEachElems([&p](auto & e) {
           // the order is important, maybe we need a single method.
-          e.algo.setHarmonics(props);
-          e.algo.editEnvelope().setAHDSR(env);
+          e.algo.setHarmonics(p.har);
+          e.algo.editEnvelope().setAHDSR(p.env);
         });
       }
     };
 
-    template<Atomicity A, typename T, EnvelopeRelease Rel>
-    struct SetParam<AHDSREnvelope<A, T, Rel>, OscillatorType::Sweep> {
+    template<typename EnvelParamT>
+    struct SetParam<EnvelParamT, OscillatorType::Sweep> {
       template<typename HarmonicsArray, typename B>
-      static void set(AHDSR const & env, HarmonicsArray const & props, B & b) {
-        b.forEachElems([&env, &props](auto & e) {
+      static void set(ParamsFor<EnvelParamT, HarmonicsArray, OscillatorType::Sweep> const & p, B & b) {
+        b.forEachElems([&p](auto & e) {
           // the order is important, maybe we need a single method.
-          e.algo.setHarmonics(props);
-          e.algo.editEnvelope().setAHDSR(env);
-
+          e.algo.setHarmonics(p.har);
+          e.algo.editEnvelope().setAHDSR(p.env);
           // Side note : for a sweep, MultiEnveloped is overkill because there is a single harmonic.
           // However, this is what we currently have.
-          e.algo.forEachHarmonic([](auto & h) {
-            int durationSamples = 4000;
-            h.getAlgo().getCtrl().setup(freq_to_angle_increment(80.), durationSamples, itp::LINEAR);
+          e.algo.forEachHarmonic([&p](auto & h) {
+            h.getAlgo().getCtrl().setup(freq_to_angle_increment(80.), p.params.sweep.durationSamples, itp::LINEAR);
           });
         });
       }
@@ -331,57 +445,47 @@ namespace imajuscule::audio {
       bool success;
     };
 
+    template<typename T>
+    struct Hash {
+      std::size_t operator ()(T const & p) const {
+          return p.getHash();
+      }
+    };
+
     template <typename Envel, audioelement::OscillatorType Osc>
     struct Synths {
       using T = synthOf<Envel, Osc>;
       using EnvelParamT = typename Envel::Param;
 
-      struct K {
-        template<typename HarmonicsArray>
-        K(HarmonicsArray const & harmonics, EnvelParamT const & p) :
-        harmonicsHash(audioelement::hashHarmonics(harmonics)),
-        p(p)
-        {}
+      template<typename HarmonicsArray>
+      using Params = audioelement::ParamsFor<EnvelParamT, HarmonicsArray, Osc>;
 
-        bool operator < (K const & other) const {
-          if(harmonicsHash < other.harmonicsHash) {
-            return true;
-          }
-          else if(harmonicsHash > other.harmonicsHash) {
-            return false;
-          }
-          else {
-            return p < other.p;
-          }
-        }
-      private:
-        std::size_t harmonicsHash;
-        EnvelParamT p; // should we add this to the hash to reduce the size of the key?
-      };
+      // used as key in a map
+      using StaticParamsSummary = audioelement::ParamsSummary<EnvelParamT, Osc>;
 
       // NOTE the 'Using' is constructed while we hold the lock to the map.
       // Hence, while garbage collecting / recycling, if we take the map lock,
       // and if the instrument lock is not taken, we have the guarantee that
       // the instrument lock won't be taken until we release the map lock.
       template<typename HarmonicsArray>
-      static Using<withChannels<T>> get(HarmonicsArray const & harmonics, EnvelParamT const & envelParam) {
+      static Using<withChannels<T>> get(Params<HarmonicsArray> const &params) {
         using namespace audioelement;
-        K key{harmonics,envelParam};
+        StaticParamsSummary summary(params);
 
         // we use a global lock because we can concurrently modify and lookup the map.
         std::lock_guard<std::mutex> l(map_mutex());
 
         auto & synths = map();
-        auto it = synths.find(key);
+        auto it = synths.find(summary);
         if(it != synths.end()) {
           return Using(std::move(l), *(it->second));
         }
-        if(auto * p = recycleInstrument(synths, harmonics, envelParam, key)) {
+        if(auto * p = recycleInstrument(synths, params, summary)) {
           return Using(std::move(l), *p);
         }
         auto [c,remover] = addNoXfadeChannels(T::n_channels);
         auto p = std::make_unique<withChannels<T>>(c);
-        SetParam<Envel, Osc>::set(envelParam, harmonics, p->obj);
+        SetParam<EnvelParamT, Osc>::set(params, p->obj);
         if(!p->obj.initialize(p->chans)) {
           auto oneSynth = synths.begin();
           if(oneSynth != synths.end()) {
@@ -395,7 +499,7 @@ namespace imajuscule::audio {
         }
         return Using(
             std::move(l)
-          , *(synths.emplace(key, std::move(p)).first->second));
+          , *(synths.emplace(summary, std::move(p)).first->second));
       }
 
       static void finalize() {
@@ -407,7 +511,10 @@ namespace imajuscule::audio {
       }
 
     private:
-      using Map = std::map<K,std::unique_ptr<withChannels<T>>>;
+      using Map = std::unordered_map<
+        StaticParamsSummary,
+        std::unique_ptr<withChannels<T>>,
+        Hash<StaticParamsSummary>>;
 
       static auto & map() {
         static Map m;
@@ -420,7 +527,7 @@ namespace imajuscule::audio {
 
       /* The caller is expected to take the map mutex. */
       template<typename HarmonicsArray>
-      static withChannels<T> * recycleInstrument(Map & synths, HarmonicsArray const & harmonics, EnvelParamT const & envelParam, K const & key) {
+      static withChannels<T> * recycleInstrument(Map & synths, Params<HarmonicsArray> const & params, StaticParamsSummary const summary) {
         for(auto it = synths.begin(), end = synths.end(); it != end; ++it) {
           auto & i = it->second;
           if(!i) {
@@ -451,11 +558,11 @@ namespace imajuscule::audio {
             std::unique_ptr<withChannels<T>> new_p;
             new_p.swap(it->second);
             synths.erase(it);
-            auto [inserted, isNew] = synths.emplace(key, std::move(new_p));
+            auto [inserted, isNew] = synths.emplace(summary, std::move(new_p));
 
             Assert(isNew); // because prior to calling this function, we did a lookup
             using namespace audioelement;
-            SetParam<Envel, Osc>::set(envelParam, harmonics, inserted->second->obj);
+            SetParam<EnvelParamT, Osc>::set(params, inserted->second->obj);
             return inserted->second.get();
           }
           else {
@@ -484,9 +591,10 @@ namespace imajuscule::audio {
       }
     };
 
-    template<typename Env, audioelement::OscillatorType osc, typename HarmonicsArray>
-    onEventResult midiEvent(HarmonicsArray const & harmonics, typename Env::Param const & env, Event e, Optional<MIDITimestampAndSource> maybeMts) {
-      return Synths<Env, osc>::get(harmonics, env).o.onEvent2(e, getAudioContext().getChannelHandler(), maybeMts);
+    template<typename Env, audioelement::OscillatorType Osc, typename HarmonicsArray, typename... Args>
+    onEventResult midiEvent(HarmonicsArray const & harmonics, typename Env::Param const & env, Event e, Optional<MIDITimestampAndSource> maybeMts, Args... args) {
+      audioelement::ParamsFor<typename Env::Param, HarmonicsArray, Osc> params{harmonics, env, std::forward<Args>(args)...};
+      return Synths<Env, Osc>::get(params).o.onEvent2(e, getAudioContext().getChannelHandler(), maybeMts);
     }
 
     template<typename Env, typename HarmonicsArray>
@@ -505,8 +613,26 @@ namespace imajuscule::audio {
           return midiEvent<Env, OscillatorType::SinusVolumeAdjusted, HarmonicsArray>(harmonics, p, n, maybeMts);
         case OscillatorType::Noise:
           return midiEvent<Env, OscillatorType::Noise, HarmonicsArray>(harmonics, p, n, maybeMts);
+        default:
+          std::cerr << "not a standard oscillator" << std::endl;
+          throw(std::runtime_error("not a standard oscillator"));
+      }
+    }
+
+    template<typename Env, typename HarmonicsArray>
+    onEventResult midiEventSweep_(audioelement::OscillatorType osc,
+                                  HarmonicsArray const & harmonics,
+                                  typename Env::Param const & p,
+                                  audioelement::SweepSetup const & sweep,
+                                  Event n,
+                                  Optional<MIDITimestampAndSource> maybeMts) {
+      using namespace audioelement;
+      switch(osc) {
         case OscillatorType::Sweep:
-          return midiEvent<Env, OscillatorType::Sweep, HarmonicsArray>(harmonics, p, n, maybeMts);
+          return midiEvent<Env, OscillatorType::Sweep, HarmonicsArray>(harmonics, p, n, maybeMts, sweep);
+        default:
+          std::cerr << "not a sweep oscillator" << std::endl;
+          throw(std::runtime_error("not a sweep oscillator"));
       }
     }
 

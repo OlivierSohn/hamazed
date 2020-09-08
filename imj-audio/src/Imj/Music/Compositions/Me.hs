@@ -31,7 +31,7 @@ meSnare = Synth
 
 meKick :: Instrument
 meKick = Synth
-  Sweep
+  (Sweep 1000)
   AutoRelease
   $ AHDSR'Envelope
       100 1200 200 15600

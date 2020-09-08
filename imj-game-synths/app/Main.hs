@@ -139,7 +139,7 @@ widthEnvelope = 90
 findOscillations :: Instrument -> Maybe (Oscillator, Harmonics)
 findOscillations (Wind _) = Nothing
 findOscillations (Synth Noise _ _) = Nothing
-findOscillations (Synth Sweep _ _) = Nothing
+findOscillations (Synth (Sweep _) _ _) = Nothing
 findOscillations (Synth (Oscillations osc har) _ _) = Just (osc, har)
 
 toParts :: EnvelopeViewMode -> [Vector Double] -> [EnvelopePart]
@@ -324,9 +324,9 @@ instance UIInstructions SynthsGame where
           , ConfigUI "Harmo. vol." []
           , ConfigUI "Harmo. ang." []
           ]
-        Sweep ->
+        Sweep sweep_duration -> -- TODO chose sweep_duration via UI
           [ ConfigUI "Source"
-              [mkChoice sourceIdx $ "Sweep"]
+              [mkChoice sourceIdx $ "Sweep " ++ (show sweep_duration)]
           , ConfigUI "Oscillator" []
           , ConfigUI "Harmo. vol." []
           , ConfigUI "Harmo. ang." []
@@ -436,7 +436,7 @@ withMinimumHarmonicsCount :: Instrument -> Instrument
 withMinimumHarmonicsCount i@(Wind _) = i
 withMinimumHarmonicsCount i@(Synth src _ _) = case src of
   Noise -> i
-  Sweep -> i
+  Sweep _ -> i
   Oscillations osc hars ->
     let prevH = unHarmonics hars
     in i { source_ = Oscillations osc $ Harmonics $
@@ -550,12 +550,12 @@ changeInstrumentValue instr mayLastOscillations edit@(Edition mode _ _ _) inc =
         Tone ->
           if idx == sourceIdx then synth {
               source_ = case src of
-                Sweep -> Noise
+                Sweep _ -> Noise
                 Noise -> maybe (source_ defaultSynth) id mayLastOscillations
-                Oscillations _ _ -> Sweep
+                Oscillations _ _ -> Sweep 1000 -- TODO restore last known sweep duration
             }
           else if idx == oscillatorIdx then case src of
-            Sweep -> error "UI consistency : Sweep has no oscillator"
+            Sweep _ -> error "UI consistency : Sweep has no oscillator"
             Noise -> error "UI consistency : Noise has no oscillator"
             Oscillations osc har -> synth { source_ = Oscillations (cycleOscillator inc osc) har }
           else changeInstrumentHarmonic (idx-(oscillatorIdx+1)) instr inc
@@ -598,7 +598,7 @@ changeInstrumentEnvelopeIndexedValue instr@(Synth _ release p@(AHDSR'Envelope a 
 changeInstrumentHarmonic :: Int -> Instrument -> Int -> Instrument
 changeInstrumentHarmonic _ instr@(Wind _ ) _ = instr
 changeInstrumentHarmonic _ instr@(Synth Noise _ _) _ = instr
-changeInstrumentHarmonic _ instr@(Synth Sweep _ _) _ = instr
+changeInstrumentHarmonic _ instr@(Synth (Sweep _) _ _) _ = instr
 changeInstrumentHarmonic idx instr@(Synth (Oscillations osc (Harmonics harmonics)) _ _) inc =
   instr { source_ = Oscillations osc $ Harmonics $ h' S.// [(idx', newVal)] }
  where

@@ -80,9 +80,20 @@ namespace imajuscule::audio::audioelement {
         return midiEvent_<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>>(osc, harmonics, p, n, maybeMts);
       case EnvelopeRelease::WaitForKeyRelease:
         return midiEvent_<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::WaitForKeyRelease>>(osc, harmonics, p, n, maybeMts);
-      default:
-      Assert(0);
-      return onEventResult::DROPPED_NOTE;
+    }
+  }
+
+  audio::onEventResult midiEventAHDSRSweep(OscillatorType osc, EnvelopeRelease t,
+                                           CConstArray<harmonicProperties_t> const & harmonics,
+                                           AHDSR p,
+                                           audioelement::SweepSetup const & sweep,
+                                           audio::Event n, Optional<audio::MIDITimestampAndSource> maybeMts) {
+    static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
+    switch(t) {
+      case EnvelopeRelease::ReleaseAfterDecay:
+        return midiEventSweep_<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>>(osc, harmonics, p, sweep, n, maybeMts);
+      case EnvelopeRelease::WaitForKeyRelease:
+        return midiEventSweep_<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::WaitForKeyRelease>>(osc, harmonics, p, sweep, n, maybeMts);
     }
   }
 
@@ -315,6 +326,50 @@ extern "C" {
     }
     return convert(midiEventAHDSR(osc, t, {hars, har_sz}, p, n, maybeMts));
   }
+
+  bool midiNoteOnAHDSRSweep_(imajuscule::audio::audioelement::OscillatorType osc,
+                        imajuscule::audio::audioelement::EnvelopeRelease t,
+                       int a, int ai, int h, int d, int di, float s, int r, int ri,
+                       harmonicProperties_t const * hars, int har_sz,
+                       int sweep_duration,
+                       int16_t pitch, float velocity, int midiSource, uint64_t maybeMIDITime) {
+#if IMJ_TRACE_EXTERN_C
+    Trace trace("midiNoteOnAHDSRSweep_");
+    std::cout << osc << std::endl;
+    std::cout << t << std::endl;
+    std::cout << a << std::endl;
+    std::cout << ai << std::endl;
+    std::cout << h << std::endl;
+    std::cout << d << std::endl;
+    std::cout << di << std::endl;
+    std::cout << s << std::endl;
+    std::cout << r << std::endl;
+    std::cout << ri << std::endl;
+    std::cout << har_sz << std::endl;
+    std::cout << sweep_duration << std::endl;
+    std::cout << pitch << std::endl;
+    std::cout << velocity << std::endl;
+    std::cout << midiSource << std::endl;
+    std::cout << maybeMIDITime << std::endl;
+#endif
+    using namespace imajuscule;
+    using namespace imajuscule::audio;
+    using namespace imajuscule::audio::audioelement;
+    if(unlikely(!getAudioContext().Initialized())) {
+      return false;
+    }
+    auto p = AHDSR{a,itp::toItp(ai),h,d,itp::toItp(di),r,itp::toItp(ri),s};
+    auto n = mkNoteOn(pitch,velocity);
+    auto maybeMts = (midiSource >= 0) ?
+      Optional<MIDITimestampAndSource>{{maybeMIDITime, static_cast<uint64_t>(midiSource)}} :
+      Optional<MIDITimestampAndSource>{};
+    if (osc <= OscillatorType::Noise) {
+        har_sz = 1;
+        hars = getUnityHarmonics();
+    }
+    return convert(midiEventAHDSRSweep(osc, t, {hars, har_sz}, p, SweepSetup{sweep_duration}, n, maybeMts));
+  }
+
   bool midiNoteOffAHDSR_(imajuscule::audio::audioelement::OscillatorType osc,
                          imajuscule::audio::audioelement::EnvelopeRelease t,
                          int a, int ai, int h, int d, int di, float s, int r, int ri,
@@ -353,6 +408,48 @@ extern "C" {
         hars = getUnityHarmonics();
     }
     return convert(midiEventAHDSR(osc, t, {hars, har_sz}, p, n, maybeMts));
+  }
+
+  bool midiNoteOffAHDSRSweep_(imajuscule::audio::audioelement::OscillatorType osc,
+                         imajuscule::audio::audioelement::EnvelopeRelease t,
+                         int a, int ai, int h, int d, int di, float s, int r, int ri,
+                         harmonicProperties_t const * hars, int har_sz,
+                         int sweep_duration,
+                         int16_t pitch, int midiSource, uint64_t maybeMIDITime) {
+#if IMJ_TRACE_EXTERN_C
+    Trace trace("midiNoteOffAHDSRSweep_");
+    std::cout << osc << std::endl;
+    std::cout << t << std::endl;
+    std::cout << a << std::endl;
+    std::cout << ai << std::endl;
+    std::cout << h << std::endl;
+    std::cout << d << std::endl;
+    std::cout << di << std::endl;
+    std::cout << s << std::endl;
+    std::cout << r << std::endl;
+    std::cout << ri << std::endl;
+    std::cout << har_sz << std::endl;
+    std::cout << sweep_duration << std::endl;
+    std::cout << pitch << std::endl;
+    std::cout << midiSource << std::endl;
+    std::cout << maybeMIDITime << std::endl;
+#endif
+    using namespace imajuscule;
+    using namespace imajuscule::audio;
+    using namespace imajuscule::audio::audioelement;
+    if(unlikely(!getAudioContext().Initialized())) {
+      return false;
+    }
+    auto p = AHDSR{a,itp::toItp(ai),h,d,itp::toItp(di),r,itp::toItp(ri),s};
+    auto n = mkNoteOff(pitch);
+    auto maybeMts = (midiSource >= 0) ?
+      Optional<MIDITimestampAndSource>{{maybeMIDITime, static_cast<uint64_t>(midiSource)}} :
+      Optional<MIDITimestampAndSource>{};
+    if (osc <= OscillatorType::Noise) {
+        har_sz = 1;
+        hars = getUnityHarmonics();
+    }
+    return convert(midiEventAHDSRSweep(osc, t, {hars, har_sz}, p, SweepSetup{sweep_duration}, n, maybeMts));
   }
 
   double* analyzeAHDSREnvelope_(imajuscule::audio::audioelement::EnvelopeRelease t, int a, int ai, int h, int d, int di, float s, int r, int ri, int*nElems, int*splitAt) {

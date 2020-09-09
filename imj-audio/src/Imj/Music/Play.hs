@@ -28,7 +28,7 @@ module Imj.Music.Play
       -- * Play Instruction(s) all at once, with known tempo
       , playAtTempo
       , playVoicesAtTempo
-      , playScoreOnceAtTempo
+      , playScoreAtTempo
       -- * Create MusicalEvent(s) for a time quantum
       -- ** From a Voice
       , stepVoice
@@ -66,22 +66,24 @@ playVoicesAtTempo :: Float
                   -> [[Instruction]]
                   -> IO PlayResult
 playVoicesAtTempo tempo i instructions =
-  playScoreOnceAtTempo tempo (mkScore i instructions)
+  playScoreAtTempo 1 tempo (mkScore i instructions)
 
-playScoreOnceAtTempo :: Float -> Score Instrument -> IO PlayResult
-playScoreOnceAtTempo tempo s =
+playScoreAtTempo :: Int -> Float -> Score Instrument -> IO PlayResult
+playScoreAtTempo count_repetitions tempo s =
 
-  go (scoreLength s) s
+  go count_repetitions (scoreLength s) (scoreLength s) s
 
  where
-  go 0 _ = return $ Right ()
-  go n score = do
+  go repetitions n 0 _
+    | repetitions <= 1 = return $ Right ()
+    | otherwise = go (pred repetitions) n n s
+  go repetitions nn n score = do
     let (newScore, instructions) = stepScore score
     r <- mapM play instructions
     threadDelay pause
     if null $ lefts r
       then
-        go (n-1) newScore
+        go repetitions nn (pred n) newScore
       else
         return $ Left ()
 
@@ -189,7 +191,7 @@ stepNVoiceReversed n score
   go 0 s l = (s, l)
   go i s l = let (s',m) = stepVoice s in go (i-1) s' $ m:l
 
--- | Steps a 'Voice' forward by several time quantume
+-- | Steps a 'Voice' forward by several time quantums
 stepNVoice :: Int
            -- ^ How many time quantums to step.
            -> Voice i

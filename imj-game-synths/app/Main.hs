@@ -139,7 +139,7 @@ widthEnvelope = 90
 findOscillations :: Instrument -> Maybe (Oscillator, Harmonics)
 findOscillations (Wind _) = Nothing
 findOscillations (Synth Noise _ _) = Nothing
-findOscillations (Synth (Sweep _) _ _) = Nothing
+findOscillations (Synth (Sweep _ _) _ _) = Nothing
 findOscillations (Synth (Oscillations osc har) _ _) = Just (osc, har)
 
 toParts :: EnvelopeViewMode -> [Vector Double] -> [EnvelopePart]
@@ -307,6 +307,7 @@ instance UIInstructions SynthsGame where
         Oscillations osc harmonics ->
           [ ConfigUI "Source" [mkChoice sourceIdx "Oscillators"]
           , ConfigUI "Sweep time" []
+          , ConfigUI "Sweep final freq." []
           , ConfigUI "Oscillator" [ mkChoice oscillatorIdx $ show osc ]
           , hInst "Harmo. vol." volume firstHarVolIdx
           , hInst "Harmo. ang." phase firstHarPhaseIdx
@@ -319,13 +320,15 @@ instance UIInstructions SynthsGame where
         Noise ->
           [ ConfigUI "Source" [mkChoice sourceIdx "Noise"]
           , ConfigUI "Sweep time" []
+          , ConfigUI "Sweep final freq." []
           , ConfigUI "Oscillator" []
           , ConfigUI "Harmo. vol." []
           , ConfigUI "Harmo. ang." []
           ]
-        Sweep sweep_duration ->
+        Sweep sweep_duration final_freq ->
           [ ConfigUI "Source" [mkChoice sourceIdx "Sweep"]
           , ConfigUI "Sweep time" [mkChoice sweepDurationIdx $ show sweep_duration]
+          , ConfigUI "Sweep final freq." [mkChoice sweepFinalFreqIdx $ show final_freq]
           , ConfigUI "Oscillator" []
           , ConfigUI "Harmo. vol." []
           , ConfigUI "Harmo. ang." []
@@ -393,10 +396,11 @@ defaultSynth = organicInstrument
 countHarmonics :: Int
 countHarmonics = 10
 
-sourceIdx, oscillatorIdx, sweepDurationIdx, firstHarVolIdx, firstHarPhaseIdx, reverbBySizeIdx, reverbByDurationIdx, reverbWetIdx :: Int
+sourceIdx, oscillatorIdx, sweepDurationIdx, sweepFinalFreqIdx, firstHarVolIdx, firstHarPhaseIdx, reverbBySizeIdx, reverbByDurationIdx, reverbWetIdx :: Int
 sourceIdx = 0
 sweepDurationIdx = sourceIdx + 1
-oscillatorIdx = sweepDurationIdx + 1
+sweepFinalFreqIdx = sweepDurationIdx + 1
+oscillatorIdx = sweepFinalFreqIdx + 1
 firstHarVolIdx = oscillatorIdx + 1
 firstHarPhaseIdx = firstHarVolIdx + countHarmonics
 
@@ -419,7 +423,7 @@ predefinedWetRatios :: Set AlmostFloat
 predefinedWetRatios = Set.fromList $ map (flip (/) 10 . fromIntegral) [0::Int ..10]
 
 predefinedAttack, predefinedHolds, predefinedDecays, predefinedReleases, predefinedSweepDurations :: Set Int
-predefinedSustains :: Set AlmostFloat
+predefinedSustains, predefinedSweepFinalFreqs :: Set AlmostFloat
 predefinedAttack =
   let l = 50:map (*2) l
   in Set.fromDistinctAscList $ take 12 l
@@ -434,12 +438,15 @@ predefinedSustains =
 predefinedSweepDurations =
   let l = 50:map (*2) l
   in Set.fromDistinctAscList $ take 12 l
+predefinedSweepFinalFreqs =
+  let l = 10.0:map (*1.3) l
+  in Set.fromDistinctAscList $ takeWhile (< 8000) l
 
 withMinimumHarmonicsCount :: Instrument -> Instrument
 withMinimumHarmonicsCount i@(Wind _) = i
 withMinimumHarmonicsCount i@(Synth src _ _) = case src of
   Noise -> i
-  Sweep _ -> i
+  Sweep _ _ -> i
   Oscillations osc hars ->
     let prevH = unHarmonics hars
     in i { source_ = Oscillations osc $ Harmonics $
@@ -553,16 +560,20 @@ changeInstrumentValue instr mayLastOscillations edit@(Edition mode _ _ _) inc =
         Tone ->
           if idx == sourceIdx then synth {
               source_ = case src of
-                Sweep _ -> Noise
+                Sweep _ _ -> Noise
                 Noise -> maybe (source_ defaultSynth) id mayLastOscillations
-                Oscillations _ _ -> Sweep 1000 -- TODO restore last known sweep duration
+                Oscillations _ _ -> Sweep 1000 80 -- TODO restore last known sweep params
             }
           else if idx == oscillatorIdx then case src of
-            Sweep _ -> error "UI consistency : Sweep has no oscillator"
+            Sweep _ _ -> error "UI consistency : Sweep has no oscillator"
             Noise -> error "UI consistency : Noise has no oscillator"
             Oscillations osc har -> synth { source_ = Oscillations (cycleOscillator inc osc) har }
           else if idx == sweepDurationIdx then case src of
-            Sweep duration -> synth { source_ = Sweep (changeParam predefinedSweepDurations duration inc) }
+            Sweep duration f -> synth { source_ = Sweep (changeParam predefinedSweepDurations duration inc) f }
+            Noise -> synth
+            Oscillations _ _ -> synth
+          else if idx == sweepFinalFreqIdx then case src of
+            Sweep duration f -> synth { source_ = Sweep duration (changeParam predefinedSweepFinalFreqs f inc) }
             Noise -> synth
             Oscillations _ _ -> synth
           else changeInstrumentHarmonic (idx-(oscillatorIdx+1)) instr inc
@@ -605,7 +616,7 @@ changeInstrumentEnvelopeIndexedValue instr@(Synth _ release p@(AHDSR'Envelope a 
 changeInstrumentHarmonic :: Int -> Instrument -> Int -> Instrument
 changeInstrumentHarmonic _ instr@(Wind _ ) _ = instr
 changeInstrumentHarmonic _ instr@(Synth Noise _ _) _ = instr
-changeInstrumentHarmonic _ instr@(Synth (Sweep _) _ _) _ = instr
+changeInstrumentHarmonic _ instr@(Synth (Sweep _ _) _ _) _ = instr
 changeInstrumentHarmonic idx instr@(Synth (Oscillations osc (Harmonics harmonics)) _ _) inc =
   instr { source_ = Oscillations osc $ Harmonics $ h' S.// [(idx', newVal)] }
  where

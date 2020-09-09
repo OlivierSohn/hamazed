@@ -161,7 +161,8 @@ data SoundSource =
   | Noise
     -- ^ Noise
   | Sweep {
-        sweep_duration_   :: !Int
+        sweep_duration_   :: !Int,
+        sweep_final_freq_   :: !AlmostFloat
     }
     -- ^ Sine sweep
   deriving(Generic,Show, Eq, Data, Ord)

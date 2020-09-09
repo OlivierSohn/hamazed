@@ -31,14 +31,16 @@ extern "C" {
                        int a, int ai, int h, int d, int di, float s, int r, int ri,
                        harmonicProperties_t * hars, int har_sz,
                        int sweep_duration,
-                       float sweep_final_freq,
+                       float sweep_freq,
+                       imajuscule::audio::audioelement::Extremity sweep_freq_extremity,
                        int16_t pitch, float velocity, int midiSource, uint64_t maybeMIDITime);
   bool midiNoteOffAHDSRSweep_(imajuscule::audio::audioelement::OscillatorType osc,
                          imajuscule::audio::audioelement::EnvelopeRelease t,
                          int a, int ai, int h, int d, int di, float s, int r, int ri,
                          harmonicProperties_t * hars, int har_sz,
                          int sweep_duration,
-                         float sweep_final_freq,
+                         float sweep_freq,
+                         imajuscule::audio::audioelement::Extremity sweep_freq_extremity,
                          int16_t pitch, int midiSource, uint64_t maybeMIDITime);
   double* analyzeAHDSREnvelope_(imajuscule::audio::audioelement::EnvelopeRelease t, int a, int ai, int h, int d, int di, float s, int r, int ri, int*nElems, int*splitAt);
   bool effectOn(int program, int16_t pitch, float velocity);

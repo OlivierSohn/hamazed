@@ -8,6 +8,7 @@ module Imj.Music.Instrument
       ( -- * Types
         Instrument(..)
       , SoundSource(..)
+      , SweepFreqType(..)
       , Harmonics(..)
       , MusicalEvent(..)
       , InstrumentNote(..)
@@ -16,6 +17,7 @@ module Imj.Music.Instrument
       , mkNoteVelocity
       , Oscillator(..)
       , cycleOscillator, countOscillators
+      , cycleSweepFreqType, countSweepFreqType
       -- * Analyze envelope
       , envelopeShape
       -- * Utilities
@@ -161,13 +163,34 @@ data SoundSource =
   | Noise
     -- ^ Noise
   | Sweep {
-        sweep_duration_   :: !Int,
-        sweep_final_freq_   :: !AlmostFloat
+        sweep_duration_  :: !Int,
+        sweep_freq_      :: !AlmostFloat,
+        sweep_freq_type_ :: !SweepFreqType
     }
     -- ^ Sine sweep
   deriving(Generic,Show, Eq, Data, Ord)
 instance Binary SoundSource
 instance NFData SoundSource
+
+data SweepFreqType = StartFreq | EndFreq
+  deriving(Generic,Show, Eq, Data, Ord, Bounded)
+instance Binary SweepFreqType
+instance NFData SweepFreqType
+instance Enum SweepFreqType where
+  fromEnum = \case
+    StartFreq -> 0
+    EndFreq -> 1
+  toEnum = \case
+    0 -> StartFreq
+    1 -> EndFreq
+    n -> error $ "out of range:" ++ show n
+
+countSweepFreqType :: Int
+countSweepFreqType = 1 + (fromEnum $ (maxBound :: SweepFreqType))
+
+cycleSweepFreqType :: Int -> SweepFreqType -> SweepFreqType
+cycleSweepFreqType n v =
+  toEnum $ ((fromEnum v) + n) `mod` countSweepFreqType
 
 defaultHarmonics :: Harmonics
 defaultHarmonics = harmonicsFromVolumes

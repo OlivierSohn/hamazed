@@ -124,13 +124,17 @@ namespace imajuscule::audio {
 
     struct SweepSetup {
       int durationSamples;
-      float finalFreq;
+      float freq;
+      Extremity freq_extremity;
 
       bool operator ==(SweepSetup const & o) const {
         if (durationSamples != o.durationSamples) {
           return false;
         }
-        if (finalFreq != o.finalFreq) {
+        if (freq != o.freq) {
+          return false;
+        }
+        if (freq_extremity != o.freq_extremity) {
           return false;
         }
         return true;
@@ -141,7 +145,8 @@ namespace imajuscule::audio {
 
       std::size_t combine_hash(std::size_t h) const {
         hash_combine(h, durationSamples);
-        hash_combine(h, finalFreq);
+        hash_combine(h, freq);
+        hash_combine(h, freq_extremity);
         return h;
       }
     };
@@ -266,9 +271,9 @@ namespace imajuscule::audio {
           e.algo.setHarmonics(p.har);
           e.algo.editEnvelope().setAHDSR(p.env);
           // Side note : for a sweep, MultiEnveloped is overkill because there is a single harmonic.
-          // However, this is what we currently have.
           e.algo.forEachHarmonic([&p](auto & h) {
-            h.getAlgo().getCtrl().setup(freq_to_angle_increment(p.params.sweep.finalFreq),
+            h.getAlgo().getCtrl().setup(p.params.sweep.freq_extremity,
+                                        freq_to_angle_increment(p.params.sweep.freq),
                                         p.params.sweep.durationSamples,
                                         itp::LINEAR);
           });

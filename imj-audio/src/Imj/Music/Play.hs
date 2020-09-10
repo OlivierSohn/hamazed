@@ -80,7 +80,7 @@ playScoreAtTempo count_repetitions tempo s =
   go repetitions nn n score = do
     let (newScore, instructions) = stepScore score
     r <- mapM play instructions
-    threadDelay pause
+    threadDelay pause -- TODO use actual time to compensate for deviations
     if null $ lefts r
       then
         go repetitions nn (pred n) newScore

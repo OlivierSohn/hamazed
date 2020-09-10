@@ -205,9 +205,9 @@ setEditionIndex idx (Edition mode i j k) = case mode of
 
 getEditionIndex :: Edition -> Int
 getEditionIndex (Edition mode i j k) =
-  editiontIndex `mod` (countEditables mode)
+  editionIndex `mod` (countEditables mode)
  where
-  editiontIndex = case mode of
+  editionIndex = case mode of
     Envelope -> fromIntegral i
     Tone -> j
     Reverb -> k

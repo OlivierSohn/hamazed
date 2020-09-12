@@ -49,9 +49,10 @@ import           Imj.Audio.Output
 import           Imj.Music.Score
 import           Imj.Music.Instruction
 import           Imj.Music.Instrument
+import           Imj.Timing
 
 -- | Plays a series of 'Instruction' at a constant tempo, using an 'Instrument'.
-playAtTempo :: Float
+playAtTempo :: Double
             -- ^ Beats per minute
             -> Instrument
             -> [Instruction]
@@ -60,7 +61,7 @@ playAtTempo tempo i instructions =
   playVoicesAtTempo tempo i [instructions]
 
 
-playVoicesAtTempo :: Float
+playVoicesAtTempo :: Double
                   -- ^ Beats per minute
                   -> Instrument
                   -> [[Instruction]]
@@ -68,26 +69,31 @@ playVoicesAtTempo :: Float
 playVoicesAtTempo tempo i instructions =
   playScoreAtTempo 1 tempo (mkScore i instructions)
 
-playScoreAtTempo :: Int -> Float -> Score Instrument -> IO PlayResult
+playScoreAtTempo :: Int -> Double -> Score Instrument -> IO PlayResult
 playScoreAtTempo count_repetitions tempo s =
-
-  go count_repetitions (scoreLength s) (scoreLength s) s
-
+  getSystemTime >>=
+    go count_repetitions (scoreLength s) (scoreLength s) s 0
  where
-  go repetitions n 0 _
-    | repetitions <= 1 = return $ Right ()
-    | otherwise = go (pred repetitions) n n s
-  go repetitions nn n score = do
-    let (newScore, instructions) = stepScore score
-    r <- mapM play instructions
-    threadDelay pause -- TODO use actual time to compensate for deviations
-    if null $ lefts r
-      then
-        go repetitions nn (pred n) newScore
-      else
-        return $ Left ()
+  go a b c d e firstTime =
+    go' a b c d e
+   where
+    go' repetitions n 0 _ total
+      | repetitions <= 1 = return $ Right ()
+      | otherwise = go' (pred repetitions) n n s total
+    go' repetitions nn n score total = do
+      now <- getSystemTime
+      let (newScore, instructions) = stepScore score
+          newTimeApprox = addDuration (fromSecs (total * pause)) firstTime
+          duration = fromIntegral $ toMicros $ now...newTimeApprox
+      when (duration > 0) $ threadDelay duration
+      r <- mapM play instructions
+      if null $ lefts r
+        then
+          go' repetitions nn (pred n) newScore (succ total)
+        else
+          return $ Left ()
 
-  pause = round $ 1000*1000*60/tempo
+    pause = 60/tempo
 
 type PlayResult = Either () ()
 

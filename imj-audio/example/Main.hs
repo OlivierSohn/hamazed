@@ -26,7 +26,7 @@ main = void $ usingAudioOutput -- WithMinLatency 0
   threadDelay 10000
   --}
   putStrLn "playing me"
-  uncurry (playScoreAtTempo 100) meScore >>= print
+  uncurry (playScoreAtTempo 100) (meScore $ Just 10.0) >>= print
   threadDelay 10000
   putStrLn "playing tech"
   uncurry (flip playVoicesAtTempo techInstrument) tech >>= print

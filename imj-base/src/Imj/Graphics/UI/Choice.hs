@@ -7,6 +7,7 @@
 
 module Imj.Graphics.UI.Choice
         ( Choice(..)
+        , setDownUpChar
         ) where
 
 import           Imj.Prelude
@@ -25,6 +26,9 @@ data Choice = Choice {
   , choiceDownChar, choiceUpChar :: {-# UNPACK #-} !Char
   , choiceColor :: {-# UNPACK #-} !LayeredColor
 }
+
+setDownUpChar :: Char -> Char -> Choice -> Choice
+setDownUpChar d u (Choice v _ _ c) = Choice v d u c
 
 {- | Example:
 

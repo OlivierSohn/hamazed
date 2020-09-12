@@ -675,7 +675,7 @@ allReverbs = do
 initialGame :: IO SynthsGame
 initialGame = do
   revs <- mkReverbs
-  return $ updateAction $ SynthsGame mempty mempty mempty Nothing (EnvelopePlot [] LogView) Nothing mkEdition Nothing revs mkGameUI Nothing
+  return $ SynthsGame mempty mempty mempty Nothing (EnvelopePlot [] LogView) Nothing mkEdition Nothing revs mkGameUI Nothing
 
 data SynthsMode =
     PlaySynth
@@ -1247,7 +1247,7 @@ instance GameLogic SynthsGame where
                             nullIndex - 1
                           else
                             newVecIdx
-        putIGame $ updateAction $ g { reverbs = rvbs { curRev = mayNewIndex} }
+        putIGame $ g { reverbs = rvbs { curRev = mayNewIndex} }
         maybe
           (liftIO (useReverb Nothing) >>= either (const $ liftIO $ putStrLn "error while unsetting reverb (see logs above)") return)
           (\newIdx -> when (mayCurIndex /= Just newIdx) $ do
@@ -1262,7 +1262,7 @@ instance GameLogic SynthsGame where
         let newWet = changeParam predefinedWetRatios wet i
         putIGame g { reverbs = rvbs { wetRatio = newWet } }
         liftIO (setReverbWetRatio $ realToFrac newWet) >>= either (const $ liftIO $ putStrLn "error while setting reverb wet ratio (see logs above)") return
-      ToggleEnvelopeViewMode -> putIGame $ updateAction $ g {
+      ToggleEnvelopeViewMode -> putIGame $ g {
         envelopePlot = EnvelopePlot (fromMaybe (error "logic") mayNewEnvMinMaxs) $ toggleView $ envViewMode $ envelopePlot g }
       ToggleEditMode ->
         putIGame $ updateAction $ g {edition = toggleEditMode $ edition g}
@@ -1278,7 +1278,7 @@ instance GameLogic SynthsGame where
     -- TODO force withAnim when using putIGame ?
     getIGame >>= maybe (liftIO initialGame) return >>= \g -> withAnim $ case e of
       AssignedSourceIdx s -> do
-        putIGame $ updateAction $ g { midiSourceIdx = Just s }
+        putIGame $ g { midiSourceIdx = Just s }
         asks writeToClient' >>= \f -> liftIO $ do
           FromClient . AppEvent . ChangeInstrument . withMinimumHarmonicsCount <$> loadInstrument >>= f
       NewLine seqId loopId ->

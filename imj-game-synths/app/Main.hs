@@ -204,47 +204,47 @@ mkGameUI = SynthGameUI {
     (maybe [] id . usingEnvelope (\_ ->
       [ UIComponent {
           mkDisplay = (\color thegame -> mkChoice color $ fromMaybe ("?") $ usingEnvelope (show . ahdsrAttack) thegame),
-          onAction = (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 0 inc) thegame)
+          onAction = Just (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 0 inc) thegame)
         },
         UIComponent {
           mkDisplay = (\color thegame -> mkChoice color $ fromMaybe ("?") $ usingEnvelope (show . ahdsrAttackItp) thegame),
-          onAction = (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 1 inc) thegame)
+          onAction = Just (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 1 inc) thegame)
         }
       ])),
   decayUI_ = UIComponentGroup "Decay"
     (maybe [] id . usingEnvelope (\_ ->
       [ UIComponent {
           mkDisplay = (\color thegame -> mkChoice color $ fromMaybe ("?") $ usingEnvelope (show . ahdsrDecay) thegame),
-          onAction = (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 3 inc) thegame)
+          onAction = Just (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 3 inc) thegame)
         },
         UIComponent {
           mkDisplay = (\color thegame -> mkChoice color $ fromMaybe ("?") $ usingEnvelope (show . ahdsrDecayItp) thegame),
-          onAction = (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 4 inc) thegame)
+          onAction = Just (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 4 inc) thegame)
         }
       ])),
   releaseUI_ = UIComponentGroup "Release"
     (maybe [] id . usingEnvelope (\_ ->
       [ UIComponent {
           mkDisplay = (\color thegame -> mkChoice color $ fromMaybe ("?") $ usingEnvelope (show . ahdsrRelease) thegame),
-          onAction = (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 6 inc) thegame)
+          onAction = Just (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 6 inc) thegame)
         },
         UIComponent {
           mkDisplay = (\color thegame -> mkChoice color $ fromMaybe ("?") $ usingEnvelope (show . ahdsrReleaseItp) thegame),
-          onAction = (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 7 inc) thegame)
+          onAction = Just (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 7 inc) thegame)
         }
       ])),
   holdUI_ = UIComponentGroup "Hold"
     (maybe [] id . usingEnvelope (\_ ->
       [ UIComponent {
           mkDisplay = (\color thegame -> mkChoice color $ fromMaybe ("?") $ usingEnvelope (show . ahdsrHold) thegame),
-          onAction = (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 2 inc) thegame)
+          onAction = Just (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 2 inc) thegame)
         }
       ])),
   sustainUI_ = UIComponentGroup "Sustain"
     (maybe [] id . usingEnvelope (\_ ->
       [ UIComponent {
           mkDisplay = (\color thegame -> mkChoice color $ fromMaybe ("?") $ usingEnvelope (show . ahdsrSustain) thegame),
-          onAction = (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 5 inc) thegame)
+          onAction = Just (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 5 inc) thegame)
         }
       ])),
   autoReleaseUI_ = UIComponentGroup "Auto-release"
@@ -253,7 +253,7 @@ mkGameUI = SynthGameUI {
           mkDisplay = (\color -> mkChoice color . fromMaybe "?" . usingReleaseMode (\case
               AutoRelease -> "Yes"
               KeyRelease -> "No")),
-          onAction = (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 8 inc) thegame)
+          onAction = Just (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 8 inc) thegame)
         }
       ])),
   sourceUI_ = UIComponentGroup "Source"
@@ -263,7 +263,7 @@ mkGameUI = SynthGameUI {
                                                                                        Sweep{} -> "Sweep"
                                                                                        Noise{} -> "Noise"
                                                                                        Oscillations{} -> "Oscillations") thegame),
-          onAction = (\inc thegame@(SynthsGame _ _ _ _ _ mayLastOsc _ _ _ _ _) -> usingSource (\src -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
+          onAction = Just (\inc thegame@(SynthsGame _ _ _ _ _ mayLastOsc _ _ _ _ _) -> usingSource (\src -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
             synth@Synth{} -> AppEvent $ ChangeInstrument $ withMinimumHarmonicsCount $ synth {
               source_ =
                 let curIdx = case src of
@@ -286,7 +286,7 @@ mkGameUI = SynthGameUI {
     (maybe [] id . usingSweep (\_ _ _ ->
       [ UIComponent {
           mkDisplay = (\color -> mkChoice color . fromMaybe "?" . usingSweep (\duration _ _ -> show duration)),
-          onAction = (\inc thegame -> usingSweep (\duration b c -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
+          onAction = Just (\inc thegame -> usingSweep (\duration b c -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
             synth@Synth{} -> AppEvent $ ChangeInstrument $ synth {
               source_ = Sweep (changeParam predefinedSweepDurations duration inc) b c
             }
@@ -297,7 +297,7 @@ mkGameUI = SynthGameUI {
     (maybe [] id . usingSweep (\_ _ _ ->
       [ UIComponent {
           mkDisplay = (\color -> mkChoice color . fromMaybe "?" . usingSweep (\_ freq _ -> show freq)),
-          onAction = (\inc thegame -> usingSweep (\a freq c -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
+          onAction = Just (\inc thegame -> usingSweep (\a freq c -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
             synth@Synth{} -> AppEvent $ ChangeInstrument $ synth {
               source_ = Sweep a (changeParam predefinedSweepFreqs freq inc) c
             }
@@ -308,7 +308,7 @@ mkGameUI = SynthGameUI {
     (maybe [] id . usingSweep (\_ _ _ ->
       [ UIComponent {
           mkDisplay = (\color -> mkChoice color . fromMaybe "?" . usingSweep (\_ _ ext -> show ext)),
-          onAction = (\inc thegame -> usingSweep (\a b ext -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
+          onAction = Just (\inc thegame -> usingSweep (\a b ext -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
             synth@Synth{} -> AppEvent $ ChangeInstrument $ synth {
               source_ = Sweep a b (cycleSweepFreqType inc ext)
             }
@@ -319,7 +319,7 @@ mkGameUI = SynthGameUI {
     (maybe [] id . usingOscillations (\_ _ ->
       [ UIComponent {
           mkDisplay = (\color -> mkChoice color . fromMaybe "?" . usingOscillations (\o _ -> show o)),
-          onAction = (\inc thegame -> usingOscillations (\osc har -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
+          onAction = Just (\inc thegame -> usingOscillations (\osc har -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
             synth@Synth{} -> AppEvent $ ChangeInstrument $ synth {
               source_ = Oscillations (cycleOscillator inc osc) har
             }
@@ -331,7 +331,7 @@ mkGameUI = SynthGameUI {
       map
        (\i -> UIComponent {
            mkDisplay = (\color -> mkChoice color . fromMaybe "?" . usingOscillations (\_ har -> show $ volume $ (unHarmonics har) S.! i)),
-           onAction = (\inc thegame -> usingOscillations (\_ _ -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
+           onAction = Just (\inc thegame -> usingOscillations (\_ _ -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
              synth@Synth{} -> AppEvent $ ChangeInstrument $ changeInstrumentHarmonic i synth inc
              _ -> error "logic") thegame)
          })
@@ -342,7 +342,7 @@ mkGameUI = SynthGameUI {
       map
        (\i -> UIComponent {
            mkDisplay = (\color -> mkChoice color . fromMaybe "?" . usingOscillations (\_ har -> show $ phase $ (unHarmonics har) S.! i)),
-           onAction = (\inc thegame -> usingOscillations (\_ _ -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
+           onAction = Just (\inc thegame -> usingOscillations (\_ _ -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
              synth@(Synth{}) -> AppEvent $ ChangeInstrument $ changeInstrumentHarmonic (i + countHarmonics) synth inc
              _ -> error "logic") thegame)
          })
@@ -370,7 +370,7 @@ mkGameUI = SynthGameUI {
                  $ curRev $ reverbs thegame
                  , "of"
                  , show $ Map.size $ allRevs $ reverbs thegame ]),
-               onAction = (\inc _ -> Just $ AppEvent $ ChangeReverb inc ByIndex)
+               onAction = Just (\inc _ -> Just $ AppEvent $ ChangeReverb inc ByIndex)
              }
            ]),
   reverbByDurationUI_ = UIComponentGroup "By duration"
@@ -379,13 +379,13 @@ mkGameUI = SynthGameUI {
                    "0.00 s"
                    (\(_, i) -> showDur i)
                    $ currentReverb $ reverbs thegame),
-               onAction = (\inc _ -> Just $ AppEvent $ ChangeReverb inc ByDuration)
+               onAction = Just (\inc _ -> Just $ AppEvent $ ChangeReverb inc ByDuration)
              }
            ]),
   reverbByWetRatioUI_ = UIComponentGroup "Wet ratio"
     (\_ -> [ UIComponent {
                mkDisplay = (\color thegame -> mkChoice color $ show $ wetRatio $ reverbs thegame),
-               onAction = (\inc _ -> Just $ AppEvent $ ChangeReverbWet inc)
+               onAction = Just (\inc _ -> Just $ AppEvent $ ChangeReverbWet inc)
              }
            ])
   }
@@ -426,7 +426,7 @@ mkGameUI = SynthGameUI {
 
   mkActionlessUIComponent f = UIComponent {
     mkDisplay = f,
-    onAction = (\_ _ -> Nothing)
+    onAction = Nothing
   }
 
   showDur x = (showFFloat (Just 2) (lengthInSeconds x) "") ++ " s"
@@ -440,7 +440,7 @@ instance Show UIComponentGroup where
 
 data UIComponent = UIComponent {
     mkDisplay :: LayeredColor -> SynthsGame -> Instructions
-  , onAction :: Int -> SynthsGame -> Maybe (Event SynthsGameEvent)
+  , onAction :: Maybe (Int -> SynthsGame -> Maybe (Event SynthsGameEvent))
 }
 instance Show UIComponent where
   show (UIComponent _ _) = "UIComponent"
@@ -522,22 +522,26 @@ data SynthsGame = SynthsGame {
   , midiSourceIdx :: !(Maybe MidiSourceIdx)
   , reverbs :: !Reverbs
   , ui_ :: !SynthGameUI
-  , action :: Int -> SynthsGame -> Maybe (Event SynthsGameEvent)
+  , action :: !(Maybe(Int -> SynthsGame -> Maybe (Event SynthsGameEvent)))
 }
 instance Show SynthsGame where
   show (SynthsGame a b c d e f g h i j _) = show ("SynthsGame" :: String, a, b, c, d, e, f, g, h, i, j)
 
 updateAction :: SynthsGame -> SynthsGame
 updateAction synthsGame@(SynthsGame _ _ _ _ _ _ edit _ _ _ _) =
-      synthsGame { action = case flat_res of
-        [] -> (\_ _ -> Nothing)
-        _:_ -> flat_res !! ((getEditionIndex edit) `mod` (length flat_res))
+      synthsGame {
+        action = maybe Nothing (\i -> Just $ flat_res !! i) idx ,
+        edition = maybe edit (flip setEditionIndex edit) idx
       }
      where
+      idx = case flat_res of
+        [] -> Nothing
+        _:_ -> Just $ (getEditionIndex edit) `mod` (length flat_res)
+
       flat_res = concat res
 
       res = map
-        (\(UIComponentGroup _ fComps) ->
+        (\(UIComponentGroup _ fComps) -> catMaybes $
           map
             (\uiComp -> (onAction uiComp))
             $ fComps synthsGame)
@@ -547,19 +551,30 @@ updateAction synthsGame@(SynthsGame _ _ _ _ _ _ edit _ _ _ _) =
 instance UIInstructions SynthsGame where
   instructions color synthsGame@(SynthsGame _ _ _ _ _ _ edit _ _ _ _) =
     snd $ foldr
-      (\(ConfigUI name uiitems) (idx, l) ->
-        let (newIdx, uiitems2) = foldr (\uiitem (idx2, l2) -> (pred idx2, decorate idx2 uiitem : l2)) (idx, []) $ uiitems
+      (\((ConfigUI name uiitems), actions) (idx, l) ->
+        let (newIdx, uiitems2) = foldr (\(uiitem, act) (idx2, l2) ->
+                                           let newIdx2 = maybe idx2 (\_ -> pred idx2) act
+                                           in (newIdx2, decorate idx2 uiitem : l2))
+                                       (idx, [])
+                                       $ zip uiitems actions
         in (newIdx, ConfigUI name uiitems2 : l)
         )
-      (pred $ sum $ map (\(ConfigUI _ l) -> length l) res, [])
-      res
+      (pred numActionableElts, [])
+      $ zip res resActions
    where
-    numelts = sum $ map (\(ConfigUI _ l) -> length l) res
+    numActionableElts = sum $ map (length . catMaybes) resActions
 
     res = map
       (\(UIComponentGroup title fComps) -> ConfigUI title $
         map
           (\uiComp -> (mkDisplay uiComp) color synthsGame)
+          $ fComps synthsGame)
+      $ getActiveUIComponentGroups synthsGame
+
+    resActions = map
+      (\(UIComponentGroup _ fComps) ->
+        map
+          (\uiComp -> onAction uiComp)
           $ fComps synthsGame)
       $ getActiveUIComponentGroups synthsGame
 
@@ -575,7 +590,7 @@ instance UIInstructions SynthsGame where
       left
         | x == idx = '<'
         | otherwise = ' '
-      idx = (getEditionIndex edit) `mod` numelts
+      idx = (getEditionIndex edit) `mod` numActionableElts
 
 data Key =
     GLFWKey !GLFW.Key
@@ -660,7 +675,7 @@ allReverbs = do
 initialGame :: IO SynthsGame
 initialGame = do
   revs <- mkReverbs
-  return $ updateAction $ SynthsGame mempty mempty mempty Nothing (EnvelopePlot [] LogView) Nothing mkEdition Nothing revs mkGameUI (\_ _ -> Nothing)
+  return $ updateAction $ SynthsGame mempty mempty mempty Nothing (EnvelopePlot [] LogView) Nothing mkEdition Nothing revs mkGameUI Nothing
 
 data SynthsMode =
     PlaySynth
@@ -864,7 +879,7 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
                      where
                       idx = getEditionIndex edit
                   _ -> []) mayInstr)
-                (map Evt . maybeToList . flip act thegame)
+                (\inc -> maybe [] (\a -> map Evt $ maybeToList $ a inc thegame) act)
                 mayInc)
         $ isArrow k)
     $ _game $ getGameState' g
@@ -1121,7 +1136,7 @@ instance GameLogic SynthsGame where
                                           | control == 12 =
                                               (AppEvent . ChangeEditedFeature . (+ (getEditionIndex edit))) <$>
                                                 relativeValue (Just 1) value
-                                          | control == 13 = maybe Nothing (flip (action thegame) thegame)
+                                          | control == 13 = maybe Nothing (\val -> maybe Nothing (\a -> a val thegame) $ action thegame)
                                               $ relativeValue (Just 1) value
                                           | otherwise = maybe Nothing (ctrl' . snd) mayInstr
                                          where

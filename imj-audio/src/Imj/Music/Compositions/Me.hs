@@ -65,11 +65,13 @@ meInstrument = Synth
       (Eased EaseOut Exp)
       1.0
 
-meScore :: (Float, Score Instrument)
-meScore =
-  (fst me,
+meScore :: Maybe Double
+        -- ^  number of seconds per loop
+        -> (Double, Score Instrument)
+meScore m =
+  (fst $ me m,
   mergeScores
-    (mkScore meInstrument $ snd me)
+    (mkScore meInstrument $ snd $ me m)
     $ mergeScores
       (mkScore meSnare meSnareVoice)
       $ mergeScores
@@ -77,10 +79,14 @@ meScore =
         (mkScore meKick2 meKick2Voice)
     )
 
-me :: (Float,[[Instruction]])
-me = (bpm,part)
+me :: Maybe Double
+   -- ^  number of seconds per loop
+   -> (Double,[[Instruction]])
+me may_sec_per_loop = (bpm,part)
  where
-  bpm = 2*120
+  bpm = maybe (2*120) (\sec -> num_beats / (sec / 60.0)) may_sec_per_loop
+
+  num_beats = 16*4
 
   part = [voices|
     la . la . la . la . la . la . la . la .

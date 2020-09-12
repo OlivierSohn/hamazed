@@ -21,7 +21,7 @@ The music is shared between all players.
 module Main where
 
 import           Imj.Prelude
-import           Prelude(length, putStrLn, print)
+import           Prelude(length, putStrLn, print, foldr)
 --import qualified Debug.Trace as Debug
 import           Codec.Midi hiding(key, Key)
 import           Control.Concurrent(forkIO, threadDelay)
@@ -188,6 +188,271 @@ data Edition = Edition {
   -- ^ Index of the reverb parameter that will be edited on left/right arrows.
 } deriving(Show)
 
+
+data SynthGameUI = SynthGameUI {
+    attackUI_, holdUI_, decayUI_, sustainUI_, releaseUI_, autoReleaseUI_,
+    sourceUI_, sweepTimeUI_, sweepFreqUI_, sweepExtremityUI_, oscillatorUI_, harmoVolUIs_, harmoAngUIs_,
+    reverbInfoUI_, reverbByIndexUI_, reverbByDurationUI_, reverbByWetRatioUI_ :: !UIComponentGroup
+} deriving(Show)
+
+mkGameUI :: SynthGameUI
+mkGameUI = SynthGameUI {
+-----------
+-- Envelope
+-----------
+  attackUI_ = UIComponentGroup "Attack"
+    (maybe [] id . usingEnvelope (\_ ->
+      [ UIComponent {
+          mkDisplay = (\color thegame -> mkChoice color $ fromMaybe ("?") $ usingEnvelope (show . ahdsrAttack) thegame),
+          onAction = (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 0 inc) thegame)
+        },
+        UIComponent {
+          mkDisplay = (\color thegame -> mkChoice color $ fromMaybe ("?") $ usingEnvelope (show . ahdsrAttackItp) thegame),
+          onAction = (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 1 inc) thegame)
+        }
+      ])),
+  decayUI_ = UIComponentGroup "Decay"
+    (maybe [] id . usingEnvelope (\_ ->
+      [ UIComponent {
+          mkDisplay = (\color thegame -> mkChoice color $ fromMaybe ("?") $ usingEnvelope (show . ahdsrDecay) thegame),
+          onAction = (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 3 inc) thegame)
+        },
+        UIComponent {
+          mkDisplay = (\color thegame -> mkChoice color $ fromMaybe ("?") $ usingEnvelope (show . ahdsrDecayItp) thegame),
+          onAction = (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 4 inc) thegame)
+        }
+      ])),
+  releaseUI_ = UIComponentGroup "Release"
+    (maybe [] id . usingEnvelope (\_ ->
+      [ UIComponent {
+          mkDisplay = (\color thegame -> mkChoice color $ fromMaybe ("?") $ usingEnvelope (show . ahdsrRelease) thegame),
+          onAction = (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 6 inc) thegame)
+        },
+        UIComponent {
+          mkDisplay = (\color thegame -> mkChoice color $ fromMaybe ("?") $ usingEnvelope (show . ahdsrReleaseItp) thegame),
+          onAction = (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 7 inc) thegame)
+        }
+      ])),
+  holdUI_ = UIComponentGroup "Hold"
+    (maybe [] id . usingEnvelope (\_ ->
+      [ UIComponent {
+          mkDisplay = (\color thegame -> mkChoice color $ fromMaybe ("?") $ usingEnvelope (show . ahdsrHold) thegame),
+          onAction = (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 2 inc) thegame)
+        }
+      ])),
+  sustainUI_ = UIComponentGroup "Sustain"
+    (maybe [] id . usingEnvelope (\_ ->
+      [ UIComponent {
+          mkDisplay = (\color thegame -> mkChoice color $ fromMaybe ("?") $ usingEnvelope (show . ahdsrSustain) thegame),
+          onAction = (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 5 inc) thegame)
+        }
+      ])),
+  autoReleaseUI_ = UIComponentGroup "Auto-release"
+    (maybe [] id . usingReleaseMode (\_ ->
+      [ UIComponent {
+          mkDisplay = (\color -> mkChoice color . fromMaybe "?" . usingReleaseMode (\case
+              AutoRelease -> "Yes"
+              KeyRelease -> "No")),
+          onAction = (\inc thegame -> usingEnvelope (\_ -> AppEvent $ ChangeInstrument $ changeInstrumentEnvelopeIndexedValue (fromMaybe (error "no instrument") $ mayInstr thegame) 8 inc) thegame)
+        }
+      ])),
+  sourceUI_ = UIComponentGroup "Source"
+    (maybe [] id . usingSource (\_ ->
+      [ UIComponent {
+          mkDisplay = (\color thegame -> mkChoice color $ fromMaybe "?" $ usingSource (\case
+                                                                                       Sweep{} -> "Sweep"
+                                                                                       Noise{} -> "Noise"
+                                                                                       Oscillations{} -> "Oscillations") thegame),
+          onAction = (\inc thegame@(SynthsGame _ _ _ _ _ mayLastOsc _ _ _ _ _) -> usingSource (\src -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
+            synth@Synth{} -> AppEvent $ ChangeInstrument $ withMinimumHarmonicsCount $ synth {
+              source_ =
+                let curIdx = case src of
+                      Sweep{} -> 0
+                      Noise{} -> 1
+                      Oscillations{} -> 2
+                    targetIdx
+                      | inc > 0 = (succ curIdx) `mod` 3
+                      | otherwise = pred curIdx `mod` 3
+                in [
+                     Sweep 1000 80 EndFreq, -- TODO restore last known sweep params
+                     Noise,
+                     maybe (source_ defaultSynth) id mayLastOsc
+                   ] !! targetIdx
+            }
+            _ -> error "logic") thegame)
+        }
+      ])),
+  sweepTimeUI_ = UIComponentGroup "Sweep time"
+    (maybe [] id . usingSweep (\_ _ _ ->
+      [ UIComponent {
+          mkDisplay = (\color -> mkChoice color . fromMaybe "?" . usingSweep (\duration _ _ -> show duration)),
+          onAction = (\inc thegame -> usingSweep (\duration b c -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
+            synth@Synth{} -> AppEvent $ ChangeInstrument $ synth {
+              source_ = Sweep (changeParam predefinedSweepDurations duration inc) b c
+            }
+            _ -> error "logic") thegame)
+        }
+      ])),
+  sweepFreqUI_ = UIComponentGroup "Sweep freq"
+    (maybe [] id . usingSweep (\_ _ _ ->
+      [ UIComponent {
+          mkDisplay = (\color -> mkChoice color . fromMaybe "?" . usingSweep (\_ freq _ -> show freq)),
+          onAction = (\inc thegame -> usingSweep (\a freq c -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
+            synth@Synth{} -> AppEvent $ ChangeInstrument $ synth {
+              source_ = Sweep a (changeParam predefinedSweepFreqs freq inc) c
+            }
+            _ -> error "logic") thegame)
+        }
+      ])),
+  sweepExtremityUI_ = UIComponentGroup "Sweep extremity"
+    (maybe [] id . usingSweep (\_ _ _ ->
+      [ UIComponent {
+          mkDisplay = (\color -> mkChoice color . fromMaybe "?" . usingSweep (\_ _ ext -> show ext)),
+          onAction = (\inc thegame -> usingSweep (\a b ext -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
+            synth@Synth{} -> AppEvent $ ChangeInstrument $ synth {
+              source_ = Sweep a b (cycleSweepFreqType inc ext)
+            }
+            _ -> error "logic") thegame)
+        }
+      ])),
+  oscillatorUI_ = UIComponentGroup "Oscillator"
+    (maybe [] id . usingOscillations (\_ _ ->
+      [ UIComponent {
+          mkDisplay = (\color -> mkChoice color . fromMaybe "?" . usingOscillations (\o _ -> show o)),
+          onAction = (\inc thegame -> usingOscillations (\osc har -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
+            synth@Synth{} -> AppEvent $ ChangeInstrument $ synth {
+              source_ = Oscillations (cycleOscillator inc osc) har
+            }
+            _ -> error "logic") thegame)
+        }
+      ])),
+  harmoVolUIs_ = UIComponentGroup "Harmo. vol."
+    (maybe [] id . usingOscillations (\_ harmonics ->
+      map
+       (\i -> UIComponent {
+           mkDisplay = (\color -> mkChoice color . fromMaybe "?" . usingOscillations (\_ har -> show $ volume $ (unHarmonics har) S.! i)),
+           onAction = (\inc thegame -> usingOscillations (\_ _ -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
+             synth@Synth{} -> AppEvent $ ChangeInstrument $ changeInstrumentHarmonic i synth inc
+             _ -> error "logic") thegame)
+         })
+       $ take (S.length $ unHarmonics harmonics) [0..]
+     )),
+  harmoAngUIs_ = UIComponentGroup "Harmo. phase"
+    (maybe [] id . usingOscillations (\_ harmonics ->
+      map
+       (\i -> UIComponent {
+           mkDisplay = (\color -> mkChoice color . fromMaybe "?" . usingOscillations (\_ har -> show $ phase $ (unHarmonics har) S.! i)),
+           onAction = (\inc thegame -> usingOscillations (\_ _ -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
+             synth@(Synth{}) -> AppEvent $ ChangeInstrument $ changeInstrumentHarmonic (i + countHarmonics) synth inc
+             _ -> error "logic") thegame)
+         })
+       $ take (S.length $ unHarmonics harmonics) [0..]
+    )),
+  reverbInfoUI_ = UIComponentGroup "Reverb info"
+    (fromMaybe
+      [mkActionlessUIComponent (\color _ -> List color ["None"])]
+      . usingReverb (\(pathRev, i) ->
+        let (dirName, fileName) = splitFileName $ dropExtension pathRev
+        in [ mkActionlessUIComponent (\color _ -> List color [pack fileName])
+           -- we dim the foreground color to indicate that it's not editable.
+           , mkActionlessUIComponent (\(LayeredColor bg fg) thegame -> List (LayeredColor bg $ dim 2 fg) [pack $ drop (length $ commonPref $ reverbs thegame) dirName])
+           , mkActionlessUIComponent (\(LayeredColor bg fg) _ -> List (LayeredColor bg $ dim 2 fg) $ map pack $
+              [ showDur i
+              , (show $ countChannels i) ++ " channels"
+              ])
+           ]
+      )),
+  reverbByIndexUI_ = UIComponentGroup "By index"
+    (\_ -> [ UIComponent {
+               mkDisplay = (\color thegame -> mkChoice color $ unwords [ maybe
+                 "0"
+                 (\n -> show $ n+1)
+                 $ curRev $ reverbs thegame
+                 , "of"
+                 , show $ Map.size $ allRevs $ reverbs thegame ]),
+               onAction = (\inc _ -> Just $ AppEvent $ ChangeReverb inc ByIndex)
+             }
+           ]),
+  reverbByDurationUI_ = UIComponentGroup "By duration"
+    (\_ -> [ UIComponent {
+               mkDisplay = (\color thegame -> mkChoice color $ maybe
+                   "0.00 s"
+                   (\(_, i) -> showDur i)
+                   $ currentReverb $ reverbs thegame),
+               onAction = (\inc _ -> Just $ AppEvent $ ChangeReverb inc ByDuration)
+             }
+           ]),
+  reverbByWetRatioUI_ = UIComponentGroup "Wet ratio"
+    (\_ -> [ UIComponent {
+               mkDisplay = (\color thegame -> mkChoice color $ show $ wetRatio $ reverbs thegame),
+               onAction = (\inc _ -> Just $ AppEvent $ ChangeReverbWet inc)
+             }
+           ])
+  }
+ where
+  mayInstr s = fmap snd $ instrument s
+
+  withEnvelope f (Synth _ _ e) = Just $ f e
+  withEnvelope _ (Wind _)  = Nothing
+
+  withReleaseMode f (Synth _ m _) = Just $ f m
+  withReleaseMode _ (Wind _)  = Nothing
+
+  withSource f (Synth s _ _) = Just $ f s
+  withSource _ (Wind _)  = Nothing
+
+  withSweep f (Synth (Sweep a b c) _ _) = Just $ f a b c
+  withSweep _ (Synth _ _ _) = Nothing
+  withSweep _ (Wind _)  = Nothing
+
+  withOscillations f (Synth (Oscillations a b) _ _) = Just $ f a b
+  withOscillations _ (Synth _ _ _) = Nothing
+  withOscillations _ (Wind _)  = Nothing
+
+  usingEnvelope f g = maybe Nothing (withEnvelope f) $ mayInstr g
+
+  usingReleaseMode f g = maybe Nothing (withReleaseMode f) $ mayInstr g
+
+  usingSource f g = maybe Nothing (withSource f) $ mayInstr g
+
+  usingSweep f g = maybe Nothing (withSweep f) $ mayInstr g
+
+  usingOscillations f g = maybe Nothing (withOscillations f) $ mayInstr g
+
+  usingReverb f g = maybe Nothing (Just . f) $ currentReverb $ reverbs g
+
+  mkChoice color v =
+    Choice $ UI.Choice (pack v) ' ' ' ' color
+
+  mkActionlessUIComponent f = UIComponent {
+    mkDisplay = f,
+    onAction = (\_ _ -> Nothing)
+  }
+
+  showDur x = (showFFloat (Just 2) (lengthInSeconds x) "") ++ " s"
+
+data UIComponentGroup = UIComponentGroup {
+    title_ :: !Text
+  , components_ :: SynthsGame -> [UIComponent]
+}
+instance Show UIComponentGroup where
+  show (UIComponentGroup t _) = show ("UIComponentGroup" :: String, t)
+
+data UIComponent = UIComponent {
+    mkDisplay :: LayeredColor -> SynthsGame -> Instructions
+  , onAction :: Int -> SynthsGame -> Maybe (Event SynthsGameEvent)
+}
+instance Show UIComponent where
+  show (UIComponent _ _) = "UIComponent"
+
+getActiveUIComponentGroups :: SynthsGame -> [UIComponentGroup]
+getActiveUIComponentGroups (SynthsGame _ _ _ _ _ _ (Edition mode _ _ _) _ _ ui _) = case mode of
+  Envelope -> m [attackUI_, holdUI_, decayUI_, sustainUI_, releaseUI_, autoReleaseUI_]
+  Tone -> m [sourceUI_, sweepTimeUI_, sweepFreqUI_, sweepExtremityUI_, oscillatorUI_, harmoVolUIs_, harmoAngUIs_] -- TODO filter by source type
+  Reverb -> m [reverbInfoUI_, reverbByIndexUI_, reverbByDurationUI_, reverbByWetRatioUI_]
+ where
+  m = map (\f -> f ui)
+
 mkEdition :: Edition
 mkEdition = Edition Envelope 0 0 0
 
@@ -204,21 +469,10 @@ setEditionIndex idx (Edition mode i j k) = case mode of
   Reverb -> Edition mode i j idx
 
 getEditionIndex :: Edition -> Int
-getEditionIndex (Edition mode i j k) =
-  editionIndex `mod` (countEditables mode)
- where
-  editionIndex = case mode of
-    Envelope -> fromIntegral i
-    Tone -> j
-    Reverb -> k
-
-  countEditables Envelope = 9
-  countEditables Tone =
-    -- 1 for sound source, 1 for oscillator, 1 for sweep duration
-    1 + 1 + 1 + 2 * countHarmonics
-  countEditables Reverb =
-    -- 1 for by index, 1 for by size, 1 for reverb dry/wet
-    3
+getEditionIndex (Edition mode i j k) = case mode of
+  Envelope -> fromIntegral i
+  Tone -> j
+  Reverb -> k
 
 widthEditMode :: Edition -> Length Width
 widthEditMode (Edition mode _ _ _) = case mode of
@@ -267,124 +521,61 @@ data SynthsGame = SynthsGame {
   , edition :: !Edition
   , midiSourceIdx :: !(Maybe MidiSourceIdx)
   , reverbs :: !Reverbs
-} deriving(Show)
+  , ui_ :: !SynthGameUI
+  , action :: Int -> SynthsGame -> Maybe (Event SynthsGameEvent)
+}
+instance Show SynthsGame where
+  show (SynthsGame a b c d e f g h i j _) = show ("SynthsGame" :: String, a, b, c, d, e, f, g, h, i, j)
+
+updateAction :: SynthsGame -> SynthsGame
+updateAction synthsGame@(SynthsGame _ _ _ _ _ _ edit _ _ _ _) =
+      synthsGame { action = case flat_res of
+        [] -> (\_ _ -> Nothing)
+        _:_ -> flat_res !! ((getEditionIndex edit) `mod` (length flat_res))
+      }
+     where
+      flat_res = concat res
+
+      res = map
+        (\(UIComponentGroup _ fComps) ->
+          map
+            (\uiComp -> (onAction uiComp))
+            $ fComps synthsGame)
+        $ getActiveUIComponentGroups synthsGame
+
 
 instance UIInstructions SynthsGame where
-  instructions color@(LayeredColor bg fg) (SynthsGame _ _ _ mayInstr _ _ edit@(Edition mode _ _ _) _ rev) = maybe [] (\(_,instr) -> case instr of
-    Synth oscs release (AHDSR'Envelope a h d r ai di ri s) -> case mode of
-      Envelope -> envelopeInstructions
-      Tone -> harmonicsInstructions
-      Reverb -> reverbInstructions
+  instructions color synthsGame@(SynthsGame _ _ _ _ _ _ edit _ _ _ _) =
+    snd $ foldr
+      (\(ConfigUI name uiitems) (idx, l) ->
+        let (newIdx, uiitems2) = foldr (\uiitem (idx2, l2) -> (pred idx2, decorate idx2 uiitem : l2)) (idx, []) $ uiitems
+        in (newIdx, ConfigUI name uiitems2 : l)
+        )
+      (pred $ sum $ map (\(ConfigUI _ l) -> length l) res, [])
+      res
+   where
+    numelts = sum $ map (\(ConfigUI _ l) -> length l) res
 
+    res = map
+      (\(UIComponentGroup title fComps) -> ConfigUI title $
+        map
+          (\uiComp -> (mkDisplay uiComp) color synthsGame)
+          $ fComps synthsGame)
+      $ getActiveUIComponentGroups synthsGame
+
+    decorate _ i@(List _ _) = i
+    decorate _ i@(Continuous _) = i
+    decorate _ i@(Discrete _) = i
+    decorate x (Choice (UI.Choice v _ _ c)) =
+      Choice $ UI.Choice v right left c
      where
-
-      envelopeInstructions =
-        [ ConfigUI "Attack"
-            [ mkChoice 0 $ show a
-            , mkChoice 1 $ show ai
-            ]
-        , ConfigUI "Hold"
-            [ mkChoice 2 $ show h]
-        , ConfigUI "Decay"
-            [ mkChoice 3 $ show d
-            , mkChoice 4 $ show di
-            ]
-        , ConfigUI "Sustain"
-            [ mkChoice 5 $ show s
-            ]
-        , ConfigUI "Release"
-            [ mkChoice 6 $ show r
-            , mkChoice 7 $ show ri
-            ]
-        , ConfigUI "Auto-release"
-            [ mkChoice 8 $ case release of
-                AutoRelease -> "Yes"
-                KeyRelease -> "No"
-            ]
-        ]
-
-      harmonicsInstructions = case oscs of
-        Oscillations osc harmonics ->
-          [ ConfigUI "Source" [mkChoice sourceIdx "Oscillators"]
-          , ConfigUI "Sweep time" []
-          , ConfigUI "Sweep freq." []
-          , ConfigUI "Sweep extremity" []
-          , ConfigUI "Oscillator" [ mkChoice oscillatorIdx $ show osc ]
-          , hInst "Harmo. vol." volume firstHarVolIdx
-          , hInst "Harmo. ang." phase firstHarPhaseIdx
-          ]
-         where
-           hInst title f startIdx = ConfigUI title $
-            map
-             (\(i,har) -> mkChoice i $ show $ f har)
-             (zip [startIdx..] $ S.toList $ unHarmonics harmonics)
-        Noise ->
-          [ ConfigUI "Source" [mkChoice sourceIdx "Noise"]
-          , ConfigUI "Sweep time" []
-          , ConfigUI "Sweep freq." []
-          , ConfigUI "Sweep extremity" []
-          , ConfigUI "Oscillator" []
-          , ConfigUI "Harmo. vol." []
-          , ConfigUI "Harmo. ang." []
-          ]
-        Sweep sweep_duration freq extremity ->
-          [ ConfigUI "Source" [mkChoice sourceIdx "Sweep"]
-          , ConfigUI "Sweep time" [mkChoice sweepDurationIdx $ show sweep_duration]
-          , ConfigUI "Sweep freq." [mkChoice sweepFreqIdx $ show freq]
-          , ConfigUI "Sweep extremity" [mkChoice sweepExtremityIdx $ show extremity]
-          , ConfigUI "Oscillator" []
-          , ConfigUI "Harmo. vol." []
-          , ConfigUI "Harmo. ang." []
-          ]
-
-      reverbInstructions =
-        [ ConfigUI "Reverb info" $ maybe [List color ["None"]] (\(pathRev, i) ->
-          let (dirName, fileName) = splitFileName $ dropExtension pathRev
-          in [ --List (LayeredColor bg $ dim 2 fg) [pack $ commonPref rev],
-               List color [pack fileName]
-             , List (LayeredColor bg $ dim 2 fg) [pack $ drop (length $ commonPref rev) dirName]
-             -- we dim the foreground color to indicate that it's not editable.
-             , List (LayeredColor bg $ dim 2 fg) $ map pack $
-                   [ showDur i
-                   , (show $ countChannels i) ++ " channels"
-                   ]
-             ]) $ currentReverb rev
-        , ConfigUI "By index" $
-            [ mkChoice reverbBySizeIdx $ unwords [ maybe
-                "0"
-                (\n -> show $ n+1)
-                $ curRev rev
-                , "of"
-                , show $ Map.size $ allRevs rev ]
-            ]
-        , ConfigUI "By duration" $
-            [ mkChoice reverbByDurationIdx $ maybe
-                "0.00 s"
-                (\(_, i) -> showDur i)
-                $ currentReverb rev
-            ]
-        , ConfigUI "Wet ratio"
-            [ mkChoice reverbWetIdx $ show $ wetRatio rev]
-        ]
-       where
-        showDur x = (showFFloat (Just 2) (lengthInSeconds x) "") ++ " s"
-
-      mkChoice x v =
-        Choice $ UI.Choice (pack v) right left color
-
-
-       where
-
-        right
-          | x == idx = '>'
-          | otherwise = ' '
-        left
-          | x == idx = '<'
-          | otherwise = ' '
-        idx = getEditionIndex edit
-
-    _ -> []) mayInstr
-
+      right
+        | x == idx = '>'
+        | otherwise = ' '
+      left
+        | x == idx = '<'
+        | otherwise = ' '
+      idx = (getEditionIndex edit) `mod` numelts
 
 data Key =
     GLFWKey !GLFW.Key
@@ -427,7 +618,7 @@ predefinedWetRatios :: Set AlmostFloat
 predefinedWetRatios = Set.fromList $ map (flip (/) 10 . fromIntegral) [0::Int ..10]
 
 predefinedAttack, predefinedHolds, predefinedDecays, predefinedReleases, predefinedSweepDurations :: Set Int
-predefinedSustains, predefinedSweepFinalFreqs :: Set AlmostFloat
+predefinedSustains, predefinedSweepFreqs :: Set AlmostFloat
 predefinedAttack =
   let l = 50:map (*2) l
   in Set.fromDistinctAscList $ take 12 l
@@ -442,7 +633,7 @@ predefinedSustains =
 predefinedSweepDurations =
   let l = 50:map (*2) l
   in Set.fromDistinctAscList $ take 12 l
-predefinedSweepFinalFreqs =
+predefinedSweepFreqs =
   let l = 10.0:map (*1.3) l
   in Set.fromDistinctAscList $ takeWhile (< 8000) l
 
@@ -467,8 +658,9 @@ allReverbs = do
     paths
 
 initialGame :: IO SynthsGame
-initialGame =
-  SynthsGame mempty mempty mempty Nothing (EnvelopePlot [] LogView) Nothing mkEdition Nothing <$> mkReverbs
+initialGame = do
+  revs <- mkReverbs
+  return $ updateAction $ SynthsGame mempty mempty mempty Nothing (EnvelopePlot [] LogView) Nothing mkEdition Nothing revs mkGameUI (\_ _ -> Nothing)
 
 data SynthsMode =
     PlaySynth
@@ -554,42 +746,6 @@ instance GameExternalUI SynthsGame where
   getViewport _ (Screen _ center) SynthsGame{} =
     mkCenteredRectContainer center $ Size 45 100
 
-changeInstrumentValue :: Instrument -> Maybe SoundSource -> Edition -> Int -> Instrument
-changeInstrumentValue instr mayLastOscillations edit@(Edition mode _ _ _) inc =
-  case instr of
-    synth@(Synth src _ _) ->
-      case mode of
-        Envelope ->
-          changeInstrumentEnvelopeIndexedValue instr (fromIntegral idx) inc
-        Tone ->
-          if idx == sourceIdx then synth {
-              source_ = case src of
-                Sweep _ _ _ -> Noise
-                Noise -> maybe (source_ defaultSynth) id mayLastOscillations
-                Oscillations _ _ -> Sweep 1000 80 EndFreq -- TODO restore last known sweep params
-            }
-          else if idx == oscillatorIdx then case src of
-            Sweep _ _ _ -> error "UI consistency : Sweep has no oscillator"
-            Noise -> error "UI consistency : Noise has no oscillator"
-            Oscillations osc har -> synth { source_ = Oscillations (cycleOscillator inc osc) har }
-          else if idx == sweepDurationIdx then case src of
-            Sweep duration f ext -> synth { source_ = Sweep (changeParam predefinedSweepDurations duration inc) f ext }
-            Noise -> synth
-            Oscillations _ _ -> synth
-          else if idx == sweepFreqIdx then case src of
-            Sweep duration f ext -> synth { source_ = Sweep duration (changeParam predefinedSweepFinalFreqs f inc) ext }
-            Noise -> synth
-            Oscillations _ _ -> synth
-          else if idx == sweepExtremityIdx then case src of
-            Sweep duration f ext -> synth { source_ = Sweep duration f (cycleSweepFreqType inc ext) }
-            Noise -> synth
-            Oscillations _ _ -> synth
-          else changeInstrumentHarmonic (idx-(oscillatorIdx+1)) instr inc
-        Reverb -> error "logic"
-    _ -> instr
- where
-  idx = getEditionIndex edit
-
 controlToIndex :: Int -> Maybe EnvelopeParamIndex
 controlToIndex = \case
   102 -> Just 0
@@ -610,6 +766,7 @@ changeInstrumentEnvelopeIndexedValue :: Instrument -> EnvelopeParamIndex -> Int 
 changeInstrumentEnvelopeIndexedValue i@(Wind _) _ _ = i
 changeInstrumentEnvelopeIndexedValue instr@(Synth _ release p@(AHDSR'Envelope a h d r ai di ri s)) idx inc =
   case idx of
+    -- TODO replace Int by an enum
     0 -> instr { envelope_ = p {ahdsrAttack = changeParam predefinedAttack a inc} }
     1 -> instr { envelope_ = p {ahdsrAttackItp = changeParam predefinedAttackItp ai inc} }
     2 -> instr { envelope_ = p {ahdsrHold = changeParam predefinedHolds h inc} }
@@ -645,22 +802,6 @@ changeInstrumentHarmonic idx instr@(Synth (Oscillations osc (Harmonics harmonics
     | otherwise =
         oldVal { volume = changeParam predefinedHarmonicsVolumes (volume oldVal) inc }
 
-changeInstrumentOrReverb :: Maybe Instrument -> Maybe SoundSource -> Edition -> Int -> Maybe (Event SynthsGameEvent)
-changeInstrumentOrReverb mayInstr mayLastOscillations edit inc
-  | editMode edit == Reverb =
-     let ev
-          | idx == reverbBySizeIdx     = flip ChangeReverb ByIndex
-          | idx == reverbByDurationIdx = flip ChangeReverb ByDuration
-          | idx == reverbWetIdx        = ChangeReverbWet
-          | otherwise = error "logic"
-     in Just $ AppEvent $ ev inc
-  | otherwise =
-      maybe Nothing (\instr -> case instr of
-        Synth{} -> Just $ AppEvent $ ChangeInstrument $ changeInstrumentValue instr mayLastOscillations edit inc
-        _ -> Nothing) mayInstr
- where
-  idx = getEditionIndex edit
-
 data SynthsStatefullKeys
 instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
 
@@ -682,7 +823,7 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
     return [CliEvt $ ClientAppEvt ForgetCurrentRecording]
   mapStateKey _ k st m _ g = return $ maybe
     []
-    (\(SynthsGame _ _ pressed mayInstr _ mayLastOsc edit _ _) -> maybe
+    (\thegame@(SynthsGame _ _ pressed mayInstr _ _ edit _ _ _ act) -> maybe
       (case st of
         GLFW.KeyState'Repeating -> []
         GLFW.KeyState'Pressed -> maybe
@@ -703,7 +844,6 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
               , Evt $ AppEvent $ RemovePressedKey $ GLFWKey k])
             $ Map.lookup (GLFWKey k) pressed)
       (\dir -> do
-
           let amount
                | m == altOnly = 10
                | otherwise = 1
@@ -724,7 +864,7 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
                      where
                       idx = getEditionIndex edit
                   _ -> []) mayInstr)
-                (map Evt . maybeToList . changeInstrumentOrReverb (fmap snd mayInstr) mayLastOsc edit)
+                (map Evt . maybeToList . flip act thegame)
                 mayInc)
         $ isArrow k)
     $ _game $ getGameState' g
@@ -774,7 +914,7 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
       GLFW.Key'RightBracket -> Just $ InstrumentNote Sol $ noOctave + 1
       _ -> Nothing
 
--- ctrl has a bug on OSX / GLFW : Ctrl + arrow left events are not received
+-- Ctrl has a bug on OSX / GLFW : Ctrl + arrow left events are not received
 altOnly :: GLFW.ModifierKeys
 altOnly = GLFW.ModifierKeys {
     GLFW.modifierKeysShift   = False
@@ -944,7 +1084,7 @@ instance GameLogic SynthsGame where
                           -- in that case, we don't use the events we just read,
                           -- but reading them serves the purpose of not overflowing the queue.
                           (return ([],[]))
-                          (\(SynthsGame _ _ pressed mayInstr _ mayLastOsc edit maySourceIdx _) -> maybe
+                          (\thegame@(SynthsGame _ _ pressed mayInstr _ _ edit maySourceIdx _ _ _) -> maybe
                             (return ([],[])) -- should not happen once connected.
                             (\srcIdx -> -- maybe () (\(iid, instr) -> ...) mayInstr
                               (foldl' (\(a,b) (c,d) -> (a++c, b++d)) ([],[]).
@@ -981,8 +1121,7 @@ instance GameLogic SynthsGame where
                                           | control == 12 =
                                               (AppEvent . ChangeEditedFeature . (+ (getEditionIndex edit))) <$>
                                                 relativeValue (Just 1) value
-                                          | control == 13 = maybe Nothing
-                                              (changeInstrumentOrReverb (fmap snd mayInstr) mayLastOsc edit)
+                                          | control == 13 = maybe Nothing (flip (action thegame) thegame)
                                               $ relativeValue (Just 1) value
                                           | otherwise = maybe Nothing (ctrl' . snd) mayInstr
                                          where
@@ -1045,7 +1184,7 @@ instance GameLogic SynthsGame where
 
   onClientOnlyEvent e = do
     mayNewEnvMinMaxs <-
-      getIGame >>= maybe (liftIO initialGame) return >>= \(SynthsGame _ _ _ mayInstr (EnvelopePlot _ viewmode) _ _ _ _) -> do
+      getIGame >>= maybe (liftIO initialGame) return >>= \(SynthsGame _ _ _ mayInstr (EnvelopePlot _ viewmode) _ _ _ _ _ _) -> do
         case e of
           ChangeInstrument i -> do
             liftIO $ saveInstrument i
@@ -1057,10 +1196,10 @@ instance GameLogic SynthsGame where
               (\(_, instr) -> Just . toParts (toggleView viewmode) <$> liftIO (envelopeShape instr))
               mayInstr
           _ -> return Nothing
-    getIGame >>= maybe (liftIO initialGame) return >>= \g@(SynthsGame _ _ pressed mayInstr _ mayLastOscs _ maySourceIdx rvbs@(Reverbs wet revs indexesByDur cpref mayCurIndex)) -> withAnim $ case e of
+    getIGame >>= maybe (liftIO initialGame) return >>= \g@(SynthsGame _ _ pressed mayInstr _ mayLastOscs _ maySourceIdx rvbs@(Reverbs wet revs indexesByDur cpref mayCurIndex) _ _) -> withAnim $ case e of
       ChangeInstrument i -> do
         useInstrument maySourceIdx i >>= maybe (return ()) (\instrId ->
-          putIGame g {
+          putIGame $ updateAction $ g {
               mayLastOscillations_ = maybe mayLastOscs
                 (maybe mayLastOscs (Just . uncurry Oscillations) . findOscillations . snd)
                 mayInstr
@@ -1093,7 +1232,7 @@ instance GameLogic SynthsGame where
                             nullIndex - 1
                           else
                             newVecIdx
-        putIGame g { reverbs = rvbs { curRev = mayNewIndex} }
+        putIGame $ updateAction $ g { reverbs = rvbs { curRev = mayNewIndex} }
         maybe
           (liftIO (useReverb Nothing) >>= either (const $ liftIO $ putStrLn "error while unsetting reverb (see logs above)") return)
           (\newIdx -> when (mayCurIndex /= Just newIdx) $ do
@@ -1108,12 +1247,12 @@ instance GameLogic SynthsGame where
         let newWet = changeParam predefinedWetRatios wet i
         putIGame g { reverbs = rvbs { wetRatio = newWet } }
         liftIO (setReverbWetRatio $ realToFrac newWet) >>= either (const $ liftIO $ putStrLn "error while setting reverb wet ratio (see logs above)") return
-      ToggleEnvelopeViewMode -> putIGame g {
+      ToggleEnvelopeViewMode -> putIGame $ updateAction $ g {
         envelopePlot = EnvelopePlot (fromMaybe (error "logic") mayNewEnvMinMaxs) $ toggleView $ envViewMode $ envelopePlot g }
       ToggleEditMode ->
-        putIGame g {edition = toggleEditMode $ edition g}
+        putIGame $ updateAction $ g {edition = toggleEditMode $ edition g}
       ChangeEditedFeature i ->
-        putIGame g {edition = setEditionIndex i $ edition g}
+        putIGame $ updateAction $ g {edition = setEditionIndex i $ edition g}
       InsertPressedKey k n ->
         putIGame g {clientPressedKeys = Map.insert k n pressed}
       RemovePressedKey k ->
@@ -1124,11 +1263,11 @@ instance GameLogic SynthsGame where
     -- TODO force withAnim when using putIGame ?
     getIGame >>= maybe (liftIO initialGame) return >>= \g -> withAnim $ case e of
       AssignedSourceIdx s -> do
-        putIGame g { midiSourceIdx = Just s }
+        putIGame $ updateAction $ g { midiSourceIdx = Just s }
         asks writeToClient' >>= \f -> liftIO $ do
           FromClient . AppEvent . ChangeInstrument . withMinimumHarmonicsCount <$> loadInstrument >>= f
       NewLine seqId loopId ->
-        putIGame $ g { pianoLoops = Map.insertWith Map.union seqId (Map.singleton loopId mkEmptyPressedKeys) $ pianoLoops g }
+        putIGame g { pianoLoops = Map.insertWith Map.union seqId (Map.singleton loopId mkEmptyPressedKeys) $ pianoLoops g }
       PianoValue creator x -> putIGame $ either
         (\i ->
           g {pianos = Map.insert i x $ pianos g})
@@ -1138,7 +1277,7 @@ instance GameLogic SynthsGame where
 
 instance GameDraw SynthsGame where
 
-  drawBackground (Screen _ center@(Coords _ centerC)) g@(SynthsGame pianoClients pianoLoops_ _ _ (EnvelopePlot curves _) _ edit _ _) = do
+  drawBackground (Screen _ center@(Coords _ centerC)) g@(SynthsGame pianoClients pianoLoops_ _ _ (EnvelopePlot curves _) _ edit _ _ _ _) = do
     drawInstructions Horizontally (Just $ widthEditMode edit) g (mkCentered $ move 21 Up center) >>= \(Alignment _ ref) -> do
       ref2 <- case curves of
         [] -> return ref

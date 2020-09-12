@@ -14,7 +14,7 @@ import           Imj.Music.Compose
 
 -- | The beginning of <https://www.youtube.com/watch?v=e3nSvIiBNFo the 1st movement>
 -- from Antonio Vivaldi's Four Seasons / Spring.
-vivaldiFourSeasonsSpring :: (Float,[[Instruction]])
+vivaldiFourSeasonsSpring :: (Double,[[Instruction]])
 vivaldiFourSeasonsSpring = (bpm,part)
  where
   bpm = 350
@@ -48,7 +48,7 @@ vivaldiFourSeasonsSpring = (bpm,part)
 
 -- | The beginning of <https://www.youtube.com/watch?v=124NoPUBDvA Presto>,
 -- from Antonio Vivaldi's Four Seasons / Summer.
-vivaldiFourSeasonsSummerPresto :: (Float,[[Instruction]])
+vivaldiFourSeasonsSummerPresto :: (Double,[[Instruction]])
 vivaldiFourSeasonsSummerPresto = (bpm,part)
  where
   bpm = 2500

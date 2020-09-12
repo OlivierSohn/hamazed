@@ -27,7 +27,7 @@ techInstrument = Synth
       (Eased EaseOut Exp)
       1.0
 
-tech :: (Float,[[Instruction]])
+tech :: (Double,[[Instruction]])
 tech = (bpm,part)
  where
   bpm = 440
@@ -55,7 +55,7 @@ tech = (bpm,part)
   |]
 
 
-tech2 :: (Float,[[Instruction]])
+tech2 :: (Double,[[Instruction]])
 tech2 = (bpm,part)
  where
   bpm = 440

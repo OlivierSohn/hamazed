@@ -16,7 +16,7 @@ import           Imj.Music.Compose
 -- | The beginning of
 -- <https://www.youtube.com/watch?v=f9NnI3u9ppY&index=4&list=RDRPdelxGwnnI Act 1 Scene 2, dance of the cygnets>,
 -- of Pyotr Ilyich Tchaikovski's Swan Lake.
-tchaikovskiSwanLake :: (Float, [[Instruction]])
+tchaikovskiSwanLake :: (Double, [[Instruction]])
 tchaikovskiSwanLake = (bpm, part)
  where
   bpm = 700

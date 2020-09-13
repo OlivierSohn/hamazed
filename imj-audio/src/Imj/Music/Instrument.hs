@@ -165,7 +165,8 @@ data SoundSource =
   | Sweep {
         sweep_duration_  :: !Int,
         sweep_freq_      :: !AlmostFloat,
-        sweep_freq_type_ :: !SweepFreqType
+        sweep_freq_type_ :: !SweepFreqType,
+        sweep_interpolation_ :: !Interpolation
     }
     -- ^ Sine sweep
   deriving(Generic,Show, Eq, Data, Ord)

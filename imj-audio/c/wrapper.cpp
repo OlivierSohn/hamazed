@@ -334,6 +334,7 @@ extern "C" {
                        int sweep_duration,
                        float sweep_freq,
                        imajuscule::audio::audioelement::Extremity sweep_freq_extremity,
+                       int sweep_interp,
                        int16_t pitch, float velocity, int midiSource, uint64_t maybeMIDITime) {
 #if IMJ_TRACE_EXTERN_C
     Trace trace("midiNoteOnAHDSRSweep_");
@@ -350,6 +351,8 @@ extern "C" {
     std::cout << har_sz << std::endl;
     std::cout << sweep_duration << std::endl;
     std::cout << sweep_freq << std::endl;
+    std::cout << sweep_freq_extremity << std::endl;
+    std::cout << sweep_interp << std::endl;
     std::cout << pitch << std::endl;
     std::cout << velocity << std::endl;
     std::cout << midiSource << std::endl;
@@ -370,7 +373,9 @@ extern "C" {
         har_sz = 1;
         hars = getUnityHarmonics();
     }
-    return convert(midiEventAHDSRSweep(osc, t, {hars, har_sz}, p, SweepSetup{sweep_duration, sweep_freq, sweep_freq_extremity}, n, maybeMts));
+    return convert(midiEventAHDSRSweep(osc, t, {hars, har_sz}, p,
+                                       SweepSetup{sweep_duration, sweep_freq, sweep_freq_extremity, itp::toItp(sweep_interp)},
+                                       n, maybeMts));
   }
 
   bool midiNoteOffAHDSR_(imajuscule::audio::audioelement::OscillatorType osc,
@@ -420,6 +425,7 @@ extern "C" {
                          int sweep_duration,
                          float sweep_freq,
                          imajuscule::audio::audioelement::Extremity sweep_freq_extremity,
+                         int sweep_interp,
                          int16_t pitch, int midiSource, uint64_t maybeMIDITime) {
 #if IMJ_TRACE_EXTERN_C
     Trace trace("midiNoteOffAHDSRSweep_");
@@ -437,6 +443,7 @@ extern "C" {
     std::cout << sweep_duration << std::endl;
     std::cout << sweep_freq << std::endl;
     std::cout << sweep_freq_extremity << std::endl;
+    std::cout << sweep_interp << std::endl;
     std::cout << pitch << std::endl;
     std::cout << midiSource << std::endl;
     std::cout << maybeMIDITime << std::endl;
@@ -456,7 +463,9 @@ extern "C" {
         har_sz = 1;
         hars = getUnityHarmonics();
     }
-    return convert(midiEventAHDSRSweep(osc, t, {hars, har_sz}, p, SweepSetup{sweep_duration, sweep_freq, sweep_freq_extremity}, n, maybeMts));
+    return convert(midiEventAHDSRSweep(osc, t, {hars, har_sz}, p,
+                                       SweepSetup{sweep_duration, sweep_freq, sweep_freq_extremity, itp::toItp(sweep_interp)},
+                                       n, maybeMts));
   }
 
   double* analyzeAHDSREnvelope_(imajuscule::audio::audioelement::EnvelopeRelease t, int a, int ai, int h, int d, int di, float s, int r, int ri, int*nElems, int*splitAt) {

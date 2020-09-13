@@ -126,6 +126,7 @@ namespace imajuscule::audio {
       int durationSamples;
       float freq;
       Extremity freq_extremity;
+      itp::interpolation interp;
 
       bool operator ==(SweepSetup const & o) const {
         if (durationSamples != o.durationSamples) {
@@ -135,6 +136,9 @@ namespace imajuscule::audio {
           return false;
         }
         if (freq_extremity != o.freq_extremity) {
+          return false;
+        }
+        if (interp != o.interp) {
           return false;
         }
         return true;
@@ -147,6 +151,7 @@ namespace imajuscule::audio {
         hash_combine(h, durationSamples);
         hash_combine(h, freq);
         hash_combine(h, freq_extremity);
+        hash_combine(h, interp);
         return h;
       }
     };
@@ -275,7 +280,7 @@ namespace imajuscule::audio {
             h.getAlgo().getCtrl().setup(p.params.sweep.freq_extremity,
                                         freq_to_angle_increment(p.params.sweep.freq),
                                         p.params.sweep.durationSamples,
-                                        itp::LINEAR);
+                                        p.params.sweep.interp);
           });
         });
       }

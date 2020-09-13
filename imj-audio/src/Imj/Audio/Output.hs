@@ -204,7 +204,7 @@ play (StartNote mayMidi n@(InstrumentNote _ _ i) (NoteVelocity v)) = bool (Left 
     in withForeignPtr harPtr $ \harmonicsPtr ->
          midiNoteOnAHDSR (Right osc) e ahdsr (harmonicsPtr, harSz) pitch vel mayMidi
   Synth Noise e ahdsr -> midiNoteOnAHDSR (Left $ -1) e ahdsr (nullPtr, 0) pitch vel mayMidi
-  Synth (Sweep sweep_duration freq freqType) e ahdsr -> midiNoteOnAHDSRSweep (Left $ -2) e ahdsr (nullPtr, 0) sweep_duration freq freqType pitch vel mayMidi
+  Synth (Sweep sweep_duration freq freqType itp) e ahdsr -> midiNoteOnAHDSRSweep (Left $ -2) e ahdsr (nullPtr, 0) sweep_duration freq freqType itp pitch vel mayMidi
   Wind k -> effectOn (fromIntegral k) pitch vel
  where
   (MidiPitch pitch) = instrumentNoteToMidiPitch n
@@ -215,7 +215,7 @@ play (StopNote mayMidi n@(InstrumentNote _ _ i)) = bool (Left ()) (Right ()) <$>
     in withForeignPtr harPtr $ \harmonicsPtr ->
          midiNoteOffAHDSR (Right osc) e ahdsr (harmonicsPtr, harSz) pitch mayMidi
   Synth Noise e ahdsr -> midiNoteOffAHDSR (Left $ -1) e ahdsr (nullPtr, 0) pitch mayMidi
-  Synth (Sweep sweep_duration freq freqType) e ahdsr -> midiNoteOffAHDSRSweep (Left $ -2) e ahdsr (nullPtr, 0) sweep_duration freq freqType pitch mayMidi
+  Synth (Sweep sweep_duration freq freqType itp) e ahdsr -> midiNoteOffAHDSRSweep (Left $ -2) e ahdsr (nullPtr, 0) sweep_duration freq freqType itp pitch mayMidi
   Wind _ -> effectOff pitch
  where
   (MidiPitch pitch) = instrumentNoteToMidiPitch n
@@ -225,9 +225,9 @@ midiNoteOffAHDSR ::
 midiNoteOnAHDSR ::
   Either Int Oscillator -> ReleaseMode -> AHDSR'Envelope -> (Ptr HarmonicProperties, Int) -> CShort -> CFloat -> Maybe MidiInfo -> IO Bool
 midiNoteOffAHDSRSweep ::
-  Either Int Oscillator -> ReleaseMode -> AHDSR'Envelope -> (Ptr HarmonicProperties, Int) -> Int -> AlmostFloat -> SweepFreqType -> CShort -> Maybe MidiInfo -> IO Bool
+  Either Int Oscillator -> ReleaseMode -> AHDSR'Envelope -> (Ptr HarmonicProperties, Int) -> Int -> AlmostFloat -> SweepFreqType -> Interpolation -> CShort -> Maybe MidiInfo -> IO Bool
 midiNoteOnAHDSRSweep ::
-  Either Int Oscillator -> ReleaseMode -> AHDSR'Envelope -> (Ptr HarmonicProperties, Int) -> Int -> AlmostFloat -> SweepFreqType -> CShort -> CFloat -> Maybe MidiInfo -> IO Bool
+  Either Int Oscillator -> ReleaseMode -> AHDSR'Envelope -> (Ptr HarmonicProperties, Int) -> Int -> AlmostFloat -> SweepFreqType -> Interpolation -> CShort -> CFloat -> Maybe MidiInfo -> IO Bool
 midiNoteOffAHDSR osc t (AHDSR'Envelope a h d r ai di ri s) (harmonicsPtr, harmonicsSz) i mayMidi =
     midiNoteOffAHDSR_
       (either fromIntegral (fromIntegral . fromEnum) osc)
@@ -247,7 +247,7 @@ midiNoteOffAHDSR osc t (AHDSR'Envelope a h d r ai di ri s) (harmonicsPtr, harmon
       time
  where
   (src, time) = mayMidiInfoToSrcTime mayMidi
-midiNoteOffAHDSRSweep osc t (AHDSR'Envelope a h d r ai di ri s) (harmonicsPtr, harmonicsSz) sweep_duration sweep_freq sweep_freq_type i mayMidi =
+midiNoteOffAHDSRSweep osc t (AHDSR'Envelope a h d r ai di ri s) (harmonicsPtr, harmonicsSz) sweep_duration sweep_freq sweep_freq_type sweep_interp i mayMidi =
     midiNoteOffAHDSRSweep_
       (either fromIntegral (fromIntegral . fromEnum) osc)
       (fromIntegral $ fromEnum t)
@@ -264,6 +264,7 @@ midiNoteOffAHDSRSweep osc t (AHDSR'Envelope a h d r ai di ri s) (harmonicsPtr, h
       (fromIntegral sweep_duration)
       (realToFrac $ unAlmostFloat sweep_freq)
       (fromIntegral $ fromEnum sweep_freq_type)
+      (interpolationToCInt sweep_interp)
       i
       src
       time
@@ -289,7 +290,7 @@ midiNoteOnAHDSR osc t (AHDSR'Envelope a h d r ai di ri s) (harmonicsPtr, harmoni
       time
  where
   (src, time) = mayMidiInfoToSrcTime mayMidi
-midiNoteOnAHDSRSweep osc t (AHDSR'Envelope a h d r ai di ri s) (harmonicsPtr, harmonicsSz) sweep_duration sweep_freq sweep_freq_type i v mayMidi =
+midiNoteOnAHDSRSweep osc t (AHDSR'Envelope a h d r ai di ri s) (harmonicsPtr, harmonicsSz) sweep_duration sweep_freq sweep_freq_type sweep_interp i v mayMidi =
     midiNoteOnAHDSRSweep_
       (either fromIntegral (fromIntegral . fromEnum) osc)
       (fromIntegral $ fromEnum t)
@@ -306,6 +307,7 @@ midiNoteOnAHDSRSweep osc t (AHDSR'Envelope a h d r ai di ri s) (harmonicsPtr, ha
       (fromIntegral sweep_duration)
       (realToFrac $ unAlmostFloat sweep_freq)
       (fromIntegral $ fromEnum sweep_freq_type)
+      (interpolationToCInt sweep_interp)
       i
       v
       src
@@ -374,6 +376,8 @@ foreign import ccall "midiNoteOnAHDSRSweep_"
                         -- ^ Sweep freq
                          -> CInt
                          -- ^ Sweep freq type
+                         -> CInt
+                         -- ^ Sweep interpolation
                         -> CShort -> CFloat
                         -> CInt -> CULLong
                         -> IO Bool
@@ -387,6 +391,8 @@ foreign import ccall "midiNoteOffAHDSRSweep_"
                          -- ^ Sweep freq
                          -> CInt
                          -- ^ Sweep freq type
+                         -> CInt
+                         -- ^ Sweep interpolation
                          -> CShort
                          -> CInt -> CULLong
                          -> IO Bool

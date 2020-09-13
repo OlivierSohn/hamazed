@@ -139,7 +139,7 @@ widthEnvelope = 90
 findOscillations :: Instrument -> Maybe (Oscillator, Harmonics)
 findOscillations (Wind _) = Nothing
 findOscillations (Synth Noise _ _) = Nothing
-findOscillations (Synth (Sweep _ _ _) _ _) = Nothing
+findOscillations (Synth (Sweep{}) _ _) = Nothing
 findOscillations (Synth (Oscillations osc har) _ _) = Just (osc, har)
 
 toParts :: EnvelopeViewMode -> [Vector Double] -> [EnvelopePart]
@@ -191,7 +191,7 @@ data Edition = Edition {
 
 data SynthGameUI = SynthGameUI {
     attackUI_, holdUI_, decayUI_, sustainUI_, releaseUI_, autoReleaseUI_,
-    sourceUI_, sweepTimeUI_, sweepFreqUI_, sweepExtremityUI_, oscillatorUI_, harmoVolUIs_, harmoAngUIs_,
+    sourceUI_, harmoVolUIs_, harmoAngUIs_,
     reverbInfoUI_, reverbByIndexUI_, reverbByDurationUI_, reverbByWetRatioUI_ :: !UIComponentGroup
 } deriving(Show)
 
@@ -257,8 +257,9 @@ mkGameUI = SynthGameUI {
         }
       ])),
   sourceUI_ = UIComponentGroup "Source"
-    (maybe [] id . usingSource (\_ ->
-      [ UIComponent {
+    (\thegame1 ->
+      (maybe [] id $ usingSource (\_ ->
+        [ UIComponent {
           mkDisplay = (\color thegame -> mkChoice color $ fromMaybe "?" $ usingSource (\case
                                                                                        Sweep{} -> "Sweep"
                                                                                        Noise{} -> "Noise"
@@ -274,50 +275,50 @@ mkGameUI = SynthGameUI {
                       | inc > 0 = (succ curIdx) `mod` 3
                       | otherwise = pred curIdx `mod` 3
                 in [
-                     Sweep 1000 80 EndFreq, -- TODO restore last known sweep params
+                     Sweep 1000 80 EndFreq Linear, -- TODO restore last known sweep params
                      Noise,
                      maybe (source_ defaultSynth) id mayLastOsc
                    ] !! targetIdx
             }
             _ -> error "logic") thegame)
         }
-      ])),
-  sweepTimeUI_ = UIComponentGroup "Sweep time"
-    (maybe [] id . usingSweep (\_ _ _ ->
-      [ UIComponent {
-          mkDisplay = (\color -> mkChoice color . fromMaybe "?" . usingSweep (\duration _ _ -> show duration)),
-          onAction = Just (\inc thegame -> usingSweep (\duration b c -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
+      ]) thegame1) ++
+      (maybe [] id $ usingSweep (\_ _ _ _ ->
+        [ UIComponent {
+          mkDisplay = (\color -> mkChoice color . fromMaybe "?" . usingSweep (\duration _ _ _ -> (show duration) ++ " samples")),
+          onAction = Just (\inc thegame -> usingSweep (\duration b c d -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
             synth@Synth{} -> AppEvent $ ChangeInstrument $ synth {
-              source_ = Sweep (changeParam predefinedSweepDurations duration inc) b c
+              source_ = Sweep (changeParam predefinedSweepDurations duration inc) b c d
+            }
+            _ -> error "logic") thegame)
+        },
+        UIComponent {
+          mkDisplay = (\color -> mkChoice color . fromMaybe "?" . usingSweep (\_ _ _ itp -> show itp)),
+          onAction = Just (\inc thegame -> usingSweep (\a b c interp -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
+            synth@Synth{} -> AppEvent $ ChangeInstrument $ synth {
+              source_ = Sweep a b c (changeParam predefinedSweepItp interp inc)
+            }
+            _ -> error "logic") thegame)
+        },
+        UIComponent {
+          mkDisplay = (\color -> mkChoice color . fromMaybe "?" . usingSweep (\_ freq _ _ -> (show freq) ++ " Hz")),
+          onAction = Just (\inc thegame -> usingSweep (\a freq c d -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
+            synth@Synth{} -> AppEvent $ ChangeInstrument $ synth {
+              source_ = Sweep a (changeParam predefinedSweepFreqs freq inc) c d
+            }
+            _ -> error "logic") thegame)
+        },
+        UIComponent {
+          mkDisplay = (\color -> mkChoice color . fromMaybe "?" . usingSweep (\_ _ ext _ -> show ext)),
+          onAction = Just (\inc thegame -> usingSweep (\a b ext d -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
+            synth@Synth{} -> AppEvent $ ChangeInstrument $ synth {
+              source_ = Sweep a b (cycleSweepFreqType inc ext) d
             }
             _ -> error "logic") thegame)
         }
-      ])),
-  sweepFreqUI_ = UIComponentGroup "Sweep freq"
-    (maybe [] id . usingSweep (\_ _ _ ->
-      [ UIComponent {
-          mkDisplay = (\color -> mkChoice color . fromMaybe "?" . usingSweep (\_ freq _ -> show freq)),
-          onAction = Just (\inc thegame -> usingSweep (\a freq c -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
-            synth@Synth{} -> AppEvent $ ChangeInstrument $ synth {
-              source_ = Sweep a (changeParam predefinedSweepFreqs freq inc) c
-            }
-            _ -> error "logic") thegame)
-        }
-      ])),
-  sweepExtremityUI_ = UIComponentGroup "Sweep extremity"
-    (maybe [] id . usingSweep (\_ _ _ ->
-      [ UIComponent {
-          mkDisplay = (\color -> mkChoice color . fromMaybe "?" . usingSweep (\_ _ ext -> show ext)),
-          onAction = Just (\inc thegame -> usingSweep (\a b ext -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
-            synth@Synth{} -> AppEvent $ ChangeInstrument $ synth {
-              source_ = Sweep a b (cycleSweepFreqType inc ext)
-            }
-            _ -> error "logic") thegame)
-        }
-      ])),
-  oscillatorUI_ = UIComponentGroup "Oscillator"
-    (maybe [] id . usingOscillations (\_ _ ->
-      [ UIComponent {
+      ]) thegame1) ++
+      (maybe [] id $ usingOscillations (\_ _ ->
+        [ UIComponent {
           mkDisplay = (\color -> mkChoice color . fromMaybe "?" . usingOscillations (\o _ -> show o)),
           onAction = Just (\inc thegame -> usingOscillations (\osc har -> case (fromMaybe (error "no instrument") $ mayInstr thegame) of
             synth@Synth{} -> AppEvent $ ChangeInstrument $ synth {
@@ -325,7 +326,7 @@ mkGameUI = SynthGameUI {
             }
             _ -> error "logic") thegame)
         }
-      ])),
+      ]) thegame1)),
   harmoVolUIs_ = UIComponentGroup "Harmo. vol."
     (maybe [] id . usingOscillations (\_ harmonics ->
       map
@@ -401,8 +402,8 @@ mkGameUI = SynthGameUI {
   withSource f (Synth s _ _) = Just $ f s
   withSource _ (Wind _)  = Nothing
 
-  withSweep f (Synth (Sweep a b c) _ _) = Just $ f a b c
-  withSweep _ (Synth _ _ _) = Nothing
+  withSweep f (Synth (Sweep a b c d) _ _) = Just $ f a b c d
+  withSweep _ (Synth {}) = Nothing
   withSweep _ (Wind _)  = Nothing
 
   withOscillations f (Synth (Oscillations a b) _ _) = Just $ f a b
@@ -448,7 +449,7 @@ instance Show UIComponent where
 getActiveUIComponentGroups :: SynthsGame -> [UIComponentGroup]
 getActiveUIComponentGroups (SynthsGame _ _ _ _ _ _ (Edition mode _ _ _) _ _ ui _) = case mode of
   Envelope -> m [attackUI_, holdUI_, decayUI_, sustainUI_, releaseUI_, autoReleaseUI_]
-  Tone -> m [sourceUI_, sweepTimeUI_, sweepFreqUI_, sweepExtremityUI_, oscillatorUI_, harmoVolUIs_, harmoAngUIs_] -- TODO filter by source type
+  Tone -> m [sourceUI_, harmoVolUIs_, harmoAngUIs_] -- TODO filter by source type
   Reverb -> m [reverbInfoUI_, reverbByIndexUI_, reverbByDurationUI_, reverbByWetRatioUI_]
  where
   m = map (\f -> f ui)
@@ -618,7 +619,8 @@ reverbBySizeIdx = 0
 reverbByDurationIdx = 1
 reverbWetIdx = 2
 
-predefinedAttackItp, predefinedDecayItp, predefinedReleaseItp :: Set Interpolation
+predefinedAttackItp, predefinedDecayItp, predefinedReleaseItp, predefinedSweepItp :: Set Interpolation
+predefinedSweepItp = allInterpolations
 predefinedDecayItp = allDifferentiableInterpolations
 predefinedAttackItp = Set.delete ProportionaValueDerivative allDifferentiableInterpolations
 predefinedReleaseItp = predefinedAttackItp
@@ -656,7 +658,7 @@ withMinimumHarmonicsCount :: Instrument -> Instrument
 withMinimumHarmonicsCount i@(Wind _) = i
 withMinimumHarmonicsCount i@(Synth src _ _) = case src of
   Noise -> i
-  Sweep _ _ _ -> i
+  Sweep{} -> i
   Oscillations osc hars ->
     let prevH = unHarmonics hars
     in i { source_ = Oscillations osc $ Harmonics $
@@ -794,9 +796,9 @@ changeInstrumentEnvelopeIndexedValue instr@(Synth _ release p@(AHDSR'Envelope a 
     _ -> error "logic"
 
 changeInstrumentHarmonic :: Int -> Instrument -> Int -> Instrument
-changeInstrumentHarmonic _ instr@(Wind _ ) _ = instr
+changeInstrumentHarmonic _ instr@(Wind{}) _ = instr
 changeInstrumentHarmonic _ instr@(Synth Noise _ _) _ = instr
-changeInstrumentHarmonic _ instr@(Synth (Sweep _ _ _) _ _) _ = instr
+changeInstrumentHarmonic _ instr@(Synth (Sweep{}) _ _) _ = instr
 changeInstrumentHarmonic idx instr@(Synth (Oscillations osc (Harmonics harmonics)) _ _) inc =
   instr { source_ = Oscillations osc $ Harmonics $ h' S.// [(idx', newVal)] }
  where

@@ -60,7 +60,7 @@ import           Imj.Data.AlmostFloat
 import           Imj.Music.Instruction
 
 data Oscillator =
-    Sinus'VolumeAdjusted
+    Sinus'LoudnessVolumeAdjusted
     -- ^ A sinusoïdal oscillator where the volume is adjusted to achieve
     -- <https://en.wikipedia.org/wiki/Equal-loudness_contour equal-loudness>.
   | Sinus
@@ -75,13 +75,13 @@ data Oscillator =
 -- in sync with the corresponding C enum
 instance Enum Oscillator where
   fromEnum = \case
-    Sinus'VolumeAdjusted -> 0
+    Sinus'LoudnessVolumeAdjusted -> 0
     Sinus -> 1
     Saw -> 2
     Square -> 3
     Triangle -> 4
   toEnum = \case
-    0 -> Sinus'VolumeAdjusted
+    0 -> Sinus'LoudnessVolumeAdjusted
     1 -> Sinus
     2 -> Saw
     3 -> Square
@@ -292,7 +292,7 @@ mkInstrumentNote pitch i =
 kick :: Instrument
 kick = Synth
   (Oscillations
-    Sinus'VolumeAdjusted
+    Sinus'LoudnessVolumeAdjusted
     (mkHarmonics $ map (uncurry HarmonicProperties) $ zip [1,1,1,1,1,1,1,1,1,1] [1.4,0.2,0.4,0.9,1.9,0.5,1.9,0.3,0.2,0]))
   AutoRelease $
   AHDSR'Envelope
@@ -305,7 +305,7 @@ kick = Synth
 marimba :: Instrument
 marimba = Synth
   (Oscillations
-     Sinus'VolumeAdjusted
+     Sinus'LoudnessVolumeAdjusted
      (mkHarmonics $ map (uncurry HarmonicProperties) $ zip [1,0,0,0,0,1] [1.5,0,0,0,0,0.5]))
   AutoRelease $
   AHDSR'Envelope
@@ -318,7 +318,7 @@ marimba = Synth
 
 simpleInstrument, bellInstrument, organicInstrument, shortInstrument, testInstrument, stringsInstrument :: Instrument
 longInstrument, longBellInstrument, bell2Instrument, synthInstrument :: Instrument
-simpleInstrument = Synth (defaultOscillations Sinus'VolumeAdjusted) KeyRelease $
+simpleInstrument = Synth (defaultOscillations Sinus'LoudnessVolumeAdjusted) KeyRelease $
   AHDSR'Envelope
     401 0 0 401
     Linear
@@ -336,56 +336,56 @@ synthInstrument = Synth
     Linear
     (Eased EaseOut Exp)
     1
-bellInstrument = Synth (defaultOscillations Sinus'VolumeAdjusted) AutoRelease $
+bellInstrument = Synth (defaultOscillations Sinus'LoudnessVolumeAdjusted) AutoRelease $
   AHDSR'Envelope
     500 200 40000 30000
     Linear
     ProportionaValueDerivative
     Linear
     0.01
-bell2Instrument = Synth (defaultOscillations Sinus'VolumeAdjusted) AutoRelease $
+bell2Instrument = Synth (defaultOscillations Sinus'LoudnessVolumeAdjusted) AutoRelease $
   AHDSR'Envelope
     800 0 50 51200
     (Eased EaseIn Ord5)
     Linear
     (Eased EaseOut Sine)
     1.0
-organicInstrument = Synth (defaultOscillations Sinus'VolumeAdjusted) AutoRelease
+organicInstrument = Synth (defaultOscillations Sinus'LoudnessVolumeAdjusted) AutoRelease
   $ AHDSR'Envelope
       400 5120 50 12800
       (Eased EaseIn Sine)
       Linear
       (Eased EaseOut Exp)
       1.0
-shortInstrument = Synth (defaultOscillations Sinus'VolumeAdjusted) AutoRelease
+shortInstrument = Synth (defaultOscillations Sinus'LoudnessVolumeAdjusted) AutoRelease
   $ AHDSR'Envelope
       800 640 50 3200
       (Eased EaseOut Sine)
       Linear
       (Eased EaseIn Exp)
       1.0
-testInstrument = Synth (defaultOscillations Sinus'VolumeAdjusted) AutoRelease
+testInstrument = Synth (defaultOscillations Sinus'LoudnessVolumeAdjusted) AutoRelease
   $ AHDSR'Envelope
       800 160 3200 6400
       (Eased EaseInOut Sine)
       ProportionaValueDerivative
       (Eased EaseInOut Exp)
       0.865
-stringsInstrument = Synth (defaultOscillations Sinus'VolumeAdjusted) KeyRelease
+stringsInstrument = Synth (defaultOscillations Sinus'LoudnessVolumeAdjusted) KeyRelease
   $ AHDSR'Envelope
       12800 160 3200 6400
       Linear
       Linear
       (Eased EaseInOut Exp)
       1.0
-longInstrument = Synth (defaultOscillations Sinus'VolumeAdjusted) KeyRelease
+longInstrument = Synth (defaultOscillations Sinus'LoudnessVolumeAdjusted) KeyRelease
   $ AHDSR'Envelope
       50 160 102400 6400
       Linear
       ProportionaValueDerivative
       (Eased EaseInOut Exp)
       0.138
-longBellInstrument = Synth (defaultOscillations Sinus'VolumeAdjusted) AutoRelease
+longBellInstrument = Synth (defaultOscillations Sinus'LoudnessVolumeAdjusted) AutoRelease
   $ AHDSR'Envelope
       1600 160 102400 102400
       Linear
@@ -393,7 +393,7 @@ longBellInstrument = Synth (defaultOscillations Sinus'VolumeAdjusted) AutoReleas
       (Eased EaseOut Sine)
       0.138
 trapezoidalInstrument :: Int -> Instrument
-trapezoidalInstrument i = Synth (defaultOscillations Sinus'VolumeAdjusted) KeyRelease
+trapezoidalInstrument i = Synth (defaultOscillations Sinus'LoudnessVolumeAdjusted) KeyRelease
   $ AHDSR'Envelope
       i 0 0 i
       Linear

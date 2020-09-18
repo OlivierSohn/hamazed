@@ -6,6 +6,7 @@ module Imj.Music.Compositions.Me
       , meScore
       , meInstrument
       , meSnare
+      , meKickNew
       ) where
 
 import           Imj.Prelude
@@ -29,6 +30,18 @@ meSnare = Synth
       (Eased EaseOut Exp)
       0.665
 
+meKickNew :: Instrument
+meKickNew = Synth
+  (Sweep 200 80 EndFreq (Eased EaseIn Exp))
+  AutoRelease
+  $ AHDSR'Envelope
+      50 640 50 12000
+      (Eased EaseIn Exp)
+      (Linear)
+      (Eased EaseOut Exp)
+      1.0
+
+
 meKick :: Instrument
 meKick = Synth
   (Sweep 1000 80 EndFreq Linear)
@@ -36,7 +49,7 @@ meKick = Synth
   $ AHDSR'Envelope
       100 1200 200 15600
       (Eased EaseIn Exp)
-      (Eased EaseInOut Exp)
+      (Linear)
       (Eased EaseOut Exp)
       0.665
 

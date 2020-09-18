@@ -7,8 +7,8 @@ namespace imajuscule::audio {
     namespace audioelement {
         std::ostream & operator << (std::ostream & os, OscillatorType t) {
             switch(t) {
-                case OscillatorType::SinusVolumeAdjusted:
-                  os << "SinusVolumeAdjusted"; break;
+                case OscillatorType::SinusLoudnessVolumeAdjusted:
+                  os << "SinusLoudnessVolumeAdjusted"; break;
                 case OscillatorType::Sinus:
                   os << "Sinus"; break;
                 case OscillatorType::Saw:

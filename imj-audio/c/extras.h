@@ -24,7 +24,7 @@ namespace imajuscule::audio {
       Sweep = -2,
       Noise = -1,
       // values >= 0 are in sync with the corresponding Haskell enum
-      SinusVolumeAdjusted,
+      SinusLoudnessVolumeAdjusted,
       Sinus,
       Saw,
       Square,
@@ -34,7 +34,7 @@ namespace imajuscule::audio {
 
     template<template<OscillatorType> typename F>
     void foreachOscillatorType() {
-      F<OscillatorType::SinusVolumeAdjusted>{}();
+      F<OscillatorType::SinusLoudnessVolumeAdjusted>{}();
       F<OscillatorType::Sinus>{}();
       F<OscillatorType::Saw>{}();
       F<OscillatorType::Square>{}();
@@ -64,7 +64,7 @@ namespace imajuscule::audio {
       static constexpr auto convert = FOscillator::SAW;
     };
     template <>
-    struct ToFOsc<OscillatorType::SinusVolumeAdjusted> {
+    struct ToFOsc<OscillatorType::SinusLoudnessVolumeAdjusted> {
       // never used
       static constexpr auto convert = FOscillator::SAW;
     };
@@ -83,8 +83,8 @@ namespace imajuscule::audio {
     struct GenericOscillator {
       using type =
         std::conditional_t<
-          O == OscillatorType::SinusVolumeAdjusted,
-            VolumeAdjusted< OscillatorAlgo< FPT, eNormalizePolicy::FAST > >,
+          O == OscillatorType::SinusLoudnessVolumeAdjusted,
+            LoudnessVolumeAdjusted< OscillatorAlgo< FPT, eNormalizePolicy::FAST > >,
             std::conditional_t<
               O == OscillatorType::Sinus,
                 OscillatorAlgo< FPT, eNormalizePolicy::FAST >,
@@ -262,7 +262,7 @@ namespace imajuscule::audio {
         b.forEachElems([&p](auto & e) {
           // the order is important, maybe we need a single method.
           e.algo.setHarmonics(p.har);
-          e.algo.editEnvelope().setAHDSR(p.env);
+          e.algo.editEnvelope().setAHDSR(p.env, SAMPLE_RATE);
         });
       }
     };
@@ -274,7 +274,7 @@ namespace imajuscule::audio {
         b.forEachElems([&p](auto & e) {
           // the order is important, maybe we need a single method.
           e.algo.setHarmonics(p.har);
-          e.algo.editEnvelope().setAHDSR(p.env);
+          e.algo.editEnvelope().setAHDSR(p.env, SAMPLE_RATE);
           // Side note : for a sweep, MultiEnveloped is overkill because there is a single harmonic.
           e.algo.forEachHarmonic([&p](auto & h) {
             h.getAlgo().getCtrl().setup(p.params.sweep.freq_extremity,
@@ -294,7 +294,7 @@ namespace imajuscule::audio {
     template<typename Env>
     std::pair<std::vector<double>, int> envelopeGraphVec(typename Env::Param const & envParams) {
       Env e;
-      e.setAHDSR(envParams);
+      e.setAHDSR(envParams, SAMPLE_RATE);
       // emulate a key-press
       e.onKeyPressed(0);
       int splitAt = -1;
@@ -357,7 +357,7 @@ namespace imajuscule::audio {
         case OscillatorType::Square:
         case OscillatorType::Triangle:
         case OscillatorType::Sinus:
-        case OscillatorType::SinusVolumeAdjusted:
+        case OscillatorType::SinusLoudnessVolumeAdjusted:
           return SynchronizePhase::Yes;
 
         case OscillatorType::Noise:
@@ -372,7 +372,7 @@ namespace imajuscule::audio {
         case OscillatorType::Square:
         case OscillatorType::Triangle:
         case OscillatorType::Sinus:
-        case OscillatorType::SinusVolumeAdjusted:
+        case OscillatorType::SinusLoudnessVolumeAdjusted:
           return DefaultStartPhase::Random;
 
         case OscillatorType::Noise:
@@ -626,8 +626,8 @@ namespace imajuscule::audio {
           return midiEvent<Env, OscillatorType::Triangle, HarmonicsArray>(harmonics, p, n, maybeMts);
         case OscillatorType::Sinus:
           return midiEvent<Env, OscillatorType::Sinus, HarmonicsArray>(harmonics, p, n, maybeMts);
-        case OscillatorType::SinusVolumeAdjusted:
-          return midiEvent<Env, OscillatorType::SinusVolumeAdjusted, HarmonicsArray>(harmonics, p, n, maybeMts);
+        case OscillatorType::SinusLoudnessVolumeAdjusted:
+          return midiEvent<Env, OscillatorType::SinusLoudnessVolumeAdjusted, HarmonicsArray>(harmonics, p, n, maybeMts);
         case OscillatorType::Noise:
           return midiEvent<Env, OscillatorType::Noise, HarmonicsArray>(harmonics, p, n, maybeMts);
         default:

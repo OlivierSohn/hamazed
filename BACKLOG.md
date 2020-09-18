@@ -1,4 +1,8 @@
-- rename ::sine to ::osc ? :: simple ?
+- Resynthesys : create a file format, play from the file
+. First use sine oscillators only
+. If the frequency varies too rapidly, try sweep instead of a succession of short notes
+. If there are many peaks with high energy close to one another, convert this to noise (snare)
+. analyse volume evolution to deduce the envelope
 
 - Fix cracks that sometimes appear after setting a reverb (before the reverb no crack, after crack)
 . try to reproduce in Grid3D + memory checker (cannot use memory checker in haskell program)

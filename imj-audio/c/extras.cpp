@@ -26,36 +26,13 @@ namespace imajuscule::audio {
         }
     }
   Ctxt & getAudioContext() {
-    static Ctxt c;
+    static Ctxt c(SAMPLE_RATE);
     return c;
   }
 
   XFadeChans *& getXfadeChannels() {
     static XFadeChans * p = nullptr;
     return p;
-  }
-
-  Event mkNoteOn(int pitch, float velocity) {
-    Event e;
-    e.type = Event::kNoteOnEvent;
-    e.noteOn.pitch = pitch;
-    e.noteOn.velocity = velocity;
-    e.noteOn.channel= 0; // unused
-    e.noteOn.tuning = 0;
-    e.noteOn.noteId = -1;
-    e.noteOn.length = std::numeric_limits<decltype(e.noteOn.length)>::max();
-    return e;
-  }
-
-  Event mkNoteOff(int pitch) {
-    Event e;
-    e.type = Event::kNoteOffEvent;
-    e.noteOff.pitch = pitch;
-    e.noteOff.velocity = 0.f;
-    e.noteOff.channel= 0;
-    e.noteOff.tuning = 0;
-    e.noteOff.noteId = -1;
-    return e;
   }
 
   VoiceWindImpl & windVoice()

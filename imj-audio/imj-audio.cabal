@@ -172,6 +172,7 @@ library
                      , Imj.Audio.Harmonics
                      , Imj.Audio.Midi
                      , Imj.Audio.Output
+                     , Imj.Audio.SampleRate
                      , Imj.Audio.SpaceResponse
                      , Imj.Music.Alter
                      , Imj.Music.Compose

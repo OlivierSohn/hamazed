@@ -260,11 +260,11 @@ namespace imajuscule::audio {
     template<typename EnvelParamT, OscillatorType Osc>
     struct SetParam {
       template<typename HarmonicsArray, typename B>
-      static void set(ParamsFor<EnvelParamT, HarmonicsArray, Osc> const & p, B & b) {
-        b.forEachElems([&p](auto & e) {
+      static void set(int sample_rate, ParamsFor<EnvelParamT, HarmonicsArray, Osc> const & p, B & b) {
+        b.forEachElems([&p, sample_rate](auto & e) {
           // the order is important, maybe we need a single method.
           e.algo.getOsc().setHarmonics(p.har);
-          e.algo.editEnvelope().setAHDSR(p.env, SAMPLE_RATE);
+          e.algo.editEnvelope().setAHDSR(p.env, sample_rate);
         });
       }
     };
@@ -272,11 +272,11 @@ namespace imajuscule::audio {
     template<typename EnvelParamT>
     struct SetParam<EnvelParamT, OscillatorType::Sweep> {
       template<typename HarmonicsArray, typename B>
-      static void set(ParamsFor<EnvelParamT, HarmonicsArray, OscillatorType::Sweep> const & p, B & b) {
-        b.forEachElems([&p](auto & e) {
+      static void set(int sample_rate, ParamsFor<EnvelParamT, HarmonicsArray, OscillatorType::Sweep> const & p, B & b) {
+        b.forEachElems([&p, sample_rate](auto & e) {
           // the order is important, maybe we need a single method.
           e.algo.getOsc().setHarmonics(p.har);
-          e.algo.editEnvelope().setAHDSR(p.env, SAMPLE_RATE);
+          e.algo.editEnvelope().setAHDSR(p.env, sample_rate);
           // Side note : for a sweep, MultiEnveloped is overkill because there is a single harmonic.
           e.algo.getOsc().forEachHarmonic([&p](auto & h) {
             h.getAlgo().getCtrl().setup(p.params.sweep.freq_extremity,
@@ -294,9 +294,9 @@ namespace imajuscule::audio {
     };
 
     template<typename Env>
-    std::pair<std::vector<double>, int> envelopeGraphVec(typename Env::Param const & envParams) {
+    std::pair<std::vector<double>, int> envelopeGraphVec(int sample_rate, typename Env::Param const & envParams) {
       Env e;
-      e.setAHDSR(envParams, SAMPLE_RATE);
+      e.setAHDSR(envParams, sample_rate);
       // emulate a key-press
       e.onKeyPressed(0);
       int splitAt = -1;
@@ -392,14 +392,18 @@ namespace imajuscule::audio {
 
     template<typename T>
     struct withChannels {
-      withChannels(NoXFadeChans & chans) : chans(chans), obj(SAMPLE_RATE, buffers) {}
+      withChannels(NoXFadeChans & chans)
+      : chans(chans)
+      , obj(buffers)
+      {}
+
       ~withChannels() {
         std::lock_guard<std::mutex> l(isUsed); // see 'Using'
       }
 
       template<typename Out>
-      auto onEvent2(Event e, Out & out, Optional<MIDITimestampAndSource> maybeMts) {
-        return obj.onEvent2(e, out, chans, maybeMts);
+      auto onEvent2(int const sample_rate, Event e, Out & out, Optional<MIDITimestampAndSource> maybeMts) {
+        return obj.onEvent2(sample_rate, e, out, chans, maybeMts);
       }
 
       void finalize() {
@@ -481,7 +485,7 @@ namespace imajuscule::audio {
       // and if the instrument lock is not taken, we have the guarantee that
       // the instrument lock won't be taken until we release the map lock.
       template<typename HarmonicsArray>
-      static Using<withChannels<T>> get(Params<HarmonicsArray> const &params) {
+      static Using<withChannels<T>> get(int sample_rate, Params<HarmonicsArray> const &params) {
         using namespace audioelement;
         StaticParamsSummary summary(params);
 
@@ -493,12 +497,12 @@ namespace imajuscule::audio {
         if(it != synths.end()) {
           return Using(std::move(l), *(it->second));
         }
-        if(auto * p = recycleInstrument(synths, params, summary)) {
+        if(auto * p = recycleInstrument(sample_rate, synths, params, summary)) {
           return Using(std::move(l), *p);
         }
         auto [c,remover] = addNoXfadeChannels(T::n_channels);
         auto p = std::make_unique<withChannels<T>>(c);
-        SetParam<EnvelParamT, Osc>::set(params, p->obj);
+        SetParam<EnvelParamT, Osc>::set(sample_rate, params, p->obj);
         if(!p->obj.initialize(p->chans)) {
           auto oneSynth = synths.begin();
           if(oneSynth != synths.end()) {
@@ -540,7 +544,7 @@ namespace imajuscule::audio {
 
       /* The caller is expected to take the map mutex. */
       template<typename HarmonicsArray>
-      static withChannels<T> * recycleInstrument(Map & synths, Params<HarmonicsArray> const & params, StaticParamsSummary const summary) {
+      static withChannels<T> * recycleInstrument(int const sample_rate, Map & synths, Params<HarmonicsArray> const & params, StaticParamsSummary const summary) {
         for(auto it = synths.begin(), end = synths.end(); it != end; ++it) {
           auto & i = it->second;
           if(!i) {
@@ -575,7 +579,7 @@ namespace imajuscule::audio {
 
             Assert(isNew); // because prior to calling this function, we did a lookup
             using namespace audioelement;
-            SetParam<EnvelParamT, Osc>::set(params, inserted->second->obj);
+            SetParam<EnvelParamT, Osc>::set(sample_rate, params, inserted->second->obj);
             return inserted->second.get();
           }
           else {
@@ -607,7 +611,8 @@ namespace imajuscule::audio {
     template<typename Env, audioelement::OscillatorType Osc, typename HarmonicsArray, typename... Args>
     onEventResult midiEvent(HarmonicsArray const & harmonics, typename Env::Param const & env, Event e, Optional<MIDITimestampAndSource> maybeMts, Args... args) {
       audioelement::ParamsFor<typename Env::Param, HarmonicsArray, Osc> params{harmonics, env, std::forward<Args>(args)...};
-      return Synths<Env, Osc>::get(params).o.onEvent2(e, getAudioContext().getChannelHandler(), maybeMts);
+      std::optional<int> sr = getAudioContext().getSampleRate();
+      return Synths<Env, Osc>::get(*sr, params).o.onEvent2(*sr, e, getAudioContext().getChannelHandler(), maybeMts);
     }
 
     template<typename Env, typename HarmonicsArray>

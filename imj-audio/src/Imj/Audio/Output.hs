@@ -100,6 +100,7 @@ import           UnliftIO.Exception(bracket)
 import           Imj.Audio.Envelope
 import           Imj.Audio.Harmonics
 import           Imj.Audio.Midi
+import           Imj.Audio.SampleRate
 import           Imj.Audio.SpaceResponse
 import           Imj.Data.AlmostFloat
 import           Imj.Music.Instruction
@@ -122,7 +123,8 @@ import           Imj.Timing
 usingAudioOutput :: MonadUnliftIO m
                  => m a
                  -> m (Either Text a)
-usingAudioOutput = usingAudioOutputWithMinLatency $ fromSecs 0.008
+usingAudioOutput = usingAudioOutputWithMinLatency globalSampleRate $ fromSecs 0.008
+-- if you hear audio cracks, use a larger latency
 
 -- | Same as 'usingAudioOutput' except that the minimum latency can be configured.
 --
@@ -130,7 +132,9 @@ usingAudioOutput = usingAudioOutputWithMinLatency $ fromSecs 0.008
 -- 'usingAudioOutput' or 'usingAudioOutputWithMinLatency', else it is ignored (in that case,
 -- the global audio output stream is already initialized).
 usingAudioOutputWithMinLatency :: MonadUnliftIO m
-                               => Time Duration System
+                               => Int
+                               -- ^ Sampling rate
+                               ->Time Duration System
                                -- ^ The minimum latency of the audio output stream.
                                --
                                -- Depending on your system's characteristics,
@@ -139,7 +143,7 @@ usingAudioOutputWithMinLatency :: MonadUnliftIO m
                                -- a safe default value.
                                -> m a
                                -> m (Either Text a)
-usingAudioOutputWithMinLatency minLatency act =
+usingAudioOutputWithMinLatency samplingRate minLatency act =
   bracket bra ket $ either
     (const $ return $ Left "Audio output failed to initialize")
     (const $ fmap Right act)
@@ -147,13 +151,15 @@ usingAudioOutputWithMinLatency minLatency act =
  where
 
   -- TODO to enable very low (thus unsafe) latencies, override portaudio's min latency (use a 'Just' instead of 'Nothing')
-  bra = liftIO $ initializeAudioOutput minLatency Nothing
+  bra = liftIO $ initializeAudioOutput samplingRate minLatency Nothing
 
   -- we ignore the initialization return because regardless of wether it succeeded or not,
   -- the 'initializeAudioOutput' call must be matched with a 'teardownAudioOutput' call.
   ket _ = liftIO teardownAudioOutput
 
-initializeAudioOutput :: Time Duration System
+initializeAudioOutput :: Int
+                      -- ^ Sampling rate
+                      -> Time Duration System
                       -- ^ The audio output stream will have a latency no smaller than this value.
                       -> Maybe (Time Duration System)
                       -- ^ When the 'Just' value, floored to the previous millisecond,
@@ -163,15 +169,16 @@ initializeAudioOutput :: Time Duration System
                       -- to override the Portaudio minimum latency. Use only if you know
                       -- your system can handle that latency, else, use 'Nothing'.
                       -> IO (Either () ())
-initializeAudioOutput a b =
+initializeAudioOutput sampling_rate a b =
   bool (Left ()) (Right ()) <$>
     initializeAudioOutput_
+      sampling_rate
       (realToFrac $ unsafeToSecs a)
       (maybe 0 (fromIntegral . toMicros) b)
 
 -- | Should be called prior to using 'effect***' and 'midi***' functions.
 foreign import ccall "initializeAudioOutput"
-  initializeAudioOutput_ :: Float -> Int -> IO Bool
+  initializeAudioOutput_ :: Int -> Float -> Int -> IO Bool
 
 -- | Undoes what 'initializeAudioOutput' did.
 foreign import ccall "teardownAudioOutput"

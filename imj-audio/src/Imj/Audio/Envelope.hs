@@ -33,6 +33,7 @@ import           Foreign.Storable
 import           GHC.Generics(Generic(..))
 
 import           Imj.Data.AlmostFloat
+import           Imj.Audio.SampleRate
 
 
 data ReleaseMode =
@@ -73,7 +74,19 @@ analyzeAHDSREnvelope :: ReleaseMode
                      -> IO [Vector Double]
 analyzeAHDSREnvelope e (AHDSR'Envelope a h d r ai di ri s) =
   alloca $ \ptrNElems -> alloca $ \ptrSplitAt -> do
-    buf <- analyzeAHDSREnvelope_ (fromIntegral $ fromEnum e) (fromIntegral a) (interpolationToCInt ai) (fromIntegral h) (fromIntegral d) (interpolationToCInt di) (realToFrac s) (fromIntegral r) (interpolationToCInt ri) ptrNElems ptrSplitAt
+    buf <- analyzeAHDSREnvelope_
+            (fromIntegral globalSampleRate)
+            (fromIntegral $ fromEnum e)
+            (fromIntegral a)
+            (interpolationToCInt ai)
+            (fromIntegral h)
+            (fromIntegral d)
+            (interpolationToCInt di)
+            (realToFrac s)
+            (fromIntegral r)
+            (interpolationToCInt ri)
+            ptrNElems
+            ptrSplitAt
     nElems <- fromIntegral <$> peek ptrNElems
     split <- fromIntegral <$> peek ptrSplitAt
     let slices =
@@ -99,7 +112,7 @@ analyzeAHDSREnvelope e (AHDSR'Envelope a h d r ai di ri s) =
       unsafeFreeze uv
 
 foreign import ccall "analyzeAHDSREnvelope_"
-  analyzeAHDSREnvelope_ :: CInt -> CInt -> CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CInt -> Ptr CInt -> Ptr CInt -> IO (Ptr CDouble)
+  analyzeAHDSREnvelope_ :: CInt -> CInt -> CInt -> CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CInt -> Ptr CInt -> Ptr CInt -> IO (Ptr CDouble)
 
 -- https://stackoverflow.com/questions/43372363/releasing-memory-allocated-by-c-runtime-from-haskell
 foreign import ccall "imj_c_free" imj_c_free :: Ptr a -> IO ()

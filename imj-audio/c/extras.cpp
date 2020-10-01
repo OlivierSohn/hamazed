@@ -26,7 +26,7 @@ namespace imajuscule::audio {
         }
     }
   Ctxt & getAudioContext() {
-    static Ctxt c(SAMPLE_RATE);
+    static Ctxt c;
     return c;
   }
 
@@ -40,7 +40,7 @@ namespace imajuscule::audio {
     static constexpr auto n_mnc = VoiceWindImpl::n_channels;
     using mnc_buffer = VoiceWindImpl::MonoNoteChannel::buffer_t;
     static std::array<mnc_buffer, n_mnc> buffers;
-    static VoiceWindImpl v(SAMPLE_RATE, buffers);
+    static VoiceWindImpl v(buffers);
     return v;
   }
 

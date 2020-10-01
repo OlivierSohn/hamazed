@@ -10,7 +10,7 @@
 
 extern "C" {
 
-  bool initializeAudioOutput (float minLatencySeconds, int portaudioMinLatencyMillis);
+  bool initializeAudioOutput (int samplingRate, float minLatencySeconds, int portaudioMinLatencyMillis);
 
   void teardownAudioOutput();
 

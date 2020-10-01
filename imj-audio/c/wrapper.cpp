@@ -43,10 +43,10 @@ namespace imajuscule::audio::audioelement {
 
 
   template<typename Env>
-  double* envelopeGraph(typename Env::Param const & rawEnvParams, int*nElems, int*splitAt) {
+  double* envelopeGraph(int sample_rate, typename Env::Param const & rawEnvParams, int*nElems, int*splitAt) {
     std::vector<double> v;
     int split;
-    std::tie(v, split) = envelopeGraphVec<Env>(rawEnvParams);
+    std::tie(v, split) = envelopeGraphVec<Env>(sample_rate, rawEnvParams);
 #if 0
     // for debugging purposes
     LG(INFO, "writing envelope as .wav file");
@@ -64,13 +64,13 @@ namespace imajuscule::audio::audioelement {
     return static_cast<double*>(c_arr);
   }
 
-  double* analyzeEnvelopeGraph(EnvelopeRelease t, AHDSR p, int* nElems, int*splitAt) {
+  double* analyzeEnvelopeGraph(int sample_rate, EnvelopeRelease t, AHDSR p, int* nElems, int*splitAt) {
     static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
     switch(t) {
       case EnvelopeRelease::ReleaseAfterDecay:
-        return envelopeGraph<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>>(p, nElems, splitAt);
+        return envelopeGraph<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>>(sample_rate, p, nElems, splitAt);
       case EnvelopeRelease::WaitForKeyRelease:
-        return envelopeGraph<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::WaitForKeyRelease>>(p, nElems, splitAt);
+        return envelopeGraph<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::WaitForKeyRelease>>(sample_rate, p, nElems, splitAt);
       default:
         return {};
     }
@@ -148,7 +148,7 @@ extern "C" {
   *
   * @returns true on success, false on error.
   */
-  bool initializeAudioOutput (float minLatencySeconds, int portaudioMinLatencyMillis) {
+  bool initializeAudioOutput (int sampling_rate, float minLatencySeconds, int portaudioMinLatencyMillis) {
 #if IMJ_TRACE_EXTERN_C
     Trace trace("initializeAudioOutput");
     std::cout << minLatencySeconds << " " << portaudioMinLatencyMillis << std::endl;
@@ -206,7 +206,7 @@ extern "C" {
     }
     getNoXfadeChannels() = &noXfadeChan;
 
-    if(!getAudioContext().Init(minLatencySeconds)) {
+    if(!getAudioContext().Init(sampling_rate, minLatencySeconds)) {
       return false;
     }
 
@@ -252,22 +252,25 @@ extern "C" {
     }
 
     if(getAudioContext().Initialized()) {
+      std::optional<int> const sampling_rate = getAudioContext().getSampleRate();
       // This will "quickly" crossfade the audio output channels to zero.
       getAudioContext().onApplicationShouldClose();
 
-      // we sleep whil channels are crossfaded to zero
-
-      int bufferSize = n_audio_cb_frames.load(std::memory_order_relaxed);
-      if(bufferSize == initial_n_audio_cb_frames) {
-        // assume a very big buffer size if the audio callback didn't have a chance
-        // to run yet.
-        bufferSize = 10000;
+      Assert(sampling_rate);
+      if(sampling_rate) {
+      // we sleep while channels are crossfaded to zero
+        int bufferSize = n_audio_cb_frames.load(std::memory_order_relaxed);
+        if(bufferSize == initial_n_audio_cb_frames) {
+          // assume a very big buffer size if the audio callback didn't have a chance
+          // to run yet.
+          bufferSize = 10000;
+        }
+        float latencyTime = bufferSize / static_cast<float>(*sampling_rate);
+        float fadeOutTime = xfade_on_close / static_cast<float>(*sampling_rate);
+        float marginTimeSeconds = 0.020f; // taking into account the time to run the code
+        float waitSeconds = 2*latencyTime + 2*fadeOutTime + marginTimeSeconds;
+        std::this_thread::sleep_for( std::chrono::milliseconds(1 + static_cast<int>(waitSeconds * 1000)));
       }
-      float latencyTime = bufferSize / static_cast<float>(SAMPLE_RATE);
-      float fadeOutTime = xfade_on_close / static_cast<float>(SAMPLE_RATE);
-      float marginTimeSeconds = 0.020f; // taking into account the time to run the code
-      float waitSeconds = 2*latencyTime + 2*fadeOutTime + marginTimeSeconds;
-      std::this_thread::sleep_for( std::chrono::milliseconds(1 + static_cast<int>(waitSeconds * 1000)));
     }
 
     // All channels have crossfaded to 0 by now.
@@ -477,7 +480,7 @@ extern "C" {
                                        n, maybeMts));
   }
 
-  double* analyzeAHDSREnvelope_(imajuscule::audio::audioelement::EnvelopeRelease t, int a, int ai, int h, int d, int di, float s, int r, int ri, int*nElems, int*splitAt) {
+  double* analyzeAHDSREnvelope_(int sample_rate, imajuscule::audio::audioelement::EnvelopeRelease t, int a, int ai, int h, int d, int di, float s, int r, int ri, int*nElems, int*splitAt) {
 #if IMJ_TRACE_EXTERN_C
     Trace trace("analyzeAHDSREnvelope_");
 #endif
@@ -485,7 +488,7 @@ extern "C" {
     using namespace imajuscule::audio;
     using namespace imajuscule::audio::audioelement;
     auto p = AHDSR{a,itp::toItp(ai),h,d,itp::toItp(di),r,itp::toItp(ri),s};
-    return analyzeEnvelopeGraph(t, p, nElems, splitAt);
+    return analyzeEnvelopeGraph(sample_rate, t, p, nElems, splitAt);
   }
 
   bool effectOn(int program, int16_t pitch, float velocity) {
@@ -497,7 +500,9 @@ extern "C" {
       return false;
     }
     auto voicing = Voicing(program,pitch,velocity,0.f,true,0);
-    return convert(playOneThing(getMidi(),windVoice(),getAudioContext().getChannelHandler(),*getNoXfadeChannels(),voicing));
+    std::optional<int> const sample_rate = getAudioContext().getSampleRate();
+    Assert(sample_rate);
+    return convert(playOneThing(*sample_rate,getMidi(),windVoice(),getAudioContext().getChannelHandler(),*getNoXfadeChannels(),voicing));
   }
 
   bool effectOff(int16_t pitch) {
@@ -508,7 +513,9 @@ extern "C" {
     if(unlikely(!getAudioContext().Initialized())) {
       return false;
     }
-    return convert(stopPlaying(windVoice(),getAudioContext().getChannelHandler(),*getNoXfadeChannels(),pitch));
+    std::optional<int> const sample_rate = getAudioContext().getSampleRate();
+    Assert(sample_rate);
+    return convert(stopPlaying(*sample_rate, windVoice(),getAudioContext().getChannelHandler(),*getNoXfadeChannels(),pitch));
   }
 
   bool getConvolutionReverbSignature_(const char * dirPath, const char * filePath, spaceResponse_t * r) {
@@ -539,7 +546,9 @@ extern "C" {
     if(unlikely(!getAudioContext().Initialized())) {
       return false;
     }
-    return useConvolutionReverb(getAudioContext().getChannelHandler().getPost(), dirPath, filePath);
+    Assert(getAudioContext().getSampleRate());
+    return useConvolutionReverb(*getAudioContext().getSampleRate(),
+                                getAudioContext().getChannelHandler().getPost(), dirPath, filePath);
   }
   bool setReverbWetRatio(double wet) {
 #if IMJ_TRACE_EXTERN_C

@@ -1,5 +1,6 @@
-- Resynthesys : create a file format, play from the file
-. First use sine oscillators only
+- Resynthesys :
+. Implement manual frequency control : if at frame i we have f0, and at frame i+1 we have f0+epsilon, use the same oscillator.
+keep a map "initial frequency -> current frequency" to know which oscillator to shutdown when the sound is over (oscillators ar referred to in terms of initial midi pitch)
 . If the frequency varies too rapidly, try sweep instead of a succession of short notes
 . If there are many peaks with high energy close to one another, convert this to noise (snare)
 . analyse volume evolution to deduce the envelope

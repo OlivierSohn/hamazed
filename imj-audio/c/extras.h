@@ -109,11 +109,13 @@ namespace imajuscule::audio {
     struct AudioElementOf {
       using type =
         FinalAudioElement<
-          MultiEnveloped<
+          VolumeAdjusted<
+            MultiEnveloped<
               genericOscillator<O, typename Env::FPT>
             , Env
             >
-          >;
+          >
+        >;
     };
 
     template<OscillatorType O, typename Env>
@@ -261,7 +263,7 @@ namespace imajuscule::audio {
       static void set(ParamsFor<EnvelParamT, HarmonicsArray, Osc> const & p, B & b) {
         b.forEachElems([&p](auto & e) {
           // the order is important, maybe we need a single method.
-          e.algo.setHarmonics(p.har);
+          e.algo.getOsc().setHarmonics(p.har);
           e.algo.editEnvelope().setAHDSR(p.env, SAMPLE_RATE);
         });
       }
@@ -273,10 +275,10 @@ namespace imajuscule::audio {
       static void set(ParamsFor<EnvelParamT, HarmonicsArray, OscillatorType::Sweep> const & p, B & b) {
         b.forEachElems([&p](auto & e) {
           // the order is important, maybe we need a single method.
-          e.algo.setHarmonics(p.har);
+          e.algo.getOsc().setHarmonics(p.har);
           e.algo.editEnvelope().setAHDSR(p.env, SAMPLE_RATE);
           // Side note : for a sweep, MultiEnveloped is overkill because there is a single harmonic.
-          e.algo.forEachHarmonic([&p](auto & h) {
+          e.algo.getOsc().forEachHarmonic([&p](auto & h) {
             h.getAlgo().getCtrl().setup(p.params.sweep.freq_extremity,
                                         freq_to_angle_increment(p.params.sweep.freq),
                                         p.params.sweep.durationSamples,
@@ -344,11 +346,7 @@ namespace imajuscule::audio {
 
     Ctxt & getAudioContext();
 
-    XFadeChans *& getXfadeChannels();
-
-    Event mkNoteOn(int pitch, float velocity);
-
-    Event mkNoteOff(int pitch);
+    NoXFadeChans *& getNoXfadeChannels();
 
     constexpr SynchronizePhase syncPhase(audioelement::OscillatorType o){
       using audioelement::OscillatorType;
@@ -390,13 +388,11 @@ namespace imajuscule::audio {
     , syncPhase(Osc)
     , defaultStartPhase(Osc)
     , audioelement::HasNoteOff<Env>::value
-    , EventIterator<IEventList>
-    , NoteOnEvent
-    , NoteOffEvent>;
+    , EventIterator>;
 
     template<typename T>
     struct withChannels {
-      withChannels(NoXFadeChans & chans) : chans(chans), obj(buffers) {}
+      withChannels(NoXFadeChans & chans) : chans(chans), obj(SAMPLE_RATE, buffers) {}
       ~withChannels() {
         std::lock_guard<std::mutex> l(isUsed); // see 'Using'
       }
@@ -654,7 +650,7 @@ namespace imajuscule::audio {
     }
 
 
-    using VoiceWindImpl = Voice<Ctxt::policy, Ctxt::nAudioOut, audio::SoundEngineMode::WIND, true>;
+    using VoiceWindImpl = Voice<Ctxt::policy, Ctxt::nAudioOut, audioelement::SoundEngineMode::WIND, true>;
 
     VoiceWindImpl & windVoice();
 

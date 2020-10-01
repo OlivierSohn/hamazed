@@ -30,8 +30,8 @@ namespace imajuscule::audio {
     return c;
   }
 
-  XFadeChans *& getXfadeChannels() {
-    static XFadeChans * p = nullptr;
+  NoXFadeChans *& getNoXfadeChannels() {
+    static NoXFadeChans * p = nullptr;
     return p;
   }
 
@@ -40,7 +40,7 @@ namespace imajuscule::audio {
     static constexpr auto n_mnc = VoiceWindImpl::n_channels;
     using mnc_buffer = VoiceWindImpl::MonoNoteChannel::buffer_t;
     static std::array<mnc_buffer, n_mnc> buffers;
-    static VoiceWindImpl v(buffers);
+    static VoiceWindImpl v(SAMPLE_RATE, buffers);
     return v;
   }
 

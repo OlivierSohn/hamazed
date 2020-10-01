@@ -7,6 +7,11 @@
 #ifdef __cplusplus
 
 namespace imajuscule::audio {
+  Midi const & getMidi() {
+    static Midi midi;
+    return midi;
+  }
+
   /*
   * Is equal to:
   *   number of calls to 'initializeAudioOutput' - number of calls to 'teardownAudioOutput'
@@ -187,19 +192,19 @@ extern "C" {
 
     //testFreeList();
 
-    // add a single Xfade channel (for 'SoundEngine' and 'Channel' that don't support envelopes entirely)
+    // add a single NoXfade channel for windVoice
     static constexpr auto n_max_orchestrator_per_channel = 1;
-    auto [xfadeChan, _] = getAudioContext().getChannelHandler().getChannels().getChannelsXFade().emplace_front(
+    auto [noXfadeChan, _] = getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade().emplace_front(
       getAudioContext().getChannelHandler().get_lock_policy(),
       std::numeric_limits<uint8_t>::max(),
       n_max_orchestrator_per_channel);
 
     windVoice().initializeSlow();
-    if(!windVoice().initialize(xfadeChan)) {
+    if(!windVoice().initialize(noXfadeChan)) {
       LG(ERR,"windVoice().initialize failed");
       return false;
     }
-    getXfadeChannels() = &xfadeChan;
+    getNoXfadeChannels() = &noXfadeChan;
 
     if(!getAudioContext().Init(minLatencySeconds)) {
       return false;
@@ -316,7 +321,9 @@ extern "C" {
       return false;
     }
     auto p = AHDSR{a,itp::toItp(ai),h,d,itp::toItp(di),r,itp::toItp(ri),s};
-    auto n = mkNoteOn(pitch,velocity);
+    auto n = mkNoteOn(NoteId{pitch},
+                      getMidi().midi_pitch_to_freq(pitch),
+                      velocity);
     auto maybeMts = (midiSource >= 0) ?
       Optional<MIDITimestampAndSource>{{maybeMIDITime, static_cast<uint64_t>(midiSource)}} :
       Optional<MIDITimestampAndSource>{};
@@ -365,7 +372,9 @@ extern "C" {
       return false;
     }
     auto p = AHDSR{a,itp::toItp(ai),h,d,itp::toItp(di),r,itp::toItp(ri),s};
-    auto n = mkNoteOn(pitch,velocity);
+    auto n = mkNoteOn(NoteId{pitch},
+                      getMidi().midi_pitch_to_freq(pitch),
+                      velocity);
     auto maybeMts = (midiSource >= 0) ?
       Optional<MIDITimestampAndSource>{{maybeMIDITime, static_cast<uint64_t>(midiSource)}} :
       Optional<MIDITimestampAndSource>{};
@@ -407,7 +416,7 @@ extern "C" {
       return false;
     }
     auto p = AHDSR{a,itp::toItp(ai),h,d,itp::toItp(di),r,itp::toItp(ri),s};
-    auto n = mkNoteOff(pitch);
+    auto n = mkNoteOff(NoteId{pitch});
     auto maybeMts = (midiSource >= 0) ?
       Optional<MIDITimestampAndSource>{{maybeMIDITime, static_cast<uint64_t>(midiSource)}} :
       Optional<MIDITimestampAndSource>{};
@@ -455,7 +464,7 @@ extern "C" {
       return false;
     }
     auto p = AHDSR{a,itp::toItp(ai),h,d,itp::toItp(di),r,itp::toItp(ri),s};
-    auto n = mkNoteOff(pitch);
+    auto n = mkNoteOff(NoteId{pitch});
     auto maybeMts = (midiSource >= 0) ?
       Optional<MIDITimestampAndSource>{{maybeMIDITime, static_cast<uint64_t>(midiSource)}} :
       Optional<MIDITimestampAndSource>{};
@@ -488,7 +497,7 @@ extern "C" {
       return false;
     }
     auto voicing = Voicing(program,pitch,velocity,0.f,true,0);
-    return convert(playOneThing(windVoice(),getAudioContext().getChannelHandler(),*getXfadeChannels(),voicing));
+    return convert(playOneThing(getMidi(),windVoice(),getAudioContext().getChannelHandler(),*getNoXfadeChannels(),voicing));
   }
 
   bool effectOff(int16_t pitch) {
@@ -499,7 +508,7 @@ extern "C" {
     if(unlikely(!getAudioContext().Initialized())) {
       return false;
     }
-    return convert(stopPlaying(windVoice(),getAudioContext().getChannelHandler(),*getXfadeChannels(),pitch));
+    return convert(stopPlaying(windVoice(),getAudioContext().getChannelHandler(),*getNoXfadeChannels(),pitch));
   }
 
   bool getConvolutionReverbSignature_(const char * dirPath, const char * filePath, spaceResponse_t * r) {

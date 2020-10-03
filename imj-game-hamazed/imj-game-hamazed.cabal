@@ -56,7 +56,7 @@ library
                      , imj-audio ==0.1.*
                      , imj-base ==0.1.*
                      , imj-game ==0.1.*
-                     , http-client ==0.5.*
+                     , http-client >=0.5 && < 0.7
                      , imj-particlesystem ==0.1.*
                      , imj-prelude ==0.1.*
                      , imj-server ==0.1.*
@@ -66,7 +66,7 @@ library
                      , mwc-random ==0.13.*
                      , mtl >= 2.2.1 && < 2.3
                      , optparse-applicative >=0.14 && < 0.16
-                     , servant-client >=0.13 && < 0.15
+                     , servant-client >=0.13 && < 0.17
                      , strict-concurrency ==0.2.*
                      , terminal-size >= 0.3.2.1 && < 0.4
                      , text >=1.2.3 && < 1.3

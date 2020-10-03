@@ -534,7 +534,8 @@ extern "C" {
     if(unlikely(!getAudioContext().Initialized())) {
       return false;
     }
-    dontUseConvolutionReverbs(getAudioContext().getChannelHandler());
+    dontUseConvolutionReverbs(getAudioContext().getChannelHandler(),
+                              *getAudioContext().getSampleRate());
     return true;
   }
   bool useReverb_(const char * dirPath, const char * filePath) {
@@ -559,8 +560,11 @@ extern "C" {
     if(unlikely(!getAudioContext().Initialized())) {
       return false;
     }
-    getAudioContext().getChannelHandler().enqueueOneShot([wet](auto & chans) {
-      chans.getPost().transitionConvolutionReverbWetRatio(wet);
+    getAudioContext().getChannelHandler().enqueueOneShot(
+        [wet,
+        sample_rate = *getAudioContext().getSampleRate()](auto & chans) {
+      chans.getPost().transitionConvolutionReverbWetRatio(wet,
+                                                          sample_rate);
     });
     return true;
   }

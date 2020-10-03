@@ -263,7 +263,7 @@ namespace imajuscule::audio {
       static void set(int sample_rate, ParamsFor<EnvelParamT, HarmonicsArray, Osc> const & p, B & b) {
         b.forEachElems([&p, sample_rate](auto & e) {
           // the order is important, maybe we need a single method.
-          e.algo.getOsc().setHarmonics(p.har);
+          e.algo.getOsc().setHarmonics(p.har, sample_rate);
           e.algo.editEnvelope().setAHDSR(p.env, sample_rate);
         });
       }
@@ -275,12 +275,12 @@ namespace imajuscule::audio {
       static void set(int sample_rate, ParamsFor<EnvelParamT, HarmonicsArray, OscillatorType::Sweep> const & p, B & b) {
         b.forEachElems([&p, sample_rate](auto & e) {
           // the order is important, maybe we need a single method.
-          e.algo.getOsc().setHarmonics(p.har);
+          e.algo.getOsc().setHarmonics(p.har, sample_rate);
           e.algo.editEnvelope().setAHDSR(p.env, sample_rate);
           // Side note : for a sweep, MultiEnveloped is overkill because there is a single harmonic.
-          e.algo.getOsc().forEachHarmonic([&p](auto & h) {
+          e.algo.getOsc().forEachHarmonic([&p, sample_rate](auto & h) {
             h.getAlgo().getCtrl().setup(p.params.sweep.freq_extremity,
-                                        freq_to_angle_increment(p.params.sweep.freq),
+                                        freq_to_angle_increment(p.params.sweep.freq, sample_rate),
                                         p.params.sweep.durationSamples,
                                         p.params.sweep.interp);
           });

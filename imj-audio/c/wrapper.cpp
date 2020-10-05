@@ -275,11 +275,10 @@ extern "C" {
 
     // All channels have crossfaded to 0 by now.
 
-    windVoice().finalize();
-
-    foreachOscillatorType<FinalizeSynths>();
-
     getAudioContext().TearDown();
+
+    windVoice().finalize(*getNoXfadeChannels());
+    foreachOscillatorType<FinalizeSynths>();
 
     getAudioContext().getChannelHandler().getChannels().getChannelsXFade().clear();
     getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade().clear();

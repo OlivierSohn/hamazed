@@ -407,7 +407,7 @@ namespace imajuscule::audio {
       }
 
       void finalize() {
-        obj.finalize();
+        obj.finalize(chans);
       }
 
       T obj;

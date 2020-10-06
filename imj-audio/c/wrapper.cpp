@@ -193,11 +193,9 @@ extern "C" {
     //testFreeList();
 
     // add a single NoXfade channel for windVoice
-    static constexpr auto n_max_orchestrator_per_channel = 1;
     auto [noXfadeChan, _] = getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade().emplace_front(
       getAudioContext().getChannelHandler().get_lock_policy(),
-      std::numeric_limits<uint8_t>::max(),
-      n_max_orchestrator_per_channel);
+      std::numeric_limits<uint8_t>::max());
 
     windVoice().initializeSlow();
     if(!windVoice().initialize(noXfadeChan)) {
@@ -208,16 +206,6 @@ extern "C" {
 
     if(!getAudioContext().Init(sampling_rate, minLatencySeconds)) {
       return false;
-    }
-
-    {
-      auto & d = midiDelays(); // to allocate the static inside
-      if(d.empty()) {
-        LG(ERR, "empty midi delays");
-      }
-      else if(d[0].get()) {
-        LG(ERR, "wrong midi delays initilization");
-      }
     }
 
     // On macOS 10.13.5, this delay is necessary to be able to play sound,

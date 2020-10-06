@@ -590,11 +590,9 @@ namespace imajuscule::audio {
       }
 
       static auto addNoXfadeChannels(int nVoices) {
-        static constexpr auto n_max_orchestrator_per_channel = 0; // we don't use orchestrators
         return getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade().emplace_front(
           getAudioContext().getChannelHandler().get_lock_policy(),
-          std::min(nVoices, static_cast<int>(std::numeric_limits<uint8_t>::max())),
-          n_max_orchestrator_per_channel);
+          std::min(nVoices, static_cast<int>(std::numeric_limits<uint8_t>::max())));
       }
     };
 

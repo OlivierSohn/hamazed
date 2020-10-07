@@ -124,6 +124,7 @@ library imj-audio-cxx
                      , c/extras.cpp
                      , c/wrapper.cpp
   include-dirs:        c/cpp.algorithms/3rdparty/folly
+                     , c/cpp.algorithms/3rdparty/Sprout
   default-language:    Haskell2010
 
   extra-libraries:     stdc++
@@ -141,7 +142,7 @@ library imj-audio-cxx
       -- This path is valid on OSX 10.13.3, it may require to be adjusted on other versions:
       extra-lib-dirs:    /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A
 
-  cc-options:          -std=c++17 -D_USE_MATH_DEFINES -DFOLLY_NO_CONFIG -O2 -ffast-math
+  cc-options:          -std=c++17 -D_USE_MATH_DEFINES -DFOLLY_NO_CONFIG -O2 -ffast-math -fconstexpr-depth=15000 -fconstexpr-steps=1271241000 -fconstexpr-backtrace-limit=0
   if os(linux)
     cc-options:        -fpermissive
   if os(windows)

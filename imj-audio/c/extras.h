@@ -402,8 +402,8 @@ namespace imajuscule::audio {
       }
 
       template<typename Out>
-      auto onEvent2(int const sample_rate, Event e, Out & out, Optional<MIDITimestampAndSource> maybeMts) {
-        return obj.onEvent2(sample_rate, e, out, chans, maybeMts);
+      auto onEvent(int const sample_rate, Event e, Out & out, Optional<MIDITimestampAndSource> maybeMts) {
+        return obj.onEvent(sample_rate, e, out, chans, maybeMts);
       }
 
       void finalize() {
@@ -610,7 +610,7 @@ namespace imajuscule::audio {
     onEventResult midiEvent(HarmonicsArray const & harmonics, typename Env::Param const & env, Event e, Optional<MIDITimestampAndSource> maybeMts, Args... args) {
       audioelement::ParamsFor<typename Env::Param, HarmonicsArray, Osc> params{harmonics, env, std::forward<Args>(args)...};
       std::optional<int> sr = getAudioContext().getSampleRate();
-      return Synths<Env, Osc>::get(*sr, params).o.onEvent2(*sr, e, getAudioContext().getChannelHandler(), maybeMts);
+      return Synths<Env, Osc>::get(*sr, params).o.onEvent(*sr, e, getAudioContext().getChannelHandler(), maybeMts);
     }
 
     template<typename Env, typename HarmonicsArray>

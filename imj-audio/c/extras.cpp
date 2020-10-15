@@ -26,21 +26,17 @@ namespace imajuscule::audio {
         }
     }
   Ctxt & getAudioContext() {
-    static Ctxt c;
+    constexpr int sz_one_shots = 400; // we need one to start or change or end a note.
+    constexpr int sz_computes = 400; // we need one per synth.
+    static Ctxt c(GlobalAudioLock<audioEnginePolicy>::get(),
+                  sz_one_shots,
+                  sz_computes);
     return c;
-  }
-
-  NoXFadeChans *& getNoXfadeChannels() {
-    static NoXFadeChans * p = nullptr;
-    return p;
   }
 
   VoiceWindImpl & windVoice()
   {
-    static constexpr auto n_mnc = VoiceWindImpl::n_channels;
-    using mnc_buffer = VoiceWindImpl::MonoNoteChannel::buffer_t;
-    static std::array<mnc_buffer, n_mnc> buffers;
-    static VoiceWindImpl v(buffers);
+    static VoiceWindImpl v;
     return v;
   }
 

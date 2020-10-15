@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 
 find_package(PkgConfig REQUIRED)
-# on wondows the name of the package might be 'portaudio' instead
+# on windows the name of the package might be 'portaudio' instead
 pkg_check_modules(PA REQUIRED portaudio-2.0)
 
 

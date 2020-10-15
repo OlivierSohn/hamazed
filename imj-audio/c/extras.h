@@ -108,14 +108,12 @@ namespace imajuscule::audio {
     template<OscillatorType O, typename Env>
     struct AudioElementOf {
       using type =
-        FinalAudioElement<
-          VolumeAdjusted<
-            MultiEnveloped<
-              genericOscillator<O, typename Env::FPT>
-            , Env
-            >
+        VolumeAdjusted<
+          MultiEnveloped<
+            genericOscillator<O, typename Env::FPT>
+          , Env
           >
-        >;
+      >;
     };
 
     template<OscillatorType O, typename Env>
@@ -261,10 +259,10 @@ namespace imajuscule::audio {
     struct SetParam {
       template<typename HarmonicsArray, typename B>
       static void set(int sample_rate, ParamsFor<EnvelParamT, HarmonicsArray, Osc> const & p, B & b) {
-        b.forEachElems([&p, sample_rate](auto & e) {
+        b.forEachElem([&p, sample_rate](auto & e) {
           // the order is important, maybe we need a single method.
-          e.algo.getOsc().setHarmonics(p.har, sample_rate);
-          e.algo.editEnvelope().setAHDSR(p.env, sample_rate);
+          e.getOsc().setHarmonics(p.har, sample_rate);
+          e.editEnvelope().setAHDSR(p.env, sample_rate);
         });
       }
     };
@@ -273,12 +271,12 @@ namespace imajuscule::audio {
     struct SetParam<EnvelParamT, OscillatorType::Sweep> {
       template<typename HarmonicsArray, typename B>
       static void set(int sample_rate, ParamsFor<EnvelParamT, HarmonicsArray, OscillatorType::Sweep> const & p, B & b) {
-        b.forEachElems([&p, sample_rate](auto & e) {
+        b.forEachElem([&p, sample_rate](auto & e) {
           // the order is important, maybe we need a single method.
-          e.algo.getOsc().setHarmonics(p.har, sample_rate);
-          e.algo.editEnvelope().setAHDSR(p.env, sample_rate);
+          e.getOsc().setHarmonics(p.har, sample_rate);
+          e.editEnvelope().setAHDSR(p.env, sample_rate);
           // Side note : for a sweep, MultiEnveloped is overkill because there is a single harmonic.
-          e.algo.getOsc().forEachHarmonic([&p, sample_rate](auto & h) {
+          e.getOsc().forEachHarmonic([&p, sample_rate](auto & h) {
             h.getAlgo().getCtrl().setup(p.params.sweep.freq_extremity,
                                         freq_to_angle_increment(p.params.sweep.freq, sample_rate),
                                         p.params.sweep.durationSamples,
@@ -294,7 +292,8 @@ namespace imajuscule::audio {
     };
 
     template<typename Env>
-    std::pair<std::vector<double>, int> envelopeGraphVec(int sample_rate, typename Env::Param const & envParams) {
+    std::pair<std::vector<double>, int>
+    envelopeGraphVec(int sample_rate, typename Env::Param const & envParams) {
       Env e;
       e.setAHDSR(envParams, sample_rate);
       // emulate a key-press
@@ -331,22 +330,21 @@ namespace imajuscule::audio {
     static constexpr auto audioEnginePolicy = AudioOutPolicy::MasterLockFree;
 #endif
 
-    using AllChans = ChannelsVecAggregate< 2, audioEnginePolicy >;
+    static constexpr int nAudioOut = 2;
 
-    using NoXFadeChans = typename AllChans::NoXFadeChans;
-    using XFadeChans = typename AllChans::XFadeChans;
+    using Stepper = SimpleAudioOutContext<
+    nAudioOut,
+    audioEnginePolicy,
+    AudioPostPolicyImpl<nAudioOut, ReverbType::Realtime_Synchronous, audioEnginePolicy>
+    >;
 
-    using ChannelHandler = outputDataBase< AllChans, ReverbType::Realtime_Synchronous >;
-
-    using Ctxt = AudioOutContext<
-      ChannelHandler,
+    using Ctxt = Context<
+      AudioPlatform::PortAudio,
       Features::JustOut,
-      AudioPlatform::PortAudio
-      >;
+      Stepper
+    >;
 
     Ctxt & getAudioContext();
-
-    NoXFadeChans *& getNoXfadeChannels();
 
     constexpr SynchronizePhase syncPhase(audioelement::OscillatorType o){
       using audioelement::OscillatorType;
@@ -381,8 +379,8 @@ namespace imajuscule::audio {
 
     template <typename Env, audioelement::OscillatorType Osc>
     using synthOf = sine::Synth < // the name of the namespace is misleading : it can handle all kinds of oscillators
-      Ctxt::policy
-    , Ctxt::nAudioOut
+      audioEnginePolicy
+    , nAudioOut
     , XfadePolicy::SkipXfade
     , audioelement::audioElementOf<Osc, Env>
     , syncPhase(Osc)
@@ -392,31 +390,67 @@ namespace imajuscule::audio {
 
     template<typename T>
     struct withChannels {
-      withChannels(NoXFadeChans & chans)
-      : chans(chans)
-      , obj(buffers)
+      withChannels()
+      : noteids(150) // max number of simultaneously played pitches on a single synth
       {}
 
       ~withChannels() {
         std::lock_guard<std::mutex> l(isUsed); // see 'Using'
       }
 
-      template<typename Out>
-      auto onEvent(int const sample_rate, Event e, Out & out, Optional<MIDITimestampAndSource> maybeMts) {
-        return obj.onEvent(sample_rate, e, out, chans, maybeMts);
+      auto onEvent(int const sample_rate, Event e, Optional<MIDITimestampAndSource> const & maybeMts) {
+        return obj.onEvent(sample_rate,
+                           e,
+                           getAudioContext().getStepper(),
+                           getAudioContext().getStepper(),
+                           maybeMts);
       }
 
-      void finalize() {
-        obj.finalize(chans);
+      void convertNoteId(Event & e) {
+        int const pitch = e.noteid.noteid;
+        auto it = noteids.find(pitch);
+        switch(e.type) {
+          case EventType::NoteOn:
+          {
+            next.noteid++;
+            if (it == noteids.end()) {
+              noteids.emplace(pitch, next);
+            } else {
+              it->second = next;
+            }
+            e.noteid = next;
+            break;
+          }
+          case EventType::NoteChange:
+          {
+            if (it == noteids.end()) {
+              Assert(0); // a notechange must be preceeded by noteon, and must be before noteoff
+              e.noteid.noteid = -pitch;
+            } else {
+              e.noteid = it->second;
+            }
+            break;
+          }
+          case EventType::NoteOff:
+          {
+            if (it == noteids.end()) {
+              Assert(0); // a noteoff must be preceeded by noteon
+              e.noteid.noteid = -pitch;
+            } else {
+              e.noteid = it->second;
+              noteids.erase(it);
+            }
+            break;
+          }
+        }
       }
 
       T obj;
-      NoXFadeChans & chans;
       std::mutex isUsed;
-
-      static constexpr auto n_mnc = T::n_channels;
-      using mnc_buffer = typename T::MonoNoteChannel::buffer_t;
-      std::array<mnc_buffer,n_mnc> buffers;
+    private:
+      NoteId next{};
+      // for the same pitch, noteon triggers a new noteid, notechange reuses the current noteid for that pitch, noteoff clears that noteid
+      std::unordered_map<int/*pitch*/,NoteId> noteids;
     };
 
     // a 'Using' instance gives the guarantee that the object 'o' passed to its constructor
@@ -500,16 +534,12 @@ namespace imajuscule::audio {
         if(auto * p = recycleInstrument(sample_rate, synths, params, summary)) {
           return Using(std::move(l), *p);
         }
-        auto [c,remover] = addNoXfadeChannels(T::n_channels);
-        auto p = std::make_unique<withChannels<T>>(c);
+        auto p = std::make_unique<withChannels<T>>();
         SetParam<EnvelParamT, Osc>::set(sample_rate, params, p->obj);
-        if(!p->obj.initialize(p->chans)) {
+        if(!p->obj.initialize(getAudioContext().getStepper())) {
           auto oneSynth = synths.begin();
           if(oneSynth != synths.end()) {
             LG(ERR, "a preexisting synth is returned");
-            // The channels have the same lifecycle as the instrument, the instrument will be destroyed
-            //  so we remove the associated channels:
-            remover.flagForRemoval();
             return Using(std::move(l), *(oneSynth->second.get()));
           }
           LG(ERR, "an uninitialized synth is returned");
@@ -522,7 +552,7 @@ namespace imajuscule::audio {
       static void finalize() {
         std::lock_guard<std::mutex> l(map_mutex());
         for(auto & s : map()) {
-          s.second->finalize();
+          s.second->obj.finalize(getAudioContext().getStepper());
         }
         map().clear();
       }
@@ -553,17 +583,12 @@ namespace imajuscule::audio {
           }
           auto & o = *i;
           if(auto scoped = tryScopedLock(o.isUsed)) {
-            // we don't take the audio lock because 'hasRealtimeFunctions' relies on an
-            // atomically incremented / decremented counter.
-            if(o.chans.hasRealtimeFunctions()) {
+            if(!o.obj.allEnvelopesFinished()) {
               continue;
             }
 
-            // We can assume that all enveloppes are finished : should one
-            // not be finished, it would not have a chance to ever finish
-            // because there is 0 real-time std::function (oneShots/orchestrator/compute),
-            // and no note is being started, because the map mutex has been taken.
-            Assert(o.obj.areEnvelopesFinished() && "inconsistent envelopes");
+            // All enveloppes are finished, and the map mutex has been taken
+            // so no note is being started
 
             /*
             auto node = synths.extract(it);
@@ -588,19 +613,13 @@ namespace imajuscule::audio {
         }
         return nullptr;
       }
-
-      static auto addNoXfadeChannels(int nVoices) {
-        return getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade().emplace_front(
-          getAudioContext().getChannelHandler().get_lock_policy(),
-          std::min(nVoices, static_cast<int>(std::numeric_limits<uint8_t>::max())));
-      }
     };
 
     template<audioelement::OscillatorType O>
     struct FinalizeSynths {
       void operator ()() {
         using namespace audioelement;
-        static constexpr auto A = getAtomicity<audio::Ctxt::policy>();
+        static constexpr auto A = getAtomicity<audioEnginePolicy>();
         Synths<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::WaitForKeyRelease>, O>::finalize();
         Synths<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>, O>::finalize();
       }
@@ -610,7 +629,10 @@ namespace imajuscule::audio {
     onEventResult midiEvent(HarmonicsArray const & harmonics, typename Env::Param const & env, Event e, Optional<MIDITimestampAndSource> maybeMts, Args... args) {
       audioelement::ParamsFor<typename Env::Param, HarmonicsArray, Osc> params{harmonics, env, std::forward<Args>(args)...};
       std::optional<int> sr = getAudioContext().getSampleRate();
-      return Synths<Env, Osc>::get(*sr, params).o.onEvent(*sr, e, getAudioContext().getChannelHandler(), maybeMts);
+      auto using_synth = Synths<Env, Osc>::get(*sr, params);
+      // note id in 'e' is the pitch. we need to convert it:
+      using_synth.o.convertNoteId(e);
+      return using_synth.o.onEvent(*sr, e, maybeMts);
     }
 
     template<typename Env, typename HarmonicsArray>
@@ -653,7 +675,7 @@ namespace imajuscule::audio {
     }
 
 
-    using VoiceWindImpl = Voice<Ctxt::policy, Ctxt::nAudioOut, audioelement::SoundEngineMode::WIND, true>;
+    using VoiceWindImpl = Voice<audioEnginePolicy, Ctxt::nAudioOut, audioelement::SoundEngineMode::WIND, true>;
 
     VoiceWindImpl & windVoice();
 

@@ -84,10 +84,10 @@ namespace imajuscule::audio {
       using type =
         std::conditional_t<
           O == OscillatorType::SinusLoudnessVolumeAdjusted,
-            LoudnessVolumeAdjusted< OscillatorAlgo< FPT, eNormalizePolicy::FAST > >,
+            LoudnessVolumeAdjusted< SineOscillatorAlgo< FPT, eNormalizePolicy::FAST > >,
             std::conditional_t<
               O == OscillatorType::Sinus,
-                OscillatorAlgo< FPT, eNormalizePolicy::FAST >,
+                SineOscillatorAlgo< FPT, eNormalizePolicy::FAST >,
                 std::conditional_t<
                   O == OscillatorType::Noise,
                     PinkNoiseAlgo,

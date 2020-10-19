@@ -94,7 +94,7 @@ namespace imajuscule::audio {
                     std::conditional_t<
                       O == OscillatorType::Sweep,
                         FreqSingleRampAlgo< FPT >,
-                        FOscillatorAlgo< FPT, ToFOsc<O>::convert >
+                        FOscillatorAlgo< FPT, ToFOsc<O>::convert, OscillatorUsage::Raw >
                     >
                 >
             >

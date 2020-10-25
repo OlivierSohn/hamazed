@@ -391,7 +391,7 @@ namespace imajuscule::audio {
     template<typename T>
     struct withChannels {
       withChannels()
-      : noteids(150) // max number of simultaneously played pitches on a single synth
+      : gen(150) // max number of simultaneously played pitches on a single synth
       {}
 
       ~withChannels() {
@@ -407,50 +407,13 @@ namespace imajuscule::audio {
       }
 
       void convertNoteId(Event & e) {
-        int const pitch = e.noteid.noteid;
-        auto it = noteids.find(pitch);
-        switch(e.type) {
-          case EventType::NoteOn:
-          {
-            next.noteid++;
-            if (it == noteids.end()) {
-              noteids.emplace(pitch, next);
-            } else {
-              it->second = next;
-            }
-            e.noteid = next;
-            break;
-          }
-          case EventType::NoteChange:
-          {
-            if (it == noteids.end()) {
-              Assert(0); // a notechange must be preceeded by noteon, and must be before noteoff
-              e.noteid.noteid = -pitch;
-            } else {
-              e.noteid = it->second;
-            }
-            break;
-          }
-          case EventType::NoteOff:
-          {
-            if (it == noteids.end()) {
-              Assert(0); // a noteoff must be preceeded by noteon
-              e.noteid.noteid = -pitch;
-            } else {
-              e.noteid = it->second;
-              noteids.erase(it);
-            }
-            break;
-          }
-        }
+        return convertKeyToNoteId(gen, e);
       }
 
       T obj;
       std::mutex isUsed;
     private:
-      NoteId next{};
-      // for the same pitch, noteon triggers a new noteid, notechange reuses the current noteid for that pitch, noteoff clears that noteid
-      std::unordered_map<int/*pitch*/,NoteId> noteids;
+      NoteIdsGenerator gen;
     };
 
     // a 'Using' instance gives the guarantee that the object 'o' passed to its constructor

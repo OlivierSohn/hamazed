@@ -119,9 +119,6 @@ namespace imajuscule::audio {
     template<OscillatorType O, typename Env>
     using audioElementOf = typename AudioElementOf<O, Env>::type;
 
-    template<typename Envelope>
-    struct HasNoteOff;
-
     struct SweepSetup {
       int durationSamples;
       float freq;
@@ -261,8 +258,8 @@ namespace imajuscule::audio {
       static void set(int sample_rate, ParamsFor<EnvelParamT, HarmonicsArray, Osc> const & p, B & b) {
         b.forEachElem([&p, sample_rate](auto & e) {
           // the order is important, maybe we need a single method.
-          e.getOsc().setHarmonics(p.har, sample_rate);
-          e.editEnvelope().setAHDSR(p.env, sample_rate);
+          e.elem.getOsc().setHarmonics(p.har, sample_rate);
+          e.elem.editEnvelope().setAHDSR(p.env, sample_rate);
         });
       }
     };
@@ -273,10 +270,10 @@ namespace imajuscule::audio {
       static void set(int sample_rate, ParamsFor<EnvelParamT, HarmonicsArray, OscillatorType::Sweep> const & p, B & b) {
         b.forEachElem([&p, sample_rate](auto & e) {
           // the order is important, maybe we need a single method.
-          e.getOsc().setHarmonics(p.har, sample_rate);
-          e.editEnvelope().setAHDSR(p.env, sample_rate);
+          e.elem.getOsc().setHarmonics(p.har, sample_rate);
+          e.elem.editEnvelope().setAHDSR(p.env, sample_rate);
           // Side note : for a sweep, MultiEnveloped is overkill because there is a single harmonic.
-          e.getOsc().forEachHarmonic([&p, sample_rate](auto & h) {
+          e.elem.getOsc().forEachHarmonic([&p, sample_rate](auto & h) {
             h.getAlgo().getCtrl().setup(p.params.sweep.freq_extremity,
                                         freq_to_angle_increment(p.params.sweep.freq, sample_rate),
                                         p.params.sweep.durationSamples,
@@ -284,11 +281,6 @@ namespace imajuscule::audio {
           });
         });
       }
-    };
-
-    template<Atomicity A, typename T, EnvelopeRelease Rel>
-    struct HasNoteOff<AHDSREnvelope<A, T, Rel>> {
-      static constexpr bool value = Rel == EnvelopeRelease::WaitForKeyRelease;
     };
 
     template<typename Env>
@@ -379,14 +371,12 @@ namespace imajuscule::audio {
 
     template <typename Env, audioelement::OscillatorType Osc>
     using synthOf = sine::Synth < // the name of the namespace is misleading : it can handle all kinds of oscillators
-      audioEnginePolicy
-    , nAudioOut
-    , XfadePolicy::SkipXfade
+    nAudioOut
     , audioelement::audioElementOf<Osc, Env>
     , syncPhase(Osc)
     , defaultStartPhase(Osc)
-    , audioelement::HasNoteOff<Env>::value
-    , EventIterator>;
+    , HandleNoteOff::Yes
+    >;
 
     template<typename T>
     struct withChannels {
@@ -638,7 +628,7 @@ namespace imajuscule::audio {
     }
 
 
-    using VoiceWindImpl = Voice<audioEnginePolicy, Ctxt::nAudioOut, audioelement::SoundEngineMode::WIND, true>;
+    using VoiceWindImpl = Voice<audioEnginePolicy, Ctxt::nAudioOut, audioelement::SoundEngineMode::WIND, HandleNoteOff::Yes>;
 
     VoiceWindImpl & windVoice();
 

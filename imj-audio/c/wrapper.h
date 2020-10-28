@@ -49,6 +49,6 @@ extern "C" {
   bool effectOff(int16_t pitch);
   bool getConvolutionReverbSignature_(const char * dirPath, const char * filePath, spaceResponse_t * r);
   bool dontUseReverb_();
-  bool useReverb_(const char * dirPath, const char * filePath);
+  bool useReverb_(const char * dirPath, const char * filePath, double wet);
   bool setReverbWetRatio(double wet);
 }

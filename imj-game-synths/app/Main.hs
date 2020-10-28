@@ -1251,12 +1251,12 @@ instance GameLogic SynthsGame where
                             newVecIdx
         putIGame $ g { reverbs = rvbs { curRev = mayNewIndex} }
         maybe
-          (liftIO (useReverb Nothing) >>= either (const $ liftIO $ putStrLn "error while unsetting reverb (see logs above)") return)
+          (liftIO (useReverb (realToFrac wet) Nothing) >>= either (const $ liftIO $ putStrLn "error while unsetting reverb (see logs above)") return)
           (\newIdx -> when (mayCurIndex /= Just newIdx) $ do
               let (revPath, _) = Map.elemAt newIdx revs
                   (a,b) = splitFileName $ cpref ++ revPath
               liftIO $
-                useReverb (Just (a,b)) >>= either
+                useReverb (realToFrac wet) (Just (a,b)) >>= either
                   (const $ liftIO $ putStrLn "error while setting reverb (see logs above)")
                   return)
           mayNewIndex

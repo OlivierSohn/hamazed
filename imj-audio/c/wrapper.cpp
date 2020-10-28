@@ -164,12 +164,12 @@ extern "C" {
     {
       if( countUsers() > 1) {
         // We are ** not ** the first user.
-        return getAudioContext().isInitialized();
+        return getAudioContext().Initialized();
       }
       else if(countUsers() <= 0) {
         LG(ERR, "initializeAudioOutput: nUsers = %d", countUsers());
         Assert(0);
-        return getAudioContext().isInitialized();
+        return getAudioContext().Initialized();
       }
     }
 
@@ -190,17 +190,46 @@ extern "C" {
 
     disableDenormals();
 
-    //testFreeList();
-
-    if(!getAudioContext().doInit(minLatencySeconds, sampling_rate)) {
+    if(!getAudioContext().doInit(minLatencySeconds,
+                                 sampling_rate,
+                                 nAudioOut,
+                                 [nanos_per_audioelement_buffer =
+                                    static_cast<uint64_t>(0.5f +
+                                                          audio::nanos_per_frame<float>(sampling_rate) *
+                                                          static_cast<float>(audio::audioelement::n_frames_per_buffer))]
+                     (SAMPLE *outputBuffer,
+                      int nFrames,
+                      uint64_t const tNanos){
+      getStepper().step(outputBuffer,
+                        nFrames,
+                        tNanos,
+                        nanos_per_audioelement_buffer);
+    })) {
       return false;
     }
 
     windVoice().initializeSlow();
-    if(!windVoice().initialize(getAudioContext().getStepper())) {
+    if(!windVoice().initialize(getStepper())) {
       LG(ERR,"windVoice().initialize failed");
       return false;
     }
+
+    getStepper().getPost().set_post_processors({
+      {
+        [](double * buf, int const nFrames, int const blockSize) {
+          getReverb().post_process(buf, nFrames, blockSize);
+        }
+      },
+      {
+        [](double * buf, int const nFrames, int const blockSize) {
+          for (int i=0; i<nFrames; ++i) {
+            CArray<nAudioOut, double> a{buf + i*nAudioOut};
+            getLimiter().feedOneFrame(a);
+          }
+          // by now, the signal is compressed and limited...
+        }
+      }
+    });
 
     // On macOS 10.13.5, this delay is necessary to be able to play sound,
     //   it might be a bug in portaudio where Pa_StartStream doesn't wait for the
@@ -233,8 +262,8 @@ extern "C" {
       return;
     }
 
-    if(getAudioContext().isInitialized()) {
-      windVoice().finalize(getAudioContext().getStepper());
+    if(getAudioContext().Initialized()) {
+      windVoice().finalize(getStepper());
       foreachOscillatorType<FinalizeSynths>();
 
       getAudioContext().doTearDown();
@@ -276,7 +305,7 @@ extern "C" {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audio::audioelement;
-    if(unlikely(!getAudioContext().isInitialized())) {
+    if(unlikely(!getAudioContext().Initialized())) {
       return false;
     }
     auto p = AHDSR{a,itp::toItp(ai),h,d,itp::toItp(di),r,itp::toItp(ri),s};
@@ -327,7 +356,7 @@ extern "C" {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audio::audioelement;
-    if(unlikely(!getAudioContext().isInitialized())) {
+    if(unlikely(!getAudioContext().Initialized())) {
       return false;
     }
     auto p = AHDSR{a,itp::toItp(ai),h,d,itp::toItp(di),r,itp::toItp(ri),s};
@@ -371,7 +400,7 @@ extern "C" {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audio::audioelement;
-    if(unlikely(!getAudioContext().isInitialized())) {
+    if(unlikely(!getAudioContext().Initialized())) {
       return false;
     }
     auto p = AHDSR{a,itp::toItp(ai),h,d,itp::toItp(di),r,itp::toItp(ri),s};
@@ -419,7 +448,7 @@ extern "C" {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audio::audioelement;
-    if(unlikely(!getAudioContext().isInitialized())) {
+    if(unlikely(!getAudioContext().Initialized())) {
       return false;
     }
     auto p = AHDSR{a,itp::toItp(ai),h,d,itp::toItp(di),r,itp::toItp(ri),s};
@@ -452,11 +481,11 @@ extern "C" {
     Trace trace("effectOn");
 #endif
     using namespace imajuscule::audio;
-    if(unlikely(!getAudioContext().isInitialized())) {
+    if(unlikely(!getAudioContext().Initialized())) {
       return false;
     }
     auto voicing = Voicing(program,pitch,velocity,0.f,true,0);
-    return convert(playOneThing(getAudioContext().getSampleRate(),getMidi(),windVoice(),getAudioContext().getStepper(),voicing));
+    return convert(playOneThing(getAudioContext().getSampleRate(),getMidi(),windVoice(),getStepper(),voicing));
   }
 
   bool effectOff(int16_t pitch) {
@@ -464,10 +493,10 @@ extern "C" {
     Trace trace("effectOff");
 #endif
     using namespace imajuscule::audio;
-    if(unlikely(!getAudioContext().isInitialized())) {
+    if(unlikely(!getAudioContext().Initialized())) {
       return false;
     }
-    return convert(stopPlaying(getAudioContext().getSampleRate(), windVoice(),getAudioContext().getStepper(),pitch));
+    return convert(stopPlaying(getAudioContext().getSampleRate(), windVoice(),getStepper(),pitch));
   }
 
   bool getConvolutionReverbSignature_(const char * dirPath, const char * filePath, spaceResponse_t * r) {
@@ -483,39 +512,104 @@ extern "C" {
     Trace trace("dontUseReverb_");
 #endif
     using namespace imajuscule::audio;
-    if(unlikely(!getAudioContext().isInitialized())) {
+    using imajuscule::StopProcessingResult;
+    if(unlikely(!getAudioContext().Initialized())) {
       return false;
     }
-    dontUseConvolutionReverbs(getAudioContext().getStepper(),
-                              getAudioContext().getSampleRate());
+    if (getReverb().is_processing())
+    {
+      bool sent_fadeout = false;
+      std::atomic<StopProcessingResult> res;
+      bool go_on = true;
+      do {
+        res = StopProcessingResult::Undefined;
+        getStepper().enqueueOneShot(
+            [&res](auto & chans, uint64_t) {
+          res = getReverb().try_stop_processing();
+        });
+        while(res == StopProcessingResult::Undefined) {
+          std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        switch(res) {
+          case StopProcessingResult::Undefined:
+            throw std::logic_error("impossible");
+            break;
+          case StopProcessingResult::StillFadingOut:
+            if (!sent_fadeout) {
+              sent_fadeout = true;
+              std::atomic_bool called = false;
+              getStepper().enqueueOneShot(
+                  [&called,
+                   sample_rate = getAudioContext().getSampleRate()](auto & chans, uint64_t) {
+                getReverb().transitionConvolutionReverbWetRatio(0.,
+                                                                sample_rate);
+                called = true;
+              });
+              while(!called) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+              }
+            }
+            break;
+          case StopProcessingResult::AlreadyStopped:
+          case StopProcessingResult::Stopped:
+            go_on = false;
+            break;
+        }
+      } while (go_on);
+    }
+    // By now, we are sure that the audio thread will not use the reverb,
+    // so we can deallocate it:
+    getReverb().dont_use();
     return true;
   }
-  bool useReverb_(const char * dirPath, const char * filePath) {
+
+  bool useReverb_(const char * dirPath, const char * filePath, double wet) {
 #if IMJ_TRACE_EXTERN_C
     Trace trace("useReverb_");
     std::cout << dirPath << " " << filePath << std::endl;
 #endif
     using namespace imajuscule::audio;
-    if(unlikely(!getAudioContext().isInitialized())) {
+
+    // stop reverb post processing
+    dontUseReverb_();
+
+    if(unlikely(!getAudioContext().Initialized())) {
       return false;
     }
-    return useConvolutionReverb(getAudioContext().getSampleRate(),
-                                getAudioContext().getStepper().getPost(), dirPath, filePath);
+    if (!useConvolutionReverb(getAudioContext().getSampleRate(),
+                              getReverb(), dirPath, filePath)) {
+      return false;
+    }
+    std::atomic_bool done = false;
+    getStepper().enqueueOneShot(
+        [wet,
+         &done,
+         sample_rate = getAudioContext().getSampleRate()](auto & chans, uint64_t) {
+      getReverb().start_processing();
+      getReverb().transitionConvolutionReverbWetRatio(wet,
+                                                      sample_rate);
+      done = true;
+    });
+    while(!done) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return true;
   }
+
   bool setReverbWetRatio(double wet) {
 #if IMJ_TRACE_EXTERN_C
     Trace trace("setReverbWetRatio");
     std::cout << wet << std::endl;
 #endif
     using namespace imajuscule::audio;
-    if(unlikely(!getAudioContext().isInitialized())) {
+    if(unlikely(!getAudioContext().Initialized())) {
       return false;
     }
-    getAudioContext().getStepper().enqueueOneShot(
+    getStepper().enqueueOneShot(
         [wet,
         sample_rate = getAudioContext().getSampleRate()](auto & chans, uint64_t) {
-      chans.getPost().transitionConvolutionReverbWetRatio(wet,
-                                                          sample_rate);
+      getReverb().transitionConvolutionReverbWetRatio(wet,
+                                                      sample_rate);
     });
     return true;
   }

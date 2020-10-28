@@ -339,14 +339,14 @@ getReverbInfo dirName fileName =
       (Just <$> peek p)
 
 foreign import ccall "dontUseReverb_" dontUseReverb_ :: IO Bool
-foreign import ccall "useReverb_" useReverb_ :: CString -> CString -> IO Bool
-useReverb :: Maybe (String, String) -> IO (Either () ())
-useReverb =
+foreign import ccall "useReverb_" useReverb_ :: CString -> CString -> CDouble -> IO Bool
+useReverb :: Double -> Maybe (String, String) -> IO (Either () ())
+useReverb wet =
   fmap (bool (Left ()) (Right ())) .
     maybe
       dontUseReverb_
       (\(dirName, fileName) ->
-        withCString dirName $ \d -> withCString fileName $ \f -> useReverb_ d f)
+        withCString dirName $ \d -> withCString fileName $ \f -> useReverb_ d f (realToFrac wet))
 
 foreign import ccall "setReverbWetRatio" setReverbWetRatio_ :: CDouble -> IO Bool
 setReverbWetRatio :: Double -> IO (Either () ())

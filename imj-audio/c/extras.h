@@ -326,17 +326,22 @@ namespace imajuscule::audio {
 
     using Stepper = SimpleAudioOutContext<
     nAudioOut,
-    audioEnginePolicy,
-    AudioPostPolicyImpl<nAudioOut, ReverbType::Realtime_Synchronous, audioEnginePolicy>
+    audioEnginePolicy
     >;
+
+    Stepper & getStepper();
 
     using Ctxt = Context<
       AudioPlatform::PortAudio,
-      Features::JustOut,
-      Stepper
+      Features::JustOut
     >;
 
     Ctxt & getAudioContext();
+
+    using Reverb = ReverbPost<ReverbType::Realtime_Synchronous, nAudioOut, nAudioOut>;
+    Reverb & getReverb();
+
+    Limiter<double> & getLimiter();
 
     constexpr SynchronizePhase syncPhase(audioelement::OscillatorType o){
       using audioelement::OscillatorType;
@@ -391,8 +396,8 @@ namespace imajuscule::audio {
       auto onEvent(int const sample_rate, Event e, Optional<MIDITimestampAndSource> const & maybeMts) {
         return obj.onEvent(sample_rate,
                            e,
-                           getAudioContext().getStepper(),
-                           getAudioContext().getStepper(),
+                           getStepper(),
+                           getStepper(),
                            maybeMts);
       }
 
@@ -489,7 +494,7 @@ namespace imajuscule::audio {
         }
         auto p = std::make_unique<withChannels<T>>();
         SetParam<EnvelParamT, Osc>::set(sample_rate, params, p->obj);
-        if(!p->obj.initialize(getAudioContext().getStepper())) {
+        if(!p->obj.initialize(getStepper())) {
           auto oneSynth = synths.begin();
           if(oneSynth != synths.end()) {
             LG(ERR, "a preexisting synth is returned");
@@ -505,7 +510,7 @@ namespace imajuscule::audio {
       static void finalize() {
         std::lock_guard<std::mutex> l(map_mutex());
         for(auto & s : map()) {
-          s.second->obj.finalize(getAudioContext().getStepper());
+          s.second->obj.finalize(getStepper());
         }
         map().clear();
       }
@@ -628,7 +633,7 @@ namespace imajuscule::audio {
     }
 
 
-    using VoiceWindImpl = Voice<audioEnginePolicy, Ctxt::nAudioOut, audioelement::SoundEngineMode::WIND, HandleNoteOff::Yes>;
+    using VoiceWindImpl = Voice<audioEnginePolicy, nAudioOut, audioelement::SoundEngineMode::WIND, HandleNoteOff::Yes>;
 
     VoiceWindImpl & windVoice();
 

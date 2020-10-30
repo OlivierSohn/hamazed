@@ -125,6 +125,7 @@ library imj-audio-cxx
                      , c/wrapper.cpp
   include-dirs:        c/cpp.algorithms/3rdparty/folly
                      , c/cpp.algorithms/3rdparty/Sprout
+                     , c/cpp.algorithms/3rdparty/json/include
   default-language:    Haskell2010
 
   extra-libraries:     stdc++

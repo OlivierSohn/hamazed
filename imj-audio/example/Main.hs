@@ -9,6 +9,7 @@ import           Control.Concurrent(threadDelay)
 import           Control.Monad(void)
 
 import           Imj.Audio
+import           Imj.Music.Random(pickRandom)
 import           Imj.Music.Compositions.Me
 import           Imj.Music.Compositions.Tech
 import           Imj.Music.Compositions.Tchaikovski
@@ -34,9 +35,17 @@ main = void $ usingAudioOutput -- WithMinLatency 0
 
   -- play a short snare note to initialize pink node
   putStrLn "play short & low snare note to initialize pink Noise"
-
   _ <- playShortLowNote meSnare
-
+  putStrLn "playing random score"
+  randInstructions1 <- pickRandom countInstructions allowedInstructions1
+  randInstructions2 <- pickRandom countInstructions allowedInstructions2
+  -- TODO panning : add panning info in the instrument, use StereoPanned<audioElt>
+  playVoicesAtTempo 440.0 simpleInstrument
+    (
+    ((take (countLoops * countInstructions) $ cycle randInstructions1) ++ [Rest]) :
+    ((take (countLoops * countInstructions) $ cycle randInstructions2) ++ [Rest]) :
+    [])
+    >>= print
   putStrLn "playing me"
   uncurry (playScoreAtTempo 100) (meScore $ Just 10.0) >>= print
   threadDelay 10000
@@ -55,7 +64,12 @@ main = void $ usingAudioOutput -- WithMinLatency 0
   putStrLn "playing tchaikovski swan lake"
   uncurry (flip playVoicesAtTempo simpleInstrument) tchaikovskiSwanLake >>= print
   threadDelay 10000
-
+ where
+  countLoops = 16
+  countInstructions = 16
+  allowedNotes = map (uncurry Note . midiPitchToNoteAndOctave) [60..80]
+  allowedInstructions2 = allowedNotes ++ [Rest, Extend]
+  allowedInstructions1 = allowedNotes ++ [Rest]
 
 stressTest :: IO PlayResult
 stressTest = playVoicesAtTempo 10000 simpleInstrument $ map (take 1000 . cycle) [voices|

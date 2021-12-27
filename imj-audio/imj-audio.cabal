@@ -186,6 +186,7 @@ library
                      , Imj.Music.Instrument
                      , Imj.Music.Midi
                      , Imj.Music.Play
+                     , Imj.Music.Random
                      , Imj.Music.Score
 -- To build the haddock doc, first remove 'imj-audio-cxx' from build-depends
 -- to circumvent https://github.com/haskell/cabal/issues/4215
@@ -198,6 +199,7 @@ library
                      , imj-prelude ==0.1.*
                      , imj-time ==0.1.*
                      , midi ==0.2.*
+                     , mwc-random ==0.13.*
                      , non-negative == 0.1.*
                      , parsec ==3.1.*
                      , template-haskell >=2.12 && < 2.16

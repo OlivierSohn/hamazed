@@ -14,6 +14,12 @@ import           Imj.Music.Compositions.Tech
 import           Imj.Music.Compositions.Tchaikovski
 import           Imj.Music.Compositions.Vivaldi
 
+playShortLowNote :: Instrument -> IO (Either () ())
+playShortLowNote instrument = do
+  _ <- play $
+    StartNote Nothing (InstrumentNote Do (Octave 6) instrument) (NoteVelocity 0.01)
+  play $
+    StopNote Nothing (InstrumentNote Do (Octave 6) instrument)
 
 main :: IO ()
 main = void $ usingAudioOutput -- WithMinLatency 0
@@ -25,6 +31,12 @@ main = void $ usingAudioOutput -- WithMinLatency 0
   _ <- stressTest
   threadDelay 10000
   --}
+
+  -- play a short snare note to initialize pink node
+  putStrLn "play short & low snare note to initialize pink Noise"
+
+  _ <- playShortLowNote meSnare
+
   putStrLn "playing me"
   uncurry (playScoreAtTempo 100) (meScore $ Just 10.0) >>= print
   threadDelay 10000

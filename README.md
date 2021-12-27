@@ -22,7 +22,6 @@
 # What is it?
 
 Monorepo for a Haskell multi-player game engine and games made with it.
-[![Build Status](https://travis-ci.org/OlivierSohn/hamazed.svg?branch=master)](https://travis-ci.org/OlivierSohn/hamazed)
 
 The games can be played locally, in single-player mode, or in multi-player mode, after having run the [deployment script]
 to host the game server on [Heroku].
@@ -219,3 +218,9 @@ The [fonts](/imj-base/fonts) and font size for rendering can be modified at run 
 [stack]: https://docs.haskellstack.org
 [the solfege notation]: https://en.wikipedia.org/wiki/Solf%C3%A8ge#Fixed_do_solf%C3%A8ge
 [websockets]: http://hackage.haskell.org/package/websockets
+
+# Build status
+
+Currently, the CI build errors because the "build from scratch" process plus unit tests takes more than one hour and hits a timeout :
+[![Build Status](https://travis-ci.org/OlivierSohn/hamazed.svg?branch=master)](https://travis-ci.org/OlivierSohn/hamazed)
+

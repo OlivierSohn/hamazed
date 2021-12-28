@@ -44,6 +44,8 @@ module Imj.Music.Instrument
       , longInstrument
       , longBellInstrument
       , trapezoidalInstrument
+      -- | Utilities
+      , defaultOscillations
       ) where
 
 

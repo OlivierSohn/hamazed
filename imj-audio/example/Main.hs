@@ -41,16 +41,17 @@ main = void $ usingAudioOutput -- WithMinLatency 0
   _ <- playShortLowNote meSnare $ VoiceId 0
   putStrLn "playing random score"
   randInstructions1 <- pickRandom countInstructions allowedInstructions1
-  randInstructions2 <- pickRandom countInstructions allowedInstructions2
+  randInstructions2 <- pickRandom (div countInstructions 2) allowedInstructions2
   -- mapM_ print $ zip randInstructions1 randInstructions2
+
   playVoicesAtTempo 440.0 simpleInstrument
     (
-    ((NotePan $ -1), ((take (countLoops * countInstructions) $ cycle randInstructions1) ++ [Rest])) :
-    ((NotePan $ 1), ((take (countLoops * countInstructions) $ cycle randInstructions2) ++ [Rest])) :
+    ((NotePan $ -1), ((take (countLoops * countInstructions) $ cycle randInstructions1))) :
+    ((NotePan $ 1), ((take (countLoops * countInstructions) $ cycle randInstructions2))) :
     [])
     >>= print
   putStrLn "playing me"
-  uncurry (playScoreAtTempo 100) (meScore $ Just 10.0) >>= print
+  uncurry (playScoreAtTempo 1) (meScore $ Just 10.0) >>= print
   threadDelay 10000
   putStrLn "playing tech"
   uncurry (flip playVoicesAtTempo techInstrument) tech >>= print
@@ -73,6 +74,7 @@ main = void $ usingAudioOutput -- WithMinLatency 0
   allowedNotes = map (uncurry Note . midiPitchToNoteAndOctave) [60..80]
   allowedInstructions2 = allowedNotes ++ [Rest, Extend]
   allowedInstructions1 = allowedNotes ++ [Rest]
+
 
 stressTest :: IO PlayResult
 stressTest = playVoicesAtTempo 10000 simpleInstrument $ allCentered $ map (take 1000 . cycle) [voices|

@@ -10,7 +10,7 @@
 {-
 When the note-on, note-off events come from the user, in real-time, use the 'play' function.
 
-When the music events are known in advance, but you want ot control the pace at which
+When the music events are known in advance, but you want to control the pace at which
 the music will be executed, use the notion of 'Score' with 'stepScore', 'stopScore'
 or the notion of 'Voice' with 'stepVoice', 'stopVoice'.
 
@@ -44,6 +44,7 @@ import           Imj.Prelude
 import           Control.Concurrent(threadDelay)
 import           Data.Maybe(catMaybes, maybeToList)
 import qualified Data.Vector as V
+import           Data.List(take)
 
 import           Imj.Audio.Output
 import           Imj.Music.Score
@@ -70,27 +71,40 @@ playVoicesAtTempo :: Double
 playVoicesAtTempo tempo i instructions =
   playScoreAtTempo 1 tempo (mkScore i instructions)
 
+-- stops the score at the end of each period
 playScoreAtTempo :: Int -> Double -> Score Instrument -> IO PlayResult
-playScoreAtTempo count_repetitions tempo s =
+playScoreAtTempo countRepetitions tempo s =
   getSystemTime >>=
-    go count_repetitions (scoreLength s) (scoreLength s) s 0
+    go countRepetitions nn s 0
  where
-  go a b c d e firstTime =
-    go' a b c d e
+  nn = scoreLength s
+  go a c d e firstTime =
+    go' a c d e
    where
-    go' repetitions n 0 _ total
-      | repetitions <= 1 = return $ Right ()
-      | otherwise = go' (pred repetitions) n n s total
-    go' repetitions nn n score total = do
+    go' repetitions n score total = do
       now <- getSystemTime
-      let (newScore, instructions) = stepScore score
+      let (newPreScore, stopRawInstructions) = if (n == nn) then stopScore score else (score, take nn $ repeat [])
+          (newScore, rawInstructions) = if (repetitions >= 1) then stepScore newPreScore else (newPreScore, take nn $ repeat [])
           newTimeApprox = addDuration (fromSecs (total * pause)) firstTime
           duration = fromIntegral $ toMicros $ now...newTimeApprox
+          instructions = zip (map (uncurry (++)) $ zip stopRawInstructions rawInstructions) $ map VoiceId [0..]
+          playAll [] res = return res
+          playAll ((i, voice):is) res =
+            mapM (flip play voice) i >>= \r -> playAll is (r ++ res)
       when (duration > 0) $ threadDelay duration
-      r <- mapM (uncurry play) instructions
+      -- TODO pedal: each voice has a list of noteoffs. This list is appended to when the pedal is on.
+      -- when the pedal becomes off, play the noteoffs.
+      -- the pedalon pedaloff events will be
+      r <- playAll instructions []
       if null $ lefts r
         then
-          go' repetitions nn (pred n) newScore (succ total)
+          if (repetitions >= 1)
+            then
+              case n of
+                1 -> go' (pred repetitions) nn newScore (succ total)
+                _ -> go' repetitions (pred n) newScore (succ total)
+            else
+              return $ Right ()
         else
           return $ Left ()
 
@@ -108,26 +122,22 @@ allMusic i pan x =
 -- | Steps a 'Score' forward (by a single time quantum),
 -- returns the list of 'MusicalEvent's that need to be played for this time quantum.
 stepScore :: Score i
-          -> (Score i, [(MusicalEvent i, VoiceId)])
+          -> (Score i, [[MusicalEvent i]])
 stepScore (Score l) = (s,m)
  where
   nv = map stepVoice l
   s = Score $ map fst nv
-  mevs = zip (map snd nv) (map VoiceId [0..])
-  m = process mevs []
-
-  process [] res = res
-  process ((evs, vid):es) res = process es $ res ++ map (flip (,) vid) evs
+  m = map snd nv
 
 -- | Returns the 'MusicalEvent's that need to be played to stop the ongoing notes
 -- associated to this 'Score'.
 stopScore :: Score i
-          -> (Score i, [MusicalEvent i])
+          -> (Score i, [[MusicalEvent i]])
 stopScore (Score l) = (s,m)
  where
   nv = map stopVoice l
   s = Score $ map fst nv
-  m = concatMap snd nv
+  m = map snd nv
 
 sizeVoice :: Voice i -> Int
 sizeVoice (Voice _ _ v _ _) = V.length v
@@ -141,6 +151,9 @@ stepVoice (Voice i cur v inst pan) =
     , catMaybes [mayStopCur, mayStartNext])
  where
   nextNote = v V.! (fromIntegral i)
+
+  -- TODO add an optional pedal track to Voice i, and a list of noteoff to issue later.
+  -- or should the pedal track be a separate track?
 
   newCur = case nextNote of
     Extend -> cur

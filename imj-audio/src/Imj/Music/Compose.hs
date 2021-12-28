@@ -95,8 +95,8 @@ symbol =
         "do#"  -> return Réb
         "dod"  -> return Réb
         "réb"  -> return Réb
-        "réd"  -> return Réb
-        "ré#"  -> return Réb
+        "réd"  -> return Mib
+        "ré#"  -> return Mib
         "mib"  -> return Mib
         "fad" -> return Solb
         "fa#" -> return Solb

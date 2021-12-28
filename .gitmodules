@@ -1,6 +1,6 @@
 [submodule "imj-audio/c/cpp.audio"]
 	path = imj-audio/c/cpp.audio
-	url = https://github.com/OlivierSohn/cpp.audio.git
+	url = git@github.com:OlivierSohn/cpp.audio.git
 [submodule "cpp.algorithms"]
 	path = imj-audio/c/cpp.algorithms
-	url = https://github.com/OlivierSohn/cpp.algorithms.git
+	url = git@github.com:OlivierSohn/cpp.algorithms.git

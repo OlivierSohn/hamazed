@@ -16,18 +16,19 @@ extern "C" {
 
   void setMaxMIDIJitter(uint64_t v);
 
-  bool midiNoteOnAHDSR_(float stereo,
+  bool midiNoteOnAHDSR_(int voice, float stereo,
                         imajuscule::audio::audioelement::OscillatorType osc,
                         imajuscule::audio::audioelement::EnvelopeRelease t,
                        int a, int ai, int h, int d, int di, float s, int r, int ri,
                        harmonicProperties_t * hars, int har_sz,
                        int16_t pitch, float velocity, int midiSource, uint64_t maybeMIDITime);
-  bool midiNoteOffAHDSR_(imajuscule::audio::audioelement::OscillatorType osc,
+  bool midiNoteOffAHDSR_(int voice,
+                         imajuscule::audio::audioelement::OscillatorType osc,
                          imajuscule::audio::audioelement::EnvelopeRelease t,
                          int a, int ai, int h, int d, int di, float s, int r, int ri,
                          harmonicProperties_t * hars, int har_sz,
                          int16_t pitch, int midiSource, uint64_t maybeMIDITime);
-  bool midiNoteOnAHDSRSweep_(float stereo,
+  bool midiNoteOnAHDSRSweep_(int voice, float stereo,
                         imajuscule::audio::audioelement::OscillatorType osc,
                         imajuscule::audio::audioelement::EnvelopeRelease t,
                        int a, int ai, int h, int d, int di, float s, int r, int ri,
@@ -37,7 +38,7 @@ extern "C" {
                        imajuscule::audio::audioelement::Extremity sweep_freq_extremity,
                        int sweep_interp,
                        int16_t pitch, float velocity, int midiSource, uint64_t maybeMIDITime);
-  bool midiNoteOffAHDSRSweep_(imajuscule::audio::audioelement::OscillatorType osc,
+  bool midiNoteOffAHDSRSweep_(int voice, imajuscule::audio::audioelement::OscillatorType osc,
                          imajuscule::audio::audioelement::EnvelopeRelease t,
                          int a, int ai, int h, int d, int di, float s, int r, int ri,
                          harmonicProperties_t * hars, int har_sz,
@@ -47,8 +48,8 @@ extern "C" {
                          int sweep_interp,
                          int16_t pitch, int midiSource, uint64_t maybeMIDITime);
   double* analyzeAHDSREnvelope_(imajuscule::audio::audioelement::EnvelopeRelease t, int a, int ai, int h, int d, int di, float s, int r, int ri, int*nElems, int*splitAt);
-  bool effectOn(int program, int16_t pitch, float velocity, float pan);
-  bool effectOff(int16_t pitch);
+  bool effectOn(int voice, int program, int16_t pitch, float velocity, float pan);
+  bool effectOff(int voice, int16_t pitch);
   bool getConvolutionReverbSignature_(const char * dirPath, const char * filePath, spaceResponse_t * r);
   bool dontUseReverb_();
   bool useReverb_(const char * dirPath, const char * filePath, double wet);

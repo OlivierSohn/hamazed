@@ -12,6 +12,7 @@ module Imj.Music.Score
       , mkScore
       , mergeScores
       , scoreLength
+      , VoiceId(..)
       , Voice(..)
       , mkVoice
       , voiceLength
@@ -38,6 +39,11 @@ mergeScores (Score i) (Score j) = Score (i ++ j)
 scoreLength :: Score i -> Int
 scoreLength (Score l) = fromMaybe 0 $ maximumMaybe $ map voiceLength l
 
+
+-- | if a noteon was issued for a given Voice, the corresponding noteoff/notechange
+-- must be issued for the same Voice
+newtype VoiceId = VoiceId Int
+  deriving(Generic,Show, Eq)
 
 -- | Contains the instructions to play a voice ('Instrument' and 'Instruction's)
 -- and the state of the voice being played ('InstructionIdx' and current 'Instruction')

@@ -436,8 +436,8 @@ private:
                            maybeMts);
       }
 
-      void convertNoteId(Event & e) {
-        return convertKeyToNoteId(gen, e);
+      void convertNoteId(int voice, Event & e) {
+        return convertKeyToNoteId(gen, voice, e);
       }
 
       T obj;
@@ -619,32 +619,32 @@ private:
     };
 
     template<typename Env, audioelement::OscillatorType Osc, typename HarmonicsArray, typename... Args>
-    onEventResult midiEvent(float stereo, HarmonicsArray const & harmonics, typename Env::Param const & env, Event e, Optional<MIDITimestampAndSource> maybeMts, Args... args) {
+    onEventResult midiEvent(int voice, float stereo, HarmonicsArray const & harmonics, typename Env::Param const & env, Event e, Optional<MIDITimestampAndSource> maybeMts, Args... args) {
       audioelement::ParamsFor<typename Env::Param, HarmonicsArray, Osc> params{harmonics, env, std::forward<Args>(args)...};
       std::optional<int> sr = getAudioContext().getSampleRate();
       auto using_synth = Synths<Env, Osc>::get(*sr, params);
       using_synth.o.obj.setSynchronousElementInitializer({stereo}); // ok because we own the lock in using_synth
       // note id in 'e' is the pitch. we need to convert it:
-      using_synth.o.convertNoteId(e);
+      using_synth.o.convertNoteId(voice, e);
       return using_synth.o.onEvent(*sr, e, maybeMts);
     }
 
     template<typename Env, typename HarmonicsArray>
-    onEventResult midiEvent_(float stereo, audioelement::OscillatorType osc, HarmonicsArray const & harmonics, typename Env::Param const & p, Event n, Optional<MIDITimestampAndSource> maybeMts) {
+    onEventResult midiEvent_(int voice, float stereo, audioelement::OscillatorType osc, HarmonicsArray const & harmonics, typename Env::Param const & p, Event n, Optional<MIDITimestampAndSource> maybeMts) {
       using namespace audioelement;
       switch(osc) {
         case OscillatorType::Saw:
-          return midiEvent<Env, OscillatorType::Saw, HarmonicsArray>(stereo, harmonics, p, n, maybeMts);
+          return midiEvent<Env, OscillatorType::Saw, HarmonicsArray>(voice, stereo, harmonics, p, n, maybeMts);
         case OscillatorType::Square:
-          return midiEvent<Env, OscillatorType::Square, HarmonicsArray>(stereo, harmonics, p, n, maybeMts);
+          return midiEvent<Env, OscillatorType::Square, HarmonicsArray>(voice, stereo, harmonics, p, n, maybeMts);
         case OscillatorType::Triangle:
-          return midiEvent<Env, OscillatorType::Triangle, HarmonicsArray>(stereo, harmonics, p, n, maybeMts);
+          return midiEvent<Env, OscillatorType::Triangle, HarmonicsArray>(voice, stereo, harmonics, p, n, maybeMts);
         case OscillatorType::Sinus:
-          return midiEvent<Env, OscillatorType::Sinus, HarmonicsArray>(stereo, harmonics, p, n, maybeMts);
+          return midiEvent<Env, OscillatorType::Sinus, HarmonicsArray>(voice, stereo, harmonics, p, n, maybeMts);
         case OscillatorType::SinusLoudnessVolumeAdjusted:
-          return midiEvent<Env, OscillatorType::SinusLoudnessVolumeAdjusted, HarmonicsArray>(stereo, harmonics, p, n, maybeMts);
+          return midiEvent<Env, OscillatorType::SinusLoudnessVolumeAdjusted, HarmonicsArray>(voice, stereo, harmonics, p, n, maybeMts);
         case OscillatorType::Noise:
-          return midiEvent<Env, OscillatorType::Noise, HarmonicsArray>(stereo, harmonics, p, n, maybeMts);
+          return midiEvent<Env, OscillatorType::Noise, HarmonicsArray>(voice, stereo, harmonics, p, n, maybeMts);
         default:
           std::cerr << "not a standard oscillator" << std::endl;
           throw(std::runtime_error("not a standard oscillator"));
@@ -652,7 +652,7 @@ private:
     }
 
     template<typename Env, typename HarmonicsArray>
-    onEventResult midiEventSweep_(float stereo,
+    onEventResult midiEventSweep_(int voice, float stereo,
                                   audioelement::OscillatorType osc,
                                   HarmonicsArray const & harmonics,
                                   typename Env::Param const & p,
@@ -662,7 +662,7 @@ private:
       using namespace audioelement;
       switch(osc) {
         case OscillatorType::Sweep:
-          return midiEvent<Env, OscillatorType::Sweep, HarmonicsArray>(stereo, harmonics, p, n, maybeMts, sweep);
+          return midiEvent<Env, OscillatorType::Sweep, HarmonicsArray>(voice, stereo, harmonics, p, n, maybeMts, sweep);
         default:
           std::cerr << "not a sweep oscillator" << std::endl;
           throw(std::runtime_error("not a sweep oscillator"));

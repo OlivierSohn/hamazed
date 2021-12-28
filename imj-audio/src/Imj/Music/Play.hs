@@ -87,7 +87,7 @@ playScoreAtTempo count_repetitions tempo s =
           newTimeApprox = addDuration (fromSecs (total * pause)) firstTime
           duration = fromIntegral $ toMicros $ now...newTimeApprox
       when (duration > 0) $ threadDelay duration
-      r <- mapM play instructions
+      r <- mapM (uncurry play) instructions
       if null $ lefts r
         then
           go' repetitions nn (pred n) newScore (succ total)
@@ -105,22 +105,19 @@ allMusic i pan x =
   s = mkVoice i pan x
 
 
--- TODO use ids for notes (one id per voice would be enough), to support this case well,
--- where voice1 and voice2 are assigned to the same instrument:
--- voice1: do - - - -
--- voice2: . . do . .
--- when the do of voice2 terminates, we want it to fadeout its own channel, not the one
--- of the other voice. NOTE it makes a difference only if the 2 notes have different velocities,
--- which is not possible as of today.
 -- | Steps a 'Score' forward (by a single time quantum),
 -- returns the list of 'MusicalEvent's that need to be played for this time quantum.
 stepScore :: Score i
-          -> (Score i, [MusicalEvent i])
+          -> (Score i, [(MusicalEvent i, VoiceId)])
 stepScore (Score l) = (s,m)
  where
   nv = map stepVoice l
   s = Score $ map fst nv
-  m = concatMap snd nv
+  mevs = zip (map snd nv) (map VoiceId [0..])
+  m = process mevs []
+
+  process [] res = res
+  process ((evs, vid):es) res = process es $ res ++ map (flip (,) vid) evs
 
 -- | Returns the 'MusicalEvent's that need to be played to stop the ongoing notes
 -- associated to this 'Score'.

@@ -15,12 +15,15 @@ import           Imj.Music.Compositions.Tech
 import           Imj.Music.Compositions.Tchaikovski
 import           Imj.Music.Compositions.Vivaldi
 
-playShortLowNote :: Instrument -> IO (Either () ())
-playShortLowNote instrument = do
-  _ <- play $
-    StartNote Nothing (InstrumentNote Do (Octave 6) instrument) (NoteVelocity 0.01) panCentered
-  play $
-    StopNote Nothing (InstrumentNote Do (Octave 6) instrument)
+playShortLowNote :: Instrument -> VoiceId -> IO (Either () ())
+playShortLowNote instrument v = do
+  _ <- play
+    (StartNote Nothing (InstrumentNote Do (Octave 6) instrument) (NoteVelocity 0.01) panCentered)
+    v
+  play
+    (StopNote Nothing (InstrumentNote Do (Octave 6) instrument))
+    v
+
 
 main :: IO ()
 main = void $ usingAudioOutput -- WithMinLatency 0
@@ -35,11 +38,11 @@ main = void $ usingAudioOutput -- WithMinLatency 0
 
   -- play a short snare note to initialize pink node
   putStrLn "play short & low snare note to initialize pink Noise"
-  _ <- playShortLowNote meSnare
+  _ <- playShortLowNote meSnare $ VoiceId 0
   putStrLn "playing random score"
   randInstructions1 <- pickRandom countInstructions allowedInstructions1
   randInstructions2 <- pickRandom countInstructions allowedInstructions2
-  -- TODO panning : add panning info in the instrument, use StereoPanned<audioElt>
+  -- mapM_ print $ zip randInstructions1 randInstructions2
   playVoicesAtTempo 440.0 simpleInstrument
     (
     ((NotePan $ -1), ((take (countLoops * countInstructions) $ cycle randInstructions1) ++ [Rest])) :

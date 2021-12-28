@@ -76,19 +76,19 @@ namespace imajuscule::audio::audioelement {
     }
   }
 
-  audio::onEventResult midiEventAHDSR(float stereo, OscillatorType osc, EnvelopeRelease t,
+  audio::onEventResult midiEventAHDSR(int voice, float stereo, OscillatorType osc, EnvelopeRelease t,
                                       CConstArray<harmonicProperties_t> const & harmonics,
                                       AHDSR p, audio::Event n, Optional<audio::MIDITimestampAndSource> maybeMts) {
     static constexpr auto A = getAtomicity<audioEnginePolicy>();
     switch(t) {
       case EnvelopeRelease::ReleaseAfterDecay:
-        return midiEvent_<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>>(stereo, osc, harmonics, p, n, maybeMts);
+        return midiEvent_<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>>(voice, stereo, osc, harmonics, p, n, maybeMts);
       case EnvelopeRelease::WaitForKeyRelease:
-        return midiEvent_<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::WaitForKeyRelease>>(stereo, osc, harmonics, p, n, maybeMts);
+        return midiEvent_<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::WaitForKeyRelease>>(voice, stereo, osc, harmonics, p, n, maybeMts);
     }
   }
 
-  audio::onEventResult midiEventAHDSRSweep(float stereo, OscillatorType osc, EnvelopeRelease t,
+  audio::onEventResult midiEventAHDSRSweep(int voice, float stereo, OscillatorType osc, EnvelopeRelease t,
                                            CConstArray<harmonicProperties_t> const & harmonics,
                                            AHDSR p,
                                            audioelement::SweepSetup const & sweep,
@@ -96,9 +96,9 @@ namespace imajuscule::audio::audioelement {
     static constexpr auto A = getAtomicity<audioEnginePolicy>();
     switch(t) {
       case EnvelopeRelease::ReleaseAfterDecay:
-        return midiEventSweep_<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>>(stereo, osc, harmonics, p, sweep, n, maybeMts);
+        return midiEventSweep_<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::ReleaseAfterDecay>>(voice, stereo, osc, harmonics, p, sweep, n, maybeMts);
       case EnvelopeRelease::WaitForKeyRelease:
-        return midiEventSweep_<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::WaitForKeyRelease>>(stereo, osc, harmonics, p, sweep, n, maybeMts);
+        return midiEventSweep_<AHDSREnvelope<A, AudioFloat, EnvelopeRelease::WaitForKeyRelease>>(voice, stereo, osc, harmonics, p, sweep, n, maybeMts);
     }
   }
 
@@ -279,7 +279,8 @@ extern "C" {
     maxMIDIJitter() = v;
   }
 
-  bool midiNoteOnAHDSR_(float stereo,
+  bool midiNoteOnAHDSR_(int voice,
+                        float stereo,
                         imajuscule::audio::audioelement::OscillatorType osc,
                         imajuscule::audio::audioelement::EnvelopeRelease t,
                        int a, int ai, int h, int d, int di, float s, int r, int ri,
@@ -320,10 +321,11 @@ extern "C" {
         har_sz = 1;
         hars = getUnityHarmonics();
     }
-    return convert(midiEventAHDSR(stereo, osc, t, {hars, har_sz}, p, n, maybeMts));
+    return convert(midiEventAHDSR(voice, stereo, osc, t, {hars, har_sz}, p, n, maybeMts));
   }
 
-  bool midiNoteOnAHDSRSweep_(float stereo,
+  bool midiNoteOnAHDSRSweep_(int voice,
+                        float stereo,
                         imajuscule::audio::audioelement::OscillatorType osc,
                         imajuscule::audio::audioelement::EnvelopeRelease t,
                        int a, int ai, int h, int d, int di, float s, int r, int ri,
@@ -372,12 +374,13 @@ extern "C" {
         har_sz = 1;
         hars = getUnityHarmonics();
     }
-    return convert(midiEventAHDSRSweep(stereo, osc, t, {hars, har_sz}, p,
+    return convert(midiEventAHDSRSweep(voice, stereo, osc, t, {hars, har_sz}, p,
                                        SweepSetup{sweep_duration, sweep_freq, sweep_freq_extremity, itp::toItp(sweep_interp)},
                                        n, maybeMts));
   }
 
-  bool midiNoteOffAHDSR_(imajuscule::audio::audioelement::OscillatorType osc,
+  bool midiNoteOffAHDSR_(int voice,
+                         imajuscule::audio::audioelement::OscillatorType osc,
                          imajuscule::audio::audioelement::EnvelopeRelease t,
                          int a, int ai, int h, int d, int di, float s, int r, int ri,
                          harmonicProperties_t const * hars, int har_sz,
@@ -414,10 +417,11 @@ extern "C" {
         har_sz = 1;
         hars = getUnityHarmonics();
     }
-    return convert(midiEventAHDSR(0.f, osc, t, {hars, har_sz}, p, n, maybeMts));
+    return convert(midiEventAHDSR(voice, 0.f, osc, t, {hars, har_sz}, p, n, maybeMts));
   }
 
-  bool midiNoteOffAHDSRSweep_(imajuscule::audio::audioelement::OscillatorType osc,
+  bool midiNoteOffAHDSRSweep_(int voice,
+                         imajuscule::audio::audioelement::OscillatorType osc,
                          imajuscule::audio::audioelement::EnvelopeRelease t,
                          int a, int ai, int h, int d, int di, float s, int r, int ri,
                          harmonicProperties_t const * hars, int har_sz,
@@ -462,7 +466,7 @@ extern "C" {
         har_sz = 1;
         hars = getUnityHarmonics();
     }
-    return convert(midiEventAHDSRSweep(0.f, osc, t, {hars, har_sz}, p,
+    return convert(midiEventAHDSRSweep(voice, 0.f, osc, t, {hars, har_sz}, p,
                                        SweepSetup{sweep_duration, sweep_freq, sweep_freq_extremity, itp::toItp(sweep_interp)},
                                        n, maybeMts));
   }
@@ -478,7 +482,7 @@ extern "C" {
     return analyzeEnvelopeGraph(sample_rate, t, p, nElems, splitAt);
   }
 
-  bool effectOn(int program, int16_t pitch, float velocity, float pan) {
+  bool effectOn(int voice, int program, int16_t pitch, float velocity, float pan) {
 #if IMJ_TRACE_EXTERN_C
     Trace trace("effectOn");
 #endif
@@ -491,7 +495,7 @@ extern "C" {
     return convert(playOneThing(getAudioContext().getSampleRate(),getMidi(),windVoice(),getStepper(),voicing));
   }
 
-  bool effectOff(int16_t pitch) {
+  bool effectOff(int voice, int16_t pitch) {
 #if IMJ_TRACE_EXTERN_C
     Trace trace("effectOff");
 #endif

@@ -55,16 +55,17 @@ import           Imj.Timing
 playAtTempo :: Double
             -- ^ Beats per minute
             -> Instrument
+            -> NotePan
             -> [Instruction]
             -> IO PlayResult
-playAtTempo tempo i instructions =
-  playVoicesAtTempo tempo i [instructions]
+playAtTempo tempo i pan instructions =
+  playVoicesAtTempo tempo i [(pan, instructions)]
 
 
 playVoicesAtTempo :: Double
                   -- ^ Beats per minute
                   -> Instrument
-                  -> [[Instruction]]
+                  -> [(NotePan, [Instruction])]
                   -> IO PlayResult
 playVoicesAtTempo tempo i instructions =
   playScoreAtTempo 1 tempo (mkScore i instructions)
@@ -97,11 +98,11 @@ playScoreAtTempo count_repetitions tempo s =
 
 type PlayResult = Either () ()
 
-allMusic :: i -> [Instruction] -> [[MusicalEvent i]]
-allMusic i x =
+allMusic :: i -> NotePan -> [Instruction] -> [[MusicalEvent i]]
+allMusic i pan x =
   snd $ stepNVoiceAndStop (sizeVoice s) s
  where
-  s = mkVoice i x
+  s = mkVoice i pan x
 
 
 -- TODO use ids for notes (one id per voice would be enough), to support this case well,
@@ -132,14 +133,14 @@ stopScore (Score l) = (s,m)
   m = concatMap snd nv
 
 sizeVoice :: Voice i -> Int
-sizeVoice (Voice _ _ v _) = V.length v
+sizeVoice (Voice _ _ v _ _) = V.length v
 
 -- | Steps a 'Voice' forward by a single time quantum,
 -- returns the list of 'MusicalEvent's that need to be played for this time quantum.
 stepVoice :: Voice i
           -> (Voice i, [MusicalEvent i])
-stepVoice (Voice i cur v inst) =
-    ( Voice nextI newCur v inst
+stepVoice (Voice i cur v inst pan) =
+    ( Voice nextI newCur v inst pan
     , catMaybes [mayStopCur, mayStartNext])
  where
   nextNote = v V.! (fromIntegral i)
@@ -160,7 +161,7 @@ stepVoice (Voice i cur v inst) =
       cur
 
   mayStartNext = case nextNote of
-    (Note n o) -> Just $ StartNote Nothing (InstrumentNote n o inst) 1
+    (Note n o) -> Just $ StartNote Nothing (InstrumentNote n o inst) 1 pan
     _ -> Nothing
 
   len = V.length v
@@ -172,8 +173,8 @@ stepVoice (Voice i cur v inst) =
 -- | Returns the 'MusicalEvent's that need to be played to stop the ongoing notes
 -- associated to this 'Voice'.
 stopVoice :: Voice i -> (Voice i, [MusicalEvent i])
-stopVoice (Voice _ cur l i) =
-    ( Voice 0 Nothing l i
+stopVoice (Voice _ cur l i pan) =
+    ( Voice 0 Nothing l i pan
     , maybeToList noteChange)
  where
   noteChange = maybe Nothing (\case

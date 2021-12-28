@@ -27,12 +27,12 @@ techInstrument = Synth
       (Eased EaseOut Exp)
       1.0
 
-tech :: (Double,[[Instruction]])
+tech :: (Double,[(NotePan, [Instruction])])
 tech = (bpm,part)
  where
   bpm = 440
 
-  part = [voices|
+  part = allCentered [voices|
     la . . mi . . fa . . sol . . . . .
 
     la . . mi . . fa . . sol . . . . .
@@ -55,12 +55,12 @@ tech = (bpm,part)
   |]
 
 
-tech2 :: (Double,[[Instruction]])
+tech2 :: (Double,[(NotePan, [Instruction])])
 tech2 = (bpm,part)
  where
   bpm = 440
 
-  part = [voices|
+  part = allCentered [voices|
     sol .
     mib .
     do .

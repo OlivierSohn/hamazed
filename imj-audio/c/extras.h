@@ -108,10 +108,12 @@ namespace imajuscule::audio {
     template<OscillatorType O, typename Env>
     struct AudioElementOf {
       using type =
-        VolumeAdjusted<
-          MultiEnveloped<
-            genericOscillator<O, typename Env::FPT>
-          , Env
+        StereoPanned<
+          VolumeAdjusted<
+            MultiEnveloped<
+              genericOscillator<O, typename Env::FPT>
+            , Env
+            >
           >
       >;
     };
@@ -258,7 +260,7 @@ namespace imajuscule::audio {
       static void set(int sample_rate, ParamsFor<EnvelParamT, HarmonicsArray, Osc> const & p, B & b) {
         b.forEachElem([&p, sample_rate](auto & e) {
           // the order is important, maybe we need a single method.
-          e.elem.getOsc().setHarmonics(p.har, sample_rate);
+          e.elem.getOsc().getOsc().setHarmonics(p.har, sample_rate);
           e.elem.editEnvelope().setAHDSR(p.env, sample_rate);
         });
       }
@@ -270,10 +272,10 @@ namespace imajuscule::audio {
       static void set(int sample_rate, ParamsFor<EnvelParamT, HarmonicsArray, OscillatorType::Sweep> const & p, B & b) {
         b.forEachElem([&p, sample_rate](auto & e) {
           // the order is important, maybe we need a single method.
-          e.elem.getOsc().setHarmonics(p.har, sample_rate);
+          e.elem.getOsc().getOsc().setHarmonics(p.har, sample_rate);
           e.elem.editEnvelope().setAHDSR(p.env, sample_rate);
           // Side note : for a sweep, MultiEnveloped is overkill because there is a single harmonic.
-          e.elem.getOsc().forEachHarmonic([&p, sample_rate](auto & h) {
+          e.elem.getOsc().getOsc().forEachHarmonic([&p, sample_rate](auto & h) {
             h.getAlgo().getCtrl().setup(p.params.sweep.freq_extremity,
                                         freq_to_angle_increment(p.params.sweep.freq, sample_rate),
                                         p.params.sweep.durationSamples,
@@ -374,6 +376,37 @@ namespace imajuscule::audio {
       }
     }
 
+
+
+// TODO like in ResynthElementInitializer, we should handle more aspects here
+// instead of hardcoding them per synth.
+struct ElementInitializer {
+  ElementInitializer(float const stereo)
+  : m_stereo(stereo)
+  {}
+
+  template<typename Elt>
+  void operator()(Elt & e) const {
+    // panning (except for note changes)
+
+    //if (t==InitializationType::NewNote) {
+      e.setStereoGain(stereo(m_stereo));
+    //}
+  }
+
+  bool operator ==(ElementInitializer const& o) const {
+    return
+    std::make_tuple(m_stereo) ==
+    std::make_tuple(o.m_stereo);
+  }
+  bool operator !=(ElementInitializer const& o) const {
+    return !this->operator ==(o);
+  }
+
+private:
+  float m_stereo; // -1 (left) 1 (right)
+};
+
     template <typename Env, audioelement::OscillatorType Osc>
     using synthOf = sine::Synth < // the name of the namespace is misleading : it can handle all kinds of oscillators
     nAudioOut
@@ -381,6 +414,8 @@ namespace imajuscule::audio {
     , syncPhase(Osc)
     , defaultStartPhase(Osc)
     , HandleNoteOff::Yes
+    , 32 // maybe 32 voices is not enough?
+    , ElementInitializer
     >;
 
     template<typename T>
@@ -584,31 +619,32 @@ namespace imajuscule::audio {
     };
 
     template<typename Env, audioelement::OscillatorType Osc, typename HarmonicsArray, typename... Args>
-    onEventResult midiEvent(HarmonicsArray const & harmonics, typename Env::Param const & env, Event e, Optional<MIDITimestampAndSource> maybeMts, Args... args) {
+    onEventResult midiEvent(float stereo, HarmonicsArray const & harmonics, typename Env::Param const & env, Event e, Optional<MIDITimestampAndSource> maybeMts, Args... args) {
       audioelement::ParamsFor<typename Env::Param, HarmonicsArray, Osc> params{harmonics, env, std::forward<Args>(args)...};
       std::optional<int> sr = getAudioContext().getSampleRate();
       auto using_synth = Synths<Env, Osc>::get(*sr, params);
+      using_synth.o.obj.setSynchronousElementInitializer({stereo}); // ok because we own the lock in using_synth
       // note id in 'e' is the pitch. we need to convert it:
       using_synth.o.convertNoteId(e);
       return using_synth.o.onEvent(*sr, e, maybeMts);
     }
 
     template<typename Env, typename HarmonicsArray>
-    onEventResult midiEvent_(audioelement::OscillatorType osc, HarmonicsArray const & harmonics, typename Env::Param const & p, Event n, Optional<MIDITimestampAndSource> maybeMts) {
+    onEventResult midiEvent_(float stereo, audioelement::OscillatorType osc, HarmonicsArray const & harmonics, typename Env::Param const & p, Event n, Optional<MIDITimestampAndSource> maybeMts) {
       using namespace audioelement;
       switch(osc) {
         case OscillatorType::Saw:
-          return midiEvent<Env, OscillatorType::Saw, HarmonicsArray>(harmonics, p, n, maybeMts);
+          return midiEvent<Env, OscillatorType::Saw, HarmonicsArray>(stereo, harmonics, p, n, maybeMts);
         case OscillatorType::Square:
-          return midiEvent<Env, OscillatorType::Square, HarmonicsArray>(harmonics, p, n, maybeMts);
+          return midiEvent<Env, OscillatorType::Square, HarmonicsArray>(stereo, harmonics, p, n, maybeMts);
         case OscillatorType::Triangle:
-          return midiEvent<Env, OscillatorType::Triangle, HarmonicsArray>(harmonics, p, n, maybeMts);
+          return midiEvent<Env, OscillatorType::Triangle, HarmonicsArray>(stereo, harmonics, p, n, maybeMts);
         case OscillatorType::Sinus:
-          return midiEvent<Env, OscillatorType::Sinus, HarmonicsArray>(harmonics, p, n, maybeMts);
+          return midiEvent<Env, OscillatorType::Sinus, HarmonicsArray>(stereo, harmonics, p, n, maybeMts);
         case OscillatorType::SinusLoudnessVolumeAdjusted:
-          return midiEvent<Env, OscillatorType::SinusLoudnessVolumeAdjusted, HarmonicsArray>(harmonics, p, n, maybeMts);
+          return midiEvent<Env, OscillatorType::SinusLoudnessVolumeAdjusted, HarmonicsArray>(stereo, harmonics, p, n, maybeMts);
         case OscillatorType::Noise:
-          return midiEvent<Env, OscillatorType::Noise, HarmonicsArray>(harmonics, p, n, maybeMts);
+          return midiEvent<Env, OscillatorType::Noise, HarmonicsArray>(stereo, harmonics, p, n, maybeMts);
         default:
           std::cerr << "not a standard oscillator" << std::endl;
           throw(std::runtime_error("not a standard oscillator"));
@@ -616,7 +652,8 @@ namespace imajuscule::audio {
     }
 
     template<typename Env, typename HarmonicsArray>
-    onEventResult midiEventSweep_(audioelement::OscillatorType osc,
+    onEventResult midiEventSweep_(float stereo,
+                                  audioelement::OscillatorType osc,
                                   HarmonicsArray const & harmonics,
                                   typename Env::Param const & p,
                                   audioelement::SweepSetup const & sweep,
@@ -625,7 +662,7 @@ namespace imajuscule::audio {
       using namespace audioelement;
       switch(osc) {
         case OscillatorType::Sweep:
-          return midiEvent<Env, OscillatorType::Sweep, HarmonicsArray>(harmonics, p, n, maybeMts, sweep);
+          return midiEvent<Env, OscillatorType::Sweep, HarmonicsArray>(stereo, harmonics, p, n, maybeMts, sweep);
         default:
           std::cerr << "not a sweep oscillator" << std::endl;
           throw(std::runtime_error("not a sweep oscillator"));

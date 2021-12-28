@@ -205,17 +205,18 @@ setMaxMIDIJitter = setMaxMIDIJitter_ . (*1000) . fromIntegral
 -- If this is not the case, it hans no effect and returns 'False'.
 play :: MusicalEvent Instrument
      -> IO (Either () ())
-play (StartNote mayMidi n@(InstrumentNote _ _ i) (NoteVelocity v)) = bool (Left ()) (Right ()) <$> case i of
+play (StartNote mayMidi n@(InstrumentNote _ _ i) (NoteVelocity v) (NotePan pan)) = bool (Left ()) (Right ()) <$> case i of
   Synth (Oscillations osc har) e ahdsr ->
     let (harPtr, harSz) = S.unsafeToForeignPtr0 $ unHarmonics har
     in withForeignPtr harPtr $ \harmonicsPtr ->
-         midiNoteOnAHDSR (Right osc) e ahdsr (harmonicsPtr, harSz) pitch vel mayMidi
-  Synth Noise e ahdsr -> midiNoteOnAHDSR (Left $ -1) e ahdsr (nullPtr, 0) pitch vel mayMidi
-  Synth (Sweep sweep_duration freq freqType itp) e ahdsr -> midiNoteOnAHDSRSweep (Left $ -2) e ahdsr (nullPtr, 0) sweep_duration freq freqType itp pitch vel mayMidi
-  Wind k -> effectOn (fromIntegral k) pitch vel
+         midiNoteOnAHDSR (Right osc) e ahdsr (harmonicsPtr, harSz) pitch vel mayMidi panF
+  Synth Noise e ahdsr -> midiNoteOnAHDSR (Left $ -1) e ahdsr (nullPtr, 0) pitch vel mayMidi panF
+  Synth (Sweep sweep_duration freq freqType itp) e ahdsr -> midiNoteOnAHDSRSweep (Left $ -2) e ahdsr (nullPtr, 0) sweep_duration freq freqType itp pitch vel mayMidi panF
+  Wind k -> effectOn (fromIntegral k) pitch vel panF
  where
   (MidiPitch pitch) = instrumentNoteToMidiPitch n
   vel = CFloat v
+  panF = CFloat pan
 play (StopNote mayMidi n@(InstrumentNote _ _ i)) = bool (Left ()) (Right ()) <$> case i of
   Synth (Oscillations osc har) e ahdsr ->
     let (harPtr, harSz) = S.unsafeToForeignPtr0 $ unHarmonics har
@@ -230,11 +231,11 @@ play (StopNote mayMidi n@(InstrumentNote _ _ i)) = bool (Left ()) (Right ()) <$>
 midiNoteOffAHDSR ::
   Either Int Oscillator -> ReleaseMode -> AHDSR'Envelope -> (Ptr HarmonicProperties, Int) -> CShort -> Maybe MidiInfo -> IO Bool
 midiNoteOnAHDSR ::
-  Either Int Oscillator -> ReleaseMode -> AHDSR'Envelope -> (Ptr HarmonicProperties, Int) -> CShort -> CFloat -> Maybe MidiInfo -> IO Bool
+  Either Int Oscillator -> ReleaseMode -> AHDSR'Envelope -> (Ptr HarmonicProperties, Int) -> CShort -> CFloat -> Maybe MidiInfo -> CFloat -> IO Bool
 midiNoteOffAHDSRSweep ::
   Either Int Oscillator -> ReleaseMode -> AHDSR'Envelope -> (Ptr HarmonicProperties, Int) -> Int -> AlmostFloat -> SweepFreqType -> Interpolation -> CShort -> Maybe MidiInfo -> IO Bool
 midiNoteOnAHDSRSweep ::
-  Either Int Oscillator -> ReleaseMode -> AHDSR'Envelope -> (Ptr HarmonicProperties, Int) -> Int -> AlmostFloat -> SweepFreqType -> Interpolation -> CShort -> CFloat -> Maybe MidiInfo -> IO Bool
+  Either Int Oscillator -> ReleaseMode -> AHDSR'Envelope -> (Ptr HarmonicProperties, Int) -> Int -> AlmostFloat -> SweepFreqType -> Interpolation -> CShort -> CFloat -> Maybe MidiInfo -> CFloat -> IO Bool
 midiNoteOffAHDSR osc t (AHDSR'Envelope a h d r ai di ri s) (harmonicsPtr, harmonicsSz) i mayMidi =
     midiNoteOffAHDSR_
       (either fromIntegral (fromIntegral . fromEnum) osc)
@@ -277,8 +278,9 @@ midiNoteOffAHDSRSweep osc t (AHDSR'Envelope a h d r ai di ri s) (harmonicsPtr, h
       time
  where
   (src, time) = mayMidiInfoToSrcTime mayMidi
-midiNoteOnAHDSR osc t (AHDSR'Envelope a h d r ai di ri s) (harmonicsPtr, harmonicsSz) i v mayMidi =
+midiNoteOnAHDSR osc t (AHDSR'Envelope a h d r ai di ri s) (harmonicsPtr, harmonicsSz) i v mayMidi pan =
     midiNoteOnAHDSR_
+      pan
       (either fromIntegral (fromIntegral . fromEnum) osc)
       (fromIntegral $ fromEnum t)
       (fromIntegral a)
@@ -297,8 +299,9 @@ midiNoteOnAHDSR osc t (AHDSR'Envelope a h d r ai di ri s) (harmonicsPtr, harmoni
       time
  where
   (src, time) = mayMidiInfoToSrcTime mayMidi
-midiNoteOnAHDSRSweep osc t (AHDSR'Envelope a h d r ai di ri s) (harmonicsPtr, harmonicsSz) sweep_duration sweep_freq sweep_freq_type sweep_interp i v mayMidi =
+midiNoteOnAHDSRSweep osc t (AHDSR'Envelope a h d r ai di ri s) (harmonicsPtr, harmonicsSz) sweep_duration sweep_freq sweep_freq_type sweep_interp i v mayMidi pan =
     midiNoteOnAHDSRSweep_
+      pan
       (either fromIntegral (fromIntegral . fromEnum) osc)
       (fromIntegral $ fromEnum t)
       (fromIntegral a)
@@ -354,10 +357,12 @@ setReverbWetRatio =
   fmap (bool (Left ()) (Right ())) .
     setReverbWetRatio_ . realToFrac
 
-foreign import ccall "effectOn" effectOn :: CInt -> CShort -> CFloat -> IO Bool
+foreign import ccall "effectOn" effectOn :: CInt -> CShort -> CFloat -> CFloat -> IO Bool
 foreign import ccall "effectOff" effectOff :: CShort -> IO Bool
 foreign import ccall "midiNoteOnAHDSR_"
-  midiNoteOnAHDSR_ :: CInt -> CInt
+  midiNoteOnAHDSR_ :: CFloat
+                   -- ^ Stereo
+                   -> CInt -> CInt
                    -- ^ Envelope type
                    -> CInt -> CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CInt
                    -> Ptr HarmonicProperties -> CInt
@@ -373,7 +378,9 @@ foreign import ccall "midiNoteOffAHDSR_"
                     -> IO Bool
 
 foreign import ccall "midiNoteOnAHDSRSweep_"
-  midiNoteOnAHDSRSweep_ :: CInt -> CInt
+  midiNoteOnAHDSRSweep_ :: CFloat
+                        -- ^ Stereo
+                        -> CInt -> CInt
                         -- ^ Envelope type
                         -> CInt -> CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CInt
                         -> Ptr HarmonicProperties -> CInt

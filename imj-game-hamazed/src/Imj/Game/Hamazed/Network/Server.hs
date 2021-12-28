@@ -675,7 +675,7 @@ gameScheduler st =
       gets unServerState >>= \s ->
         liftIO $ modifyMVar
           (scheduledGame s)
-          (\g -> let (newScore, noteChange) = stepScore $ score g in return (g {score = newScore}, noteChange))
+          (\g -> let (newScore, noteChange) = stepScore panCentered $ score g in return (g {score = newScore}, noteChange))
 
     updateSafeShips = adjustAllClients' $ \c@(HamazedClient _ mayTimeUnsafe _ _) ->
       maybe

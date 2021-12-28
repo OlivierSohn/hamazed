@@ -18,7 +18,7 @@ import           Imj.Music.Compositions.Vivaldi
 playShortLowNote :: Instrument -> IO (Either () ())
 playShortLowNote instrument = do
   _ <- play $
-    StartNote Nothing (InstrumentNote Do (Octave 6) instrument) (NoteVelocity 0.01)
+    StartNote Nothing (InstrumentNote Do (Octave 6) instrument) (NoteVelocity 0.01) panCentered
   play $
     StopNote Nothing (InstrumentNote Do (Octave 6) instrument)
 
@@ -42,8 +42,8 @@ main = void $ usingAudioOutput -- WithMinLatency 0
   -- TODO panning : add panning info in the instrument, use StereoPanned<audioElt>
   playVoicesAtTempo 440.0 simpleInstrument
     (
-    ((take (countLoops * countInstructions) $ cycle randInstructions1) ++ [Rest]) :
-    ((take (countLoops * countInstructions) $ cycle randInstructions2) ++ [Rest]) :
+    ((NotePan $ -1), ((take (countLoops * countInstructions) $ cycle randInstructions1) ++ [Rest])) :
+    ((NotePan $ 1), ((take (countLoops * countInstructions) $ cycle randInstructions2) ++ [Rest])) :
     [])
     >>= print
   putStrLn "playing me"
@@ -72,7 +72,7 @@ main = void $ usingAudioOutput -- WithMinLatency 0
   allowedInstructions1 = allowedNotes ++ [Rest]
 
 stressTest :: IO PlayResult
-stressTest = playVoicesAtTempo 10000 simpleInstrument $ map (take 1000 . cycle) [voices|
+stressTest = playVoicesAtTempo 10000 simpleInstrument $ allCentered $ map (take 1000 . cycle) [voices|
   sol  - .  . .  .   la - .  . si -   -  - .
   vsol - -  - .  vla -  - -  . .  vsi -  . .
   do   . do . do .   do . do . do .   do - .

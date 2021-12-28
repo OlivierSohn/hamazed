@@ -23,13 +23,14 @@ import qualified Data.Vector as V
 import           GHC.Generics (Generic)
 
 import           Imj.Music.Instruction
+import           Imj.Music.Instrument(NotePan(..))
 
 -- | A 'Score' is a list of 'Voice's
 newtype Score i = Score [Voice i]
   deriving(Generic,Show, Eq, Functor)
 
-mkScore :: i -> [[Instruction]] -> Score i
-mkScore i s = Score $ map (mkVoice i) s
+mkScore :: i -> [(NotePan, [Instruction])] -> Score i
+mkScore i s = Score $ map (uncurry $ mkVoice i) s
 
 mergeScores :: Score i -> Score i -> Score i
 mergeScores (Score i) (Score j) = Score (i ++ j)
@@ -48,10 +49,11 @@ data Voice i = Voice {
   -- ^ Can never be 'Just' 'Extend' because when a 'Extend' symbol is encountered, we don't change this value.
   , voiceInstructions :: !(V.Vector Instruction)
   , voiceInstrument :: !i
+  , voicePan :: !NotePan
 } deriving(Generic,Show, Eq, Functor)
 
-mkVoice :: i -> [Instruction] -> Voice i
-mkVoice i l = Voice 0 Nothing (V.fromList l) i
+mkVoice :: i -> NotePan -> [Instruction] -> Voice i
+mkVoice i pan l = Voice 0 Nothing (V.fromList l) i pan
 
 voiceLength :: Voice i -> Int
 voiceLength = V.length . voiceInstructions

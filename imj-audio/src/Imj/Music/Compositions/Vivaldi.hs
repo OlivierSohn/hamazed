@@ -9,17 +9,18 @@ module Imj.Music.Compositions.Vivaldi
 import           Imj.Prelude
 
 import           Imj.Music.Instruction
+import           Imj.Music.Instrument(NotePan(..), allCentered)
 import           Imj.Music.Alter
 import           Imj.Music.Compose
 
 -- | The beginning of <https://www.youtube.com/watch?v=e3nSvIiBNFo the 1st movement>
 -- from Antonio Vivaldi's Four Seasons / Spring.
-vivaldiFourSeasonsSpring :: (Double,[[Instruction]])
+vivaldiFourSeasonsSpring :: (Double,[(NotePan, [Instruction])])
 vivaldiFourSeasonsSpring = (bpm,part)
  where
   bpm = 350
 
-  part = map (map (transposeSymbol 4)) $ [voices|
+  part = allCentered $ map (map (transposeSymbol 4)) $ [voices|
     do -
     vsol -
 
@@ -48,12 +49,12 @@ vivaldiFourSeasonsSpring = (bpm,part)
 
 -- | The beginning of <https://www.youtube.com/watch?v=124NoPUBDvA Presto>,
 -- from Antonio Vivaldi's Four Seasons / Summer.
-vivaldiFourSeasonsSummerPresto :: (Double,[[Instruction]])
+vivaldiFourSeasonsSummerPresto :: (Double,[(NotePan, [Instruction])])
 vivaldiFourSeasonsSummerPresto = (bpm,part)
  where
   bpm = 2500
 
-  part = map (map (transposeSymbol 7)) $ [voices|
+  part = allCentered $ map (map (transposeSymbol 7)) $ [voices|
     do - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - .
 
     vsib - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - . vdo - - .

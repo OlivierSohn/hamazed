@@ -15,6 +15,11 @@ module Imj.Music.Instrument
       , mkInstrumentNote
       , NoteVelocity(..)
       , mkNoteVelocity
+      , NotePan(..)
+      , panCentered
+      , panLeft
+      , panRight
+      , allCentered
       , Oscillator(..)
       , cycleOscillator, countOscillators
       , cycleSweepFreqType, countSweepFreqType
@@ -98,7 +103,7 @@ cycleOscillator n v =
   toEnum $ ((fromEnum v) + n) `mod` countOscillators
 
 data MusicalEvent instr =
-     StartNote !(Maybe MidiInfo) !(InstrumentNote instr) {-# UNPACK #-} !NoteVelocity
+     StartNote !(Maybe MidiInfo) !(InstrumentNote instr) {-# UNPACK #-} !NoteVelocity {-# UNPACK #-} !NotePan
      -- ^ Start playing a note at the given volume
    | StopNote !(Maybe MidiInfo) !(InstrumentNote instr)
      -- ^ Stop playing a note
@@ -108,7 +113,7 @@ instance NFData instr => NFData (MusicalEvent instr)
 instance Functor MusicalEvent where
   {-# INLINABLE fmap #-}
   fmap f = \case
-    StartNote a b c -> StartNote a (fmap f b) c
+    StartNote a b c d -> StartNote a (fmap f b) c d
     StopNote a b -> StopNote a $ fmap f b
 
 -- | In the range @[0,1]@. 0 means no sound, 1 means full volume.
@@ -116,6 +121,22 @@ newtype NoteVelocity = NoteVelocity Float
  deriving (Generic, Num,Show,Eq)
 instance Binary NoteVelocity
 instance NFData NoteVelocity
+
+-- | In the range @[-1,1]@. -1 means left, 1 means right.
+newtype NotePan = NotePan Float
+ deriving (Generic, Num,Show,Eq)
+instance Binary NotePan
+instance NFData NotePan
+
+panCentered :: NotePan
+panCentered = NotePan 0
+panLeft :: NotePan
+panLeft = NotePan $ -1
+panRight :: NotePan
+panRight = NotePan 1
+
+allCentered :: [[Instruction]] -> [(NotePan, [Instruction])]
+allCentered i = map ((,) panCentered) i
 
 -- | Converts a discrete MIDI velocity (0..127) to a continuous velocity (0..1)
 mkNoteVelocity :: Int -> NoteVelocity

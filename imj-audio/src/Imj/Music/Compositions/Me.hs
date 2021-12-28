@@ -86,22 +86,22 @@ meScore m =
   mergeScores
     (mkScore meInstrument $ snd $ me m)
     $ mergeScores
-      (mkScore meSnare meSnareVoice)
+      (mkScore meSnare $ allCentered meSnareVoice)
       $ mergeScores
-        (mkScore meKick meKickVoice)
-        (mkScore meKick2 meKick2Voice)
+        (mkScore meKick $ allCentered meKickVoice)
+        (mkScore meKick2 $ allCentered meKick2Voice)
     )
 
 me :: Maybe Double
    -- ^  number of seconds per loop
-   -> (Double,[[Instruction]])
+   -> (Double,[(NotePan, [Instruction])])
 me may_sec_per_loop = (bpm,part)
  where
   bpm = maybe (2*120) (\sec -> num_beats / (sec / 60.0)) may_sec_per_loop
 
   num_beats = 16*4
 
-  part = [voices|
+  part = allCentered [voices|
     la . la . la . la . la . la . la . la .
     . ^mi . ^ré
     vvla . . . . vvla vvla vvsi . . . vdo . vvsi vvsol

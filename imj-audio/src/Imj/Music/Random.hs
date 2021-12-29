@@ -2,7 +2,8 @@
 module Imj.Music.Random(
           pickRandom,
           pickRandomInstructions,
-          pickRandomWeighted)
+          pickRandomWeighted,
+          pickRandomInstructionsWeighted)
   where
 
 import           System.Random.MWC(create, uniform, Variate(..))
@@ -31,7 +32,7 @@ pickRandomWeighted count l = do
     return $ accWeightToValue 0 l $ intToAccWeight word
   intToAccWeight i = sumWeights * ((fromIntegral i) / (fromIntegral (maxBound :: Word)))
   sumWeights = foldl' (\acc (_, w) -> acc + w) 0 l
-  accWeightToValue accWeight [] aw = error "not found"
+  accWeightToValue _ [] _ = error "not found"
   accWeightToValue accWeight ((val, weight):es) aw =
     if (accWeight + weight >= aw)
       then val
@@ -41,14 +42,9 @@ pickRandomWeighted count l = do
   Ensures Instructions are coherent, i.e
  - we use Extend only if a note is being played
 --}
-pickRandomInstructions :: Int -> [Instruction] -> IO [Instruction]
-pickRandomInstructions count l = do
-  g <- create
-  ints <- replicateM count $ uniform g :: IO [Int]
-  return $ sanitize Nothing [] $ map (((!!) l) . idx) ints
+sanitizeInstructions :: [Instruction] -> [Instruction]
+sanitizeInstructions insns = sanitize Nothing [] insns
  where
-  idx i = mod i m
-  m = length l
   sanitize mayPrev acc remain = case remain of
     [] -> reverse acc
     (r:nextRemain) ->
@@ -65,3 +61,13 @@ pickRandomInstructions count l = do
           _ -> r)
         mayPrev): acc)
       nextRemain
+
+pickRandomInstructions :: Int -> [Instruction] -> IO [Instruction]
+pickRandomInstructions count l = do
+  insns <- pickRandom count l
+  return $ sanitizeInstructions insns
+
+pickRandomInstructionsWeighted :: Int -> [(Instruction, Float)] -> IO [Instruction]
+pickRandomInstructionsWeighted count l = do
+  insns <- pickRandomWeighted count l
+  return $ sanitizeInstructions insns

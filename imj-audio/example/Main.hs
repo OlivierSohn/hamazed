@@ -9,7 +9,7 @@ import           Control.Concurrent(threadDelay)
 import           Control.Monad(void)
 
 import           Imj.Audio
-import           Imj.Music.Random(pickRandomWeighted, pickRandomInstructions)
+import           Imj.Music.Random(pickRandomWeighted, pickRandom, pickRandomInstructionsWeighted)
 import           Imj.Music.Compositions.Me
 import           Imj.Music.Compositions.Tech
 import           Imj.Music.Compositions.Tchaikovski
@@ -36,12 +36,15 @@ main = void $ usingAudioOutput -- WithMinLatency 0
   threadDelay 10000
   --}
 
-  -- play a short snare note to initialize pink node
+  -- play a short snare note to initialize pink noise
   putStrLn "play short & low snare note to initialize pink Noise"
   _ <- playShortLowNote meSnare $ VoiceId 0
   putStrLn "playing random score"
-  randInstructions1 <- pickRandomInstructions countInstructions allowedInstructions1
-  randInstructions2 <- pickRandomInstructions (countInstructions - 1) allowedInstructions2
+  r1 <- pickRandom 50 [0, 1, 2, 3, 4]
+  r2 <- pickRandom 50 [0, 1, 2, 3, 4]
+  mapM_ print $ zip r1 r2
+  randInstructions1 <- pickRandomInstructionsWeighted countInstructions allowedInstructions1
+  randInstructions2 <- pickRandomInstructionsWeighted (countInstructions - 1) allowedInstructions2
   -- mapM_ print $ zip randInstructions1 randInstructions2
   pedal <- pickRandomWeighted (countLoops * countInstructions) [(True, 0.1), (False, 0.3)]
   playVoicesAtTempoPedal 440.0 simpleInstrument
@@ -73,8 +76,8 @@ main = void $ usingAudioOutput -- WithMinLatency 0
   countLoops = 8
   countInstructions = 32
   allowedNotes = map (uncurry Note . midiPitchToNoteAndOctave) [60..80]
-  allowedInstructions2 = allowedNotes ++ [Rest, Extend]
-  allowedInstructions1 = allowedNotes ++ [Rest]
+  allowedInstructions2 = map ((flip (,)) 0.001) allowedNotes ++ [(Rest, 0.1), (Extend, 0.1)]
+  allowedInstructions1 = map ((flip (,)) 0.01) allowedNotes ++ [(Rest, 0.1)]
 
 
 stressTest :: IO PlayResult

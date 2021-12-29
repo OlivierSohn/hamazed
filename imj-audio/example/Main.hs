@@ -12,6 +12,7 @@ import           System.Random.MWC(create)
 
 import           Imj.Audio
 import           Imj.Music.Random(pickRandomWeighted, pickRandomInstructionsWeighted)
+import           Imj.Music.Harmony
 import           Imj.Music.Compositions.Me
 import           Imj.Music.Compositions.Tech
 import           Imj.Music.Compositions.Tchaikovski
@@ -78,9 +79,12 @@ playRandomScore = do
  where
   countLoops = 8
   countInstructions = 32
-  allowedNotes = map (uncurry Note . midiPitchToNoteAndOctave) [60..80]
-  allowedInstructions2 = map ((flip (,)) 0.001) allowedNotes ++ [(Rest, 0.1), (Extend, 0.1)]
-  allowedInstructions1 = map ((flip (,)) 0.01) allowedNotes ++ [(Rest, 0.1)]
+  allowedNotes = map (midiPitchToNoteAndOctave . MidiPitch) [60..80]
+  pattern = minorChord
+  weightedNotes1 = map (\(n, o) -> (Note n o, if inPattern (NotesPattern pattern (MidiPitch 0)) (noteToMidiPitch n o) then 0.01 else 0.001)) allowedNotes
+  weightedNotes2 = map (\(n, o) -> (Note n o, if inPattern (NotesPattern pattern (MidiPitch 0)) (noteToMidiPitch n o) then 0.001 else 0.0001)) allowedNotes
+  allowedInstructions2 = weightedNotes1 ++ [(Rest, 0.1), (Extend, 0.1)]
+  allowedInstructions1 = weightedNotes2 ++ [(Rest, 0.1), (Extend, 0.1)]
 
 stressTest :: IO PlayResult
 stressTest = playVoicesAtTempo 10000 simpleInstrument $ allCentered $ map (take 1000 . cycle) [voices|

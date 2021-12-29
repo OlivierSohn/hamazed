@@ -182,6 +182,7 @@ library
                      , Imj.Music.Compositions.Tchaikovski
                      , Imj.Music.Compositions.Tech
                      , Imj.Music.Compositions.Vivaldi
+                     , Imj.Music.Harmony
                      , Imj.Music.Instruction
                      , Imj.Music.Instrument
                      , Imj.Music.Midi

@@ -54,7 +54,7 @@ instance Audio WithAudio where
     | otherwise = return ()
 
   playMusic (WithAudio useAudio) instrumentMap mus
-    | useAudio = liftIO $ void $ play $ fmap ((!) instrumentMap) mus
+    | useAudio = liftIO $ void $ play (fmap ((!) instrumentMap) mus) $ VoiceId 0
     | otherwise = return ()
 
   -- WARNING when changing this, also change 'parseArg'

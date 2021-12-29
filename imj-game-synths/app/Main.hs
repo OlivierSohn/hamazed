@@ -850,7 +850,7 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
                 []
                 (\(iid, _) ->
                   let spec = noteSpec iid
-                  in [CliEvt $ ClientAppEvt $ PlayNote $ StartNote Nothing spec 1
+                  in [CliEvt $ ClientAppEvt $ PlayNote $ StartNote Nothing spec 1 panCentered
                     , Evt $ AppEvent $ InsertPressedKey (GLFWKey k) spec])
                 mayInstr)
             $ keyToNote k
@@ -1132,7 +1132,7 @@ instance GameLogic SynthsGame where
                                           (\(iid, _) ->
                                            let i = mkInstrumentNote k iid
                                            in ([AppEvent $ InsertPressedKey (MIDIKey k) i]
-                                             , [ClientAppEvt $ PlayNote $ StartNote mi i $ mkNoteVelocity v]))
+                                             , [ClientAppEvt $ PlayNote $ StartNote mi i (mkNoteVelocity v) panCentered]))
                                           mayInstr
                                         ctrl control value
                                           | control == 12 =
@@ -1545,7 +1545,7 @@ pianoEvts idx v@(PressedKeys m) =
   concatMap
     (\(note,n) ->
     -- TODO the server could be the "0" midisource, and generate its own midi timestamps
-      replicate n $ PlayMusic (StartNote Nothing note 1))
+      replicate n $ PlayMusic (StartNote Nothing note 1 panCentered))
     (Map.assocs m)
 
 instance ServerCmdParser SynthsServer

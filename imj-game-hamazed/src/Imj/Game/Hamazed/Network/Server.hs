@@ -52,7 +52,7 @@ import           Control.Concurrent.MVar.Strict(MVar)
 import           Control.Monad.IO.Class(MonadIO, liftIO)
 import           Control.Monad.Reader(asks)
 import           Control.Monad.State.Strict(MonadState, modify', gets, get, state, runStateT)
-import           Data.List(foldl')
+import           Data.List(foldl', concat)
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 import           Data.Maybe(isJust)
@@ -600,7 +600,7 @@ gameScheduler st =
           let (newScore, notesChanges) = stopScore s
           case notesChanges of
             [] -> return ()
-            _:_ -> notifyPlayersN' $ map PlayMusic notesChanges
+            _:_ -> notifyPlayersN' $ map PlayMusic $ concat notesChanges
           putMVar game $ g{score = newScore})
 
     go = get >>= \(ServerState _ _ terminate _ _ _ (HamazedServer _ _ _ _ game _)) ->
@@ -664,7 +664,7 @@ gameScheduler st =
     updateSafeShips >>= \shipsLostArmor ->
       updateVoice >>= \noteChange ->
         notifyPlayersN'
-          (map PlayMusic noteChange ++
+          (map PlayMusic (concat noteChange) ++
           [ServerAppEvt $ GameEvent $ PeriodicMotion accs shipsLostArmor])
     adjustAllClients $ \p -> p { getShipAcceleration = zeroCoords }
     return $ Just $ toSystemDuration mult gameMotionPeriod
@@ -675,7 +675,7 @@ gameScheduler st =
       gets unServerState >>= \s ->
         liftIO $ modifyMVar
           (scheduledGame s)
-          (\g -> let (newScore, noteChange) = stepScore panCentered $ score g in return (g {score = newScore}, noteChange))
+          (\g -> let (newScore, noteChange) = stepScore $ score g in return (g {score = newScore}, noteChange))
 
     updateSafeShips = adjustAllClients' $ \c@(HamazedClient _ mayTimeUnsafe _ _) ->
       maybe

@@ -49,5 +49,5 @@ onMusic :: Ord i
         -> (Int,PressedKeys i)
         -- ^ returns the number of changed notes (added or removed)
 onMusic n = case n of
-  StartNote _ spec _ -> addNote spec
+  StartNote _ spec _ _ -> addNote spec
   StopNote _ spec -> removeNote spec

@@ -41,9 +41,9 @@ hamazedScores =
 
 primaryScore :: Score Instrument
 primaryScore = mkScore organicInstrument
-  [ firstVoice
-  , secondVoice
-  , thirdVoice]
+  [ (panCentered, firstVoice)
+  , (panCentered, secondVoice)
+  , (panCentered, thirdVoice)]
  where
   firstVoice =
     concatMap ((++) begin) variations
@@ -96,8 +96,8 @@ primaryScore = mkScore organicInstrument
 secondaryScore :: Score Instrument
 secondaryScore =
   mkScore organicInstrument
-    [ firstVoice
-    , secondVoice
+    [ (panCentered, firstVoice)
+    , (panCentered, secondVoice)
     ]
  where
 
@@ -176,8 +176,8 @@ secondaryScore =
 tertiaryScore :: Score Instrument
 tertiaryScore =
   mkScore organicInstrument
-    [ firstVoice ++ secondVoice
-    , concat (replicate (length firstVoice) silence) ++ firstVoice']
+    [ (panCentered, firstVoice ++ secondVoice)
+    , (panCentered, concat (replicate (length firstVoice) silence) ++ firstVoice')]
  where
    silence = [voice|.|]
 
@@ -245,10 +245,10 @@ tertiaryScore =
 quatScore :: Score Instrument
 quatScore =
   mkScore organicInstrument
-    [ voice1
-    , bass1
-    , bass2
-    , bass3
+    [ (panCentered, voice1)
+    , (panCentered, bass1)
+    , (panCentered, bass2)
+    , (panCentered, bass3)
     ]
  where
 
@@ -333,10 +333,10 @@ quatScore =
 quintScore :: Score Instrument
 quintScore =
   mkScore bellInstrument
-    [ v2
-    , (take (3*12) (cycle v1)) ++ take (3*12) (cycle v1')
-    , (take (3*12) (cycle b1)) ++ take (3*12) (cycle b1')
-    , (take (3*12) (cycle b2)) ++ take (3*12) (cycle b2')
+    [ (panCentered, v2)
+    , (panCentered, (take (3*12) (cycle v1)) ++ take (3*12) (cycle v1'))
+    , (panCentered, (take (3*12) (cycle b1)) ++ take (3*12) (cycle b1'))
+    , (panCentered, (take (3*12) (cycle b2)) ++ take (3*12) (cycle b2'))
     ]
  where
 
@@ -362,12 +362,12 @@ quintScore =
 sextScore :: Score Instrument
 sextScore =
   mkScore organicInstrument
-    [ take (length v2) $ cycle v1
-    , v2
-    , take (length v2) $ cycle $ skip1 ++ v3
-    , take (length v2) $ cycle (acc n1)
-    , take (length v2) $ cycle (acc n2)
-    , take (length v2) $ cycle (acc n3)
+    [ (panCentered, take (length v2) $ cycle v1)
+    , (panCentered, v2)
+    , (panCentered, take (length v2) $ cycle $ skip1 ++ v3)
+    , (panCentered, take (length v2) $ cycle (acc n1))
+    , (panCentered, take (length v2) $ cycle (acc n2))
+    , (panCentered, take (length v2) $ cycle (acc n3))
     ]
  where
   v1 = [voice|
@@ -438,11 +438,11 @@ sextScore =
 sevthScore :: Score Instrument
 sevthScore =
   mkScore organicInstrument
-    [ v1 ++ v1
-    , v2 ++ v2
-    , v3 ++ v3
-    , silence ++ v4
-    , silence ++ v5
+    [ (panCentered, v1 ++ v1)
+    , (panCentered, v2 ++ v2)
+    , (panCentered, v3 ++ v3)
+    , (panCentered, silence ++ v4)
+    , (panCentered, silence ++ v5)
     ]
  where
    v1 = [voice|
@@ -479,10 +479,10 @@ sevthScore =
 
 heighthScore :: Score Instrument
 heighthScore = mkScore organicInstrument
-  [ concat $ replicate 8 melody
-  , concat $ replicate 4 bass
-  , silence ++ upperVoice ++ silence ++ upperVoice
-  , silence ++ silence ++ silence ++ upperVoice2
+  [ (panCentered, concat $ replicate 8 melody)
+  , (panCentered, concat $ replicate 4 bass)
+  , (panCentered, silence ++ upperVoice ++ silence ++ upperVoice)
+  , (panCentered, silence ++ silence ++ silence ++ upperVoice2)
   ]
 
  where
@@ -540,10 +540,10 @@ heighthScore = mkScore organicInstrument
 
 ninthScore :: Score Instrument
 ninthScore = mkScore shortInstrument
-  [ melody
-  , bass1
-  , bass2
-  , concat $ replicate 4 bass3
+  [ (panCentered, melody)
+  , (panCentered, bass1)
+  , (panCentered, bass2)
+  , (panCentered, concat $ replicate 4 bass3)
   ]
 
  where
@@ -575,8 +575,8 @@ ninthScore = mkScore shortInstrument
 tenthScore :: Score Instrument
 tenthScore = mkScore
   shortInstrument
-  [ concat $ replicate 2 melody
-  , bass
+  [ (panCentered, concat $ replicate 2 melody)
+  , (panCentered, bass)
   ]
 
  where
@@ -600,9 +600,9 @@ tenthScore = mkScore
 eleventhScore :: Score Instrument
 eleventhScore = mkScore
   testInstrument
-  [ melody
-  , melody2
-  , bass
+  [ (panCentered, melody)
+  , (panCentered, melody2)
+  , (panCentered, bass)
   ]
 
  where
@@ -666,11 +666,11 @@ eleventhScore = mkScore
 
 twelvthScore :: Score Instrument
 twelvthScore = Score
-  [ mkVoice stringsInstrument $ concat $ replicate 8 melody
-  , mkVoice stringsInstrument $ concat $ replicate 8 bass1
-  , mkVoice stringsInstrument $ concat $ replicate 8 bass2
-  , mkVoice shortInstrument $ concat (replicate 4 $ mute melody) ++ concat (replicate 4 voice1)
-  , mkVoice longInstrument $ concat (replicate 4 $ mute melody) ++ concat (replicate 4 voice2)
+  [ mkVoice stringsInstrument panCentered $ concat $ replicate 8 melody
+  , mkVoice stringsInstrument panCentered $ concat $ replicate 8 bass1
+  , mkVoice stringsInstrument panCentered $ concat $ replicate 8 bass2
+  , mkVoice shortInstrument panCentered $ concat (replicate 4 $ mute melody) ++ concat (replicate 4 voice1)
+  , mkVoice longInstrument panCentered $ concat (replicate 4 $ mute melody) ++ concat (replicate 4 voice2)
   ]
 
  where

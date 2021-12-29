@@ -9,7 +9,7 @@ import           Control.Concurrent(threadDelay)
 import           Control.Monad(void)
 
 import           Imj.Audio
-import           Imj.Music.Random(pickRandom, pickRandomInstructions)
+import           Imj.Music.Random(pickRandomWeighted, pickRandomInstructions)
 import           Imj.Music.Compositions.Me
 import           Imj.Music.Compositions.Tech
 import           Imj.Music.Compositions.Tchaikovski
@@ -41,9 +41,9 @@ main = void $ usingAudioOutput -- WithMinLatency 0
   _ <- playShortLowNote meSnare $ VoiceId 0
   putStrLn "playing random score"
   randInstructions1 <- pickRandomInstructions countInstructions allowedInstructions1
-  randInstructions2 <- pickRandomInstructions (div countInstructions 2) allowedInstructions2
+  randInstructions2 <- pickRandomInstructions (countInstructions - 1) allowedInstructions2
   -- mapM_ print $ zip randInstructions1 randInstructions2
-  pedal <- pickRandom (countLoops * countInstructions) [True, False]
+  pedal <- pickRandomWeighted (countLoops * countInstructions) [(True, 0.1), (False, 0.3)]
   playVoicesAtTempoPedal 440.0 simpleInstrument
     (
     ((NotePan $ -1), ((take (countLoops * countInstructions) $ cycle randInstructions1))) :
@@ -70,8 +70,8 @@ main = void $ usingAudioOutput -- WithMinLatency 0
   uncurry (flip playVoicesAtTempo simpleInstrument) tchaikovskiSwanLake >>= print
   threadDelay 10000
  where
-  countLoops = 16
-  countInstructions = 16
+  countLoops = 8
+  countInstructions = 32
   allowedNotes = map (uncurry Note . midiPitchToNoteAndOctave) [60..80]
   allowedInstructions2 = allowedNotes ++ [Rest, Extend]
   allowedInstructions1 = allowedNotes ++ [Rest]

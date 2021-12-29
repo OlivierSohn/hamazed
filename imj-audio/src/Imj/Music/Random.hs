@@ -1,8 +1,13 @@
 
-module Imj.Music.Random(pickRandom, pickRandomInstructions)
+module Imj.Music.Random(
+          pickRandom,
+          pickRandomInstructions,
+          pickRandomWeighted)
   where
 
 import           System.Random.MWC(create, uniform, Variate(..))
+
+import Data.List(foldl')
 
 import           Imj.Prelude
 import           Imj.Music.Instruction(Instruction(..))
@@ -15,6 +20,22 @@ pickRandom count l = do
  where
   idx i = mod i m
   m = length l
+
+pickRandomWeighted :: Int -> [(a, Float)] -> IO [a]
+pickRandomWeighted count l = do
+  g <- create
+  replicateM count $ pick g
+ where
+  pick g = do
+    word <- uniform g :: IO Word
+    return $ accWeightToValue 0 l $ intToAccWeight word
+  intToAccWeight i = sumWeights * ((fromIntegral i) / (fromIntegral (maxBound :: Word)))
+  sumWeights = foldl' (\acc (_, w) -> acc + w) 0 l
+  accWeightToValue accWeight [] aw = error "not found"
+  accWeightToValue accWeight ((val, weight):es) aw =
+    if (accWeight + weight >= aw)
+      then val
+      else accWeightToValue (accWeight + weight) es aw
 
 {--
   Ensures Instructions are coherent, i.e

@@ -9,6 +9,7 @@ import           Control.Concurrent(threadDelay)
 import           Control.Monad(void)
 
 import           System.Random.MWC(create)
+import           Data.Bool(bool)
 
 import           Imj.Audio
 import           Imj.Music.Random(pickRandomWeighted, pickRandomInstructionsWeighted)
@@ -78,13 +79,27 @@ playRandomScore = do
     pedal
  where
   countLoops = 8
-  countInstructions = 32
-  allowedNotes = map (midiPitchToNoteAndOctave . MidiPitch) [60..80]
-  pattern = minorChord
-  weightedNotes1 = map (\(n, o) -> (Note n o, if inPattern (NotesPattern pattern (MidiPitch 0)) (noteToMidiPitch n o) then 0.01 else 0.001)) allowedNotes
-  weightedNotes2 = map (\(n, o) -> (Note n o, if inPattern (NotesPattern pattern (MidiPitch 0)) (noteToMidiPitch n o) then 0.001 else 0.0001)) allowedNotes
-  allowedInstructions2 = weightedNotes1 ++ [(Rest, 0.1), (Extend, 0.1)]
-  allowedInstructions1 = weightedNotes2 ++ [(Rest, 0.1), (Extend, 0.1)]
+  countInstructions = 64
+
+  -- sumWeightsPattern / length allNotes is the probability of a note in the pattern
+  -- sumWeightsNotPattern / length allNotes is the probability of a note outside the pattern
+  weightedNotesUsingPattern pattern allNotes sumWeightsPattern sumWeightsNotPattern weightExtend weightRest =
+    let l = fromIntegral $ length allNotes :: Float
+        weightNotPattern = sumWeightsNotPattern / l :: Float
+        weightPattern = sumWeightsPattern / l :: Float
+        weightedNotes =  map
+          (\pitch -> (
+            uncurry Note $ midiPitchToNoteAndOctave pitch,
+            bool weightNotPattern weightPattern
+              $ inPattern pattern pitch))
+          allNotes
+    in weightedNotes ++ [(Rest, weightRest), (Extend, weightExtend)]
+
+  rangeNotes = map MidiPitch [55..71]
+  allowedInstructions1 = weightedNotesUsingPattern (NotesPattern minorHarmonicScale (MidiPitch 0)) rangeNotes
+    10 0 10 0
+  allowedInstructions2 = weightedNotesUsingPattern (NotesPattern minorChord (MidiPitch 0)) rangeNotes
+    10 0 10 0
 
 stressTest :: IO PlayResult
 stressTest = playVoicesAtTempo 10000 simpleInstrument $ allCentered $ map (take 1000 . cycle) [voices|

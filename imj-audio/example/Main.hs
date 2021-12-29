@@ -9,7 +9,7 @@ import           Control.Concurrent(threadDelay)
 import           Control.Monad(void)
 
 import           Imj.Audio
-import           Imj.Music.Random(pickRandom)
+import           Imj.Music.Random(pickRandom, pickRandomInstructions)
 import           Imj.Music.Compositions.Me
 import           Imj.Music.Compositions.Tech
 import           Imj.Music.Compositions.Tchaikovski
@@ -40,15 +40,16 @@ main = void $ usingAudioOutput -- WithMinLatency 0
   putStrLn "play short & low snare note to initialize pink Noise"
   _ <- playShortLowNote meSnare $ VoiceId 0
   putStrLn "playing random score"
-  randInstructions1 <- pickRandom countInstructions allowedInstructions1
-  randInstructions2 <- pickRandom (div countInstructions 2) allowedInstructions2
+  randInstructions1 <- pickRandomInstructions countInstructions allowedInstructions1
+  randInstructions2 <- pickRandomInstructions (div countInstructions 2) allowedInstructions2
   -- mapM_ print $ zip randInstructions1 randInstructions2
-
-  playVoicesAtTempo 440.0 simpleInstrument
+  pedal <- pickRandom (countLoops * countInstructions) [True, False]
+  playVoicesAtTempoPedal 440.0 simpleInstrument
     (
     ((NotePan $ -1), ((take (countLoops * countInstructions) $ cycle randInstructions1))) :
     ((NotePan $ 1), ((take (countLoops * countInstructions) $ cycle randInstructions2))) :
     [])
+    pedal
     >>= print
   putStrLn "playing me"
   uncurry (playScoreAtTempo 1) (meScore $ Just 10.0) >>= print

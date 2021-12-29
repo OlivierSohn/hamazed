@@ -28,7 +28,9 @@ module Imj.Music.Play
       -- * Play Instruction(s) all at once, with known tempo
       , playAtTempo
       , playVoicesAtTempo
+      , playVoicesAtTempoPedal
       , playScoreAtTempo
+      , playScoreAtTempoPedal
       -- * Create MusicalEvent(s) for a time quantum
       -- ** From a Voice
       , stepVoice
@@ -44,7 +46,7 @@ import           Imj.Prelude
 import           Control.Concurrent(threadDelay)
 import           Data.Maybe(catMaybes, maybeToList)
 import qualified Data.Vector as V
-import           Data.List(take)
+import           Data.List(take, partition)
 
 import           Imj.Audio.Output
 import           Imj.Music.Score
@@ -68,41 +70,69 @@ playVoicesAtTempo :: Double
                   -> Instrument
                   -> [(NotePan, [Instruction])]
                   -> IO PlayResult
-playVoicesAtTempo tempo i instructions =
-  playScoreAtTempo 1 tempo (mkScore i instructions)
+playVoicesAtTempo tempo i instructions = playVoicesAtTempoPedal tempo i instructions []
 
--- stops the score at the end of each period
+playVoicesAtTempoPedal :: Double
+                        -- ^ Beats per minute
+                        -> Instrument
+                        -> [(NotePan, [Instruction])]
+                        -> [Bool]
+                        -- ^ Pedal
+                        -> IO PlayResult
+playVoicesAtTempoPedal tempo i instructions pedal =
+  playScoreAtTempoPedal 1 tempo (mkScore i instructions) pedal
+
 playScoreAtTempo :: Int -> Double -> Score Instrument -> IO PlayResult
 playScoreAtTempo countRepetitions tempo s =
+  playScoreAtTempoPedal countRepetitions tempo s []
+
+-- stops the score at the end of each period
+playScoreAtTempoPedal :: Int
+                      -> Double
+                      -> Score Instrument
+                      -> [Bool]
+                      -- ^ Pedal
+                      -> IO PlayResult
+playScoreAtTempoPedal countRepetitions tempo s pedal =
   getSystemTime >>=
-    go countRepetitions nn s 0
+    go countRepetitions nn s 0 pedal
  where
   nn = scoreLength s
-  go a c d e firstTime =
-    go' a c d e
+  emptyListsByVoice = take nn $ repeat []
+  concatByVoice a b = map (uncurry (++)) $ zip a b
+  go a c d e f firstTime =
+    go' a c d e f emptyListsByVoice
    where
-    go' repetitions n score total = do
+    go' repetitions n score total [] pendingInsns =
+      go' repetitions n score total (repeat False) pendingInsns
+    go' repetitions n score total (p:ped) pendingInsns = do
       now <- getSystemTime
-      let (newPreScore, stopRawInstructions) = if (n == nn) then stopScore score else (score, take nn $ repeat [])
-          (newScore, rawInstructions) = if (repetitions >= 1) then stepScore newPreScore else (newPreScore, take nn $ repeat [])
+      let (newPreScore, stopRawInstructions) = if (n == nn) then stopScore score else (score, emptyListsByVoice)
+          (newScore, rawInstructions) = if (repetitions >= 1) then stepScore newPreScore else (newPreScore, emptyListsByVoice)
           newTimeApprox = addDuration (fromSecs (total * pause)) firstTime
           duration = fromIntegral $ toMicros $ now...newTimeApprox
-          instructions = zip (map (uncurry (++)) $ zip stopRawInstructions rawInstructions) $ map VoiceId [0..]
+          allRawInsns = concatByVoice stopRawInstructions rawInstructions
+          hasPedal = bool False (repetitions >= 1) p
+          listPairs = map (\insns -> partition (\i -> case i of
+              StopNote _ _ -> not hasPedal
+              _ -> True) insns) allRawInsns
+          nowRawInsns = concatByVoice (if hasPedal then emptyListsByVoice else pendingInsns) (map fst listPairs)
+          laterRawInsns = concatByVoice (if hasPedal then pendingInsns else emptyListsByVoice) (map snd listPairs)
+          instructions = zip nowRawInsns $ map VoiceId [0..]
           playAll [] res = return res
           playAll ((i, voice):is) res =
             mapM (flip play voice) i >>= \r -> playAll is (r ++ res)
       when (duration > 0) $ threadDelay duration
-      -- TODO pedal: each voice has a list of noteoffs. This list is appended to when the pedal is on.
-      -- when the pedal becomes off, play the noteoffs.
-      -- the pedalon pedaloff events will be
+      -- In the c++ part (see struct NoteIdsGenerator), when the same voice has multiple notes of the same pitch,
+      -- note off applies to the oldest note.
       r <- playAll instructions []
       if null $ lefts r
         then
           if (repetitions >= 1)
             then
               case n of
-                1 -> go' (pred repetitions) nn newScore (succ total)
-                _ -> go' repetitions (pred n) newScore (succ total)
+                1 -> go' (pred repetitions) nn newScore (succ total) ped laterRawInsns
+                _ -> go' repetitions (pred n) newScore (succ total) ped laterRawInsns
             else
               return $ Right ()
         else

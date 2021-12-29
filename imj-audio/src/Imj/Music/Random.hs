@@ -6,29 +6,27 @@ module Imj.Music.Random(
           pickRandomInstructionsWeighted)
   where
 
-import           System.Random.MWC(create, uniform, Variate(..))
+import           System.Random.MWC(uniform, Variate(..), GenIO)
 
 import Data.List(foldl')
 
 import           Imj.Prelude
 import           Imj.Music.Instruction(Instruction(..))
 
-pickRandom :: Int -> [a] -> IO [a]
-pickRandom count l = do
-  g <- create
-  ints <- replicateM count $ uniform g :: IO [Int]
+pickRandom :: GenIO -> Int -> [a] -> IO [a]
+pickRandom rng count l = do
+  ints <- replicateM count $ uniform rng :: IO [Int]
   return $ map (((!!) l) . idx) ints
  where
   idx i = mod i m
   m = length l
 
-pickRandomWeighted :: Int -> [(a, Float)] -> IO [a]
-pickRandomWeighted count l = do
-  g <- create
-  replicateM count $ pick g
+pickRandomWeighted :: GenIO -> Int -> [(a, Float)] -> IO [a]
+pickRandomWeighted rng count l = do
+  replicateM count pick
  where
-  pick g = do
-    word <- uniform g :: IO Word
+  pick = do
+    word <- uniform rng :: IO Word
     return $ accWeightToValue 0 l $ intToAccWeight word
   intToAccWeight i = sumWeights * ((fromIntegral i) / (fromIntegral (maxBound :: Word)))
   sumWeights = foldl' (\acc (_, w) -> acc + w) 0 l
@@ -62,12 +60,12 @@ sanitizeInstructions insns = sanitize Nothing [] insns
         mayPrev): acc)
       nextRemain
 
-pickRandomInstructions :: Int -> [Instruction] -> IO [Instruction]
-pickRandomInstructions count l = do
-  insns <- pickRandom count l
+pickRandomInstructions :: GenIO -> Int -> [Instruction] -> IO [Instruction]
+pickRandomInstructions rng count l = do
+  insns <- pickRandom rng count l
   return $ sanitizeInstructions insns
 
-pickRandomInstructionsWeighted :: Int -> [(Instruction, Float)] -> IO [Instruction]
-pickRandomInstructionsWeighted count l = do
-  insns <- pickRandomWeighted count l
+pickRandomInstructionsWeighted :: GenIO -> Int -> [(Instruction, Float)] -> IO [Instruction]
+pickRandomInstructionsWeighted rng count l = do
+  insns <- pickRandomWeighted rng count l
   return $ sanitizeInstructions insns

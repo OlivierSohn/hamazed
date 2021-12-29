@@ -8,8 +8,10 @@ module Main where
 import           Control.Concurrent(threadDelay)
 import           Control.Monad(void)
 
+import           System.Random.MWC(create)
+
 import           Imj.Audio
-import           Imj.Music.Random(pickRandomWeighted, pickRandom, pickRandomInstructionsWeighted)
+import           Imj.Music.Random(pickRandomWeighted, pickRandomInstructionsWeighted)
 import           Imj.Music.Compositions.Me
 import           Imj.Music.Compositions.Tech
 import           Imj.Music.Compositions.Tchaikovski
@@ -40,20 +42,7 @@ main = void $ usingAudioOutput -- WithMinLatency 0
   putStrLn "play short & low snare note to initialize pink Noise"
   _ <- playShortLowNote meSnare $ VoiceId 0
   putStrLn "playing random score"
-  r1 <- pickRandom 50 [0, 1, 2, 3, 4]
-  r2 <- pickRandom 50 [0, 1, 2, 3, 4]
-  mapM_ print $ zip r1 r2
-  randInstructions1 <- pickRandomInstructionsWeighted countInstructions allowedInstructions1
-  randInstructions2 <- pickRandomInstructionsWeighted (countInstructions - 1) allowedInstructions2
-  -- mapM_ print $ zip randInstructions1 randInstructions2
-  pedal <- pickRandomWeighted (countLoops * countInstructions) [(True, 0.1), (False, 0.3)]
-  playVoicesAtTempoPedal 440.0 simpleInstrument
-    (
-    ((NotePan $ -1), ((take (countLoops * countInstructions) $ cycle randInstructions1))) :
-    ((NotePan $ 1), ((take (countLoops * countInstructions) $ cycle randInstructions2))) :
-    [])
-    pedal
-    >>= print
+  playRandomScore >>= print
   putStrLn "playing me"
   uncurry (playScoreAtTempo 1) (meScore $ Just 10.0) >>= print
   threadDelay 10000
@@ -72,13 +61,26 @@ main = void $ usingAudioOutput -- WithMinLatency 0
   putStrLn "playing tchaikovski swan lake"
   uncurry (flip playVoicesAtTempo simpleInstrument) tchaikovskiSwanLake >>= print
   threadDelay 10000
+
+playRandomScore :: IO PlayResult
+playRandomScore = do
+  rng <- create
+  randInstructions1 <- pickRandomInstructionsWeighted rng countInstructions allowedInstructions1
+  randInstructions2 <- pickRandomInstructionsWeighted rng (countInstructions - 1) allowedInstructions2
+  -- mapM_ print $ zip randInstructions1 randInstructions2
+  pedal <- pickRandomWeighted rng (countLoops * countInstructions) [(True, 0.1), (False, 0.3)]
+  playVoicesAtTempoPedal 440.0 simpleInstrument
+    (
+    ((NotePan $ -1), ((take (countLoops * countInstructions) $ cycle randInstructions1))) :
+    ((NotePan $ 1), ((take (countLoops * countInstructions) $ cycle randInstructions2))) :
+    [])
+    pedal
  where
   countLoops = 8
   countInstructions = 32
   allowedNotes = map (uncurry Note . midiPitchToNoteAndOctave) [60..80]
   allowedInstructions2 = map ((flip (,)) 0.001) allowedNotes ++ [(Rest, 0.1), (Extend, 0.1)]
   allowedInstructions1 = map ((flip (,)) 0.01) allowedNotes ++ [(Rest, 0.1)]
-
 
 stressTest :: IO PlayResult
 stressTest = playVoicesAtTempo 10000 simpleInstrument $ allCentered $ map (take 1000 . cycle) [voices|

@@ -54,8 +54,8 @@ sanitizeInstructions insns = sanitize Nothing [] insns
           _ -> r)
         (\prev -> case r of
           Extend -> (case prev of
-            Note _ _ -> Extend
-            _ -> Rest)
+            Rest -> Rest
+            _ -> Extend)
           _ -> r)
         mayPrev): acc)
       nextRemain

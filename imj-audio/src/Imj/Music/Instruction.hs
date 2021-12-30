@@ -17,7 +17,7 @@ module Imj.Music.Instruction
       , noOctave
       , MidiPitch(..)
       -- * Utilities
-      , midiPitchToNoteAndOctave, noteToMidiPitch
+      , midiPitchToNoteAndOctave, noteToMidiPitch, noteNameToMidiModuloPitch
       , whiteKeyNote, whiteKeyPitch
       ) where
 
@@ -74,6 +74,9 @@ instance Enum NoteName where
     10 -> Sib
     11 -> Si
     n -> error $ "out of range:" ++ show n
+
+noteNameToMidiModuloPitch :: NoteName -> Int
+noteNameToMidiModuloPitch = fromEnum
 
 -- | Returns 'True' when the 'NoteName' corresponds to a white key on the piano.
 whiteKeyNote :: NoteName -> Bool

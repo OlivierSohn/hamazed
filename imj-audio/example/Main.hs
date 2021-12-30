@@ -10,8 +10,9 @@ import           Control.Monad(void)
 
 import           System.Random.MWC(create, GenIO)
 import           Data.Bool(bool)
+import           Data.List(intersperse)
 
-import           Imj.Audio
+import           Imj.Audio hiding (intersperse)
 import           Imj.Music.Random(pickRandomWeighted, pickRandomInstructionsWeighted)
 import           Imj.Music.Harmony
 import           Imj.Music.Compositions.Me
@@ -39,10 +40,12 @@ main = void $ usingAudioOutput -- WithMinLatency 0
   _ <- stressTest
   threadDelay 10000
   --}
-
   -- play a short snare note to initialize pink noise
   putStrLn "play short & low snare note to initialize pink Noise"
   _ <- playShortLowNote meSnare $ VoiceId 0
+  threadDelay 10000
+  putStrLn "playing neighbour patterns"
+  playNeighbourPatterns >>= print
   threadDelay 10000
   putStrLn "playing random score"
   playRandomScore >>= print
@@ -69,7 +72,7 @@ main = void $ usingAudioOutput -- WithMinLatency 0
 
 -- sumWeightsPattern / length allNotes is the probability of a note in the pattern
 -- sumWeightsNotPattern / length allNotes is the probability of a note outside the pattern
-weightedNotesUsingPattern :: NotesPattern
+weightedNotesUsingPattern :: NotesPattern AnyOffset
                           -> [MidiPitch]
                           -> Float
                           -> Float
@@ -88,15 +91,14 @@ weightedNotesUsingPattern pattern allNotes sumWeightsPattern sumWeightsNotPatter
         allNotes
   in weightedNotes ++ [(Rest, weightRest), (Extend, weightExtend)]
 
-buildVoices :: (Mode, Pattern)
-            -> (Mode, Pattern)
-            -> NoteName
+buildVoices :: NotesPattern AnyOffset
+            -> NotesPattern AnyOffset
             -> [MidiPitch]
             -> ([(Instruction, Float)], [(Instruction, Float)])
-buildVoices (leftMode, leftPattern) (rightMode, rightPattern) rootNoteName rangeNotes = (,)
-  (weightedNotesUsingPattern (mkDefaultPattern leftPattern rootNoteName leftMode) rangeNotes
+buildVoices leftPattern rightPattern rangeNotes = (,)
+  (weightedNotesUsingPattern leftPattern rangeNotes
     10 0 3 1)
-  (weightedNotesUsingPattern (mkDefaultPattern rightPattern rootNoteName rightMode) rangeNotes
+  (weightedNotesUsingPattern rightPattern rangeNotes
     10 0 3 1)
 
 playLoop :: GenIO -> Int -> [Instruction] -> [Instruction] -> IO PlayResult
@@ -112,22 +114,32 @@ playLoop rng countSteps leftInsns rightInsns = do
 playRandomScore :: IO PlayResult
 playRandomScore = do
   rng <- create
-  playModes (concat $ take 2 $ repeat modes) rng
+  playModes (concat $ take 2 $ repeat patterns) rng
  where
+  patterns = map (\(n, note, mode) -> (n, mkDefaultPattern Chord note mode, mkDefaultPattern Chord note mode)) modes
   modes =
     [ (1, Do, Major)
     , (1, Mi, Major)
     , (1, La, Minor)
     , (1, Sol, Major)]
 
-playModes :: [(Int, NoteName, Mode)] -> GenIO -> IO PlayResult
+playNeighbourPatterns :: IO PlayResult
+playNeighbourPatterns = do
+  rng <- create
+  playModes (map (\p -> (1, p, p)) sequencePatterns) rng
+ where
+  sourcePattern = mkDefaultPattern Chord Do Major
+  pats = neighbourChords sourcePattern
+  sequencePatterns = (sourcePattern : (intersperse sourcePattern pats)) ++ [sourcePattern]
+
+playModes :: [(Int, NotesPattern AnyOffset, NotesPattern AnyOffset)] -> GenIO -> IO PlayResult
 playModes [] _ = return $ Right ()
 playModes (m:ms) rng = do
-  putStrLn $ show m
   playMode m rng >>= either (return . Left) (\_ -> playModes ms rng)
 
-playMode :: (Int, NoteName, Mode) -> GenIO -> IO PlayResult
-playMode (countBars, note, mode) rng = do
+playMode :: (Int, NotesPattern AnyOffset, NotesPattern AnyOffset) -> GenIO -> IO PlayResult
+playMode (countBars, leftPattern, rightPattern) rng = do
+  putStrLn $ show (countBars, prettyShow leftPattern, prettyShow rightPattern)
   left <- pickRandomInstructionsWeighted rng countInstructions $ fst insns
   right <- pickRandomInstructionsWeighted rng countInstructions $ snd insns
   playLoop rng (countLoops * countInstructions) left right
@@ -136,7 +148,7 @@ playMode (countBars, note, mode) rng = do
   countInstructions = 32
   rangeNotes = map MidiPitch [55..71]
 
-  insns = buildVoices (mode, Chord) (mode, Chord) note rangeNotes
+  insns = buildVoices leftPattern rightPattern rangeNotes
 
 stressTest :: IO PlayResult
 stressTest = playVoicesAtTempo 10000 simpleInstrument $ allCentered $ map (take 1000 . cycle) [voices|

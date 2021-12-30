@@ -18,6 +18,7 @@ module Imj.Music.Harmony
       , mkDefaultPattern
       , neighbourChords
       , neighbourPatterns
+      , countCommonNotes
       -- | For tests only
       , shiftModDescPatternToAscList
       ) where
@@ -30,6 +31,7 @@ import           Data.HashSet(HashSet)
 import qualified Data.HashSet as HashSet
 import           Data.Hashable
 import           Data.Bool(bool)
+import           Data.List(sortOn)
 
 -- Invariant : values are homogenous to a MidiPitch modulo 12, hence are in [0, 12) (we could use a bit set instead)
 -- hence 0 corresponds to Do
@@ -166,9 +168,12 @@ neighbourPatterns s@(NotesPattern sourceChord) dest@(NotesPattern destinationCho
                       ) $ ISet.toDescList destinationChord
     ) $ ISet.toDescList sourceChord
 
-neighbourChords :: NotesPattern AnyOffset -> [NotesPattern AnyOffset]
-neighbourChords pattern = pats
+neighbourChords :: NotesPattern AnyOffset -> [(Int, NotesPattern AnyOffset)]
+neighbourChords pattern = sortOn (negate . fst) $ map (\p -> (countCommonNotes pattern p, p)) pats
   where
     -- by construction, neighbour patterns using majorChord are different from neighbourgh patterns using minorChord
     -- so we don't need to use a set for the union
     pats = concatMap (HashSet.toList . (neighbourPatterns pattern)) [majorChord, minorChord]
+
+countCommonNotes :: NotesPattern AnyOffset -> NotesPattern AnyOffset -> Int
+countCommonNotes (NotesPattern a) (NotesPattern b) = ISet.size $ ISet.intersection a b

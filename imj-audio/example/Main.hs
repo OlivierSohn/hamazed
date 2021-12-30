@@ -126,11 +126,12 @@ playRandomScore = do
 playNeighbourPatterns :: IO PlayResult
 playNeighbourPatterns = do
   rng <- create
+  _ <- mapM (\(n, p) -> putStrLn $ (show n) ++ " " ++ (prettyShow p)) pats
   playModes (map (\p -> (1, p, p)) sequencePatterns) rng
  where
   sourcePattern = mkDefaultPattern Chord Do Major
   pats = neighbourChords sourcePattern
-  sequencePatterns = (sourcePattern : (intersperse sourcePattern pats)) ++ [sourcePattern]
+  sequencePatterns = (sourcePattern : (intersperse sourcePattern $ map snd pats)) ++ [sourcePattern]
 
 playModes :: [(Int, NotesPattern AnyOffset, NotesPattern AnyOffset)] -> GenIO -> IO PlayResult
 playModes [] _ = return $ Right ()

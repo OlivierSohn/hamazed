@@ -10,7 +10,7 @@ import           Control.Monad(void)
 
 import           System.Random.MWC(create, GenIO)
 import           Data.Bool(bool)
-import           Data.List(intersperse)
+import           Data.List(intersperse, splitAt)
 
 import           Imj.Audio hiding (intersperse, transpose)
 import           Imj.Music.Random(pickRandomWeighted, pickRandomInstructionsWeighted)
@@ -104,10 +104,9 @@ buildVoices leftPattern rightPattern rangeNotes = (,)
   (weightedNotesUsingPattern rightPattern rangeNotes
     10 0 3 1)
 
-playLoop :: GenIO -> Int -> [Instruction] -> [Instruction] -> IO PlayResult
-playLoop rng countSteps leftInsns rightInsns = do
-  pedal <- pickRandomWeighted rng countSteps [(True, 0.1), (False, 0.3)]
-  playVoicesAtTempoPedal 440.0 simpleInstrument
+playLoop :: Double -> Int -> [Instruction] -> [Instruction] -> [Bool] -> IO PlayResult
+playLoop tempo countSteps leftInsns rightInsns pedal =
+  playVoicesAtTempoPedal tempo simpleInstrument
     (
     ((NotePan $ -1), ((take countSteps $ cycle leftInsns))) :
     ((NotePan $ 1), ((take countSteps $ cycle rightInsns))) :
@@ -146,20 +145,74 @@ playMode (countBars, leftPattern, rightPattern) rng = do
   putStrLn $ show (countBars, prettyShow leftPattern, prettyShow rightPattern)
   left <- pickRandomInstructionsWeighted rng countInstructions $ fst insns
   right <- pickRandomInstructionsWeighted rng countInstructions $ snd insns
-  playLoop rng (countLoops * countInstructions) left right
+  pedal <- pickRandomWeighted rng countSteps [(True, 0), (False, 1)]
+  playLoop tempo countSteps left right pedal
  where
   countLoops = countBars
   countInstructions = 32
   rangeNotes = map MidiPitch [55..71]
-
+  tempo = 440
+  countSteps = countLoops * countInstructions
   insns = buildVoices leftPattern rightPattern rangeNotes
 
 
 playKey :: IO PlayResult
 playKey = do
+  putStrLn $ prettyShowKey key
   rng <- create
-  putStrLn $ prettyShowKey $ mkKey Re majorScale
-  return $ Right ()
+  melody <- pickRandomInstructionsWeighted rng countInstructions melodyWeightedInsns
+  putStrLn $ show melody
+  harmony <- harmonize rng key melodyPace melody 4 0 0 0 -- TODO try different extend / rest values
+  mapM_ (putStrLn . show) $ zip (map show melody) $ group melodyPace harmony []
+  mapM_ (putStrLn . show) $ slowDown melodyPace melody
+  -- TODO specify pedal st it groups bars
+  pedal <- pickRandomWeighted rng countSteps [(True, 0), (False, 1)]
+  playLoop tempo countSteps harmony (slowDown melodyPace melody) pedal
+ where
+  key@(Key kScale _) = mkKey Do majorScale
+  rangeNotesMelody = map MidiPitch [(75-8)..75]
+  melodyWeightedInsns = weightedNotesUsingPattern kScale rangeNotesMelody 5 0 0 1 -- TODO test with non zero Rest + Extend
+  countInstructions = 4 * 16
+  countLoops = 4
+  -- the melody is 4x slower than the arpegiated chords
+  melodyPace = 1
+  countSteps = countLoops * countInstructions * melodyPace
+  tempo = 440
+  group _ [] res = reverse res
+  group sz l@(_:_) res =
+    let (l1, l2) = splitAt sz l
+    in group sz l2 ((show l1):res)
+
+harmonize :: GenIO
+          -> Key
+          -> Int
+          -> [Instruction]
+          -> Float
+          -> Float
+          -> Float
+          -> Float
+          -> IO [Instruction]
+harmonize rng key notesPerMelodyStep melody sumWeightsPattern sumWeightsNotPattern weightExtend weightRest = go melody []
+ where
+  go [] res = return $ reverse res
+  go (r:remaining) res = case r of
+    Rest -> go remaining $ (take notesPerMelodyStep $ repeat Rest) ++ res
+    Extend -> go remaining $ (take notesPerMelodyStep $ repeat Rest) ++ res -- TODO improve
+    (Note name octave) ->
+      let pitch = noteToMidiPitch name octave
+          -- Using a chord range of one octave
+          -- TODO make the melody and the chord range move in opposite directions
+          rangeNotesChord = [pitch - 12..pitch - 1]
+          chordWeightedInsns = case matchingTriads key pitch of
+            -- TODO randomize the triad we pick
+            -- TODO keep a history of recently used triads and prefer using new ones
+            (firstTriad:_) ->
+              -- pick 'notesPerMelodyStep' notes in the triad and make sure these notes are strictly below the melody
+              weightedNotesUsingPattern firstTriad rangeNotesChord sumWeightsPattern sumWeightsNotPattern weightExtend weightRest
+            [] -> error "no triad found"
+      in do
+        chordInsns <- pickRandomInstructionsWeighted rng notesPerMelodyStep chordWeightedInsns
+        go remaining $ (reverse chordInsns) ++ res
 
 stressTest :: IO PlayResult
 stressTest = playVoicesAtTempo 10000 simpleInstrument $ allCentered $ map (take 1000 . cycle) [voices|

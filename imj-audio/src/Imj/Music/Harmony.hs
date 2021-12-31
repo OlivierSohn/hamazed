@@ -9,8 +9,10 @@ module Imj.Music.Harmony
       , majorChord
       , minorChord
       -- | Keys
+      , Key(..)
       , mkKey
       , prettyShowKey
+      , matchingTriads
       -- | Utilities
       , Mode(..)
       , Pattern(..)
@@ -39,7 +41,7 @@ import           Data.List(sortOn, intersperse)
 
 data Key = Key {
     keyScale :: !(NotesPattern AnyOffset)
-  , keyTriads :: [NotesPattern AnyOffset]
+  , keyTriads :: ![NotesPattern AnyOffset]
 }
   deriving(Show)
 
@@ -47,10 +49,10 @@ mkKey :: NoteName -> NotesPattern ZeroOffset -> Key
 mkKey n z = Key p tr
  where
   p = transpose (fromEnum n) z
-  tr = map (transpose (fromEnum n)) $ triads z
+  tr = map (transpose (fromEnum n)) $ mkTriads z
 
-triads :: NotesPattern ZeroOffset -> [NotesPattern AnyOffset]
-triads (NotesPattern p) =
+mkTriads :: NotesPattern ZeroOffset -> [NotesPattern AnyOffset]
+mkTriads (NotesPattern p) =
   map
     (\i -> NotesPattern $ ISet.fromList $ map ((!!) listNotes) [i, mod (i+2) sz, mod (i+4) sz])
     [0..(sz-1)]
@@ -60,6 +62,12 @@ triads (NotesPattern p) =
 
 prettyShowKey :: Key -> String
 prettyShowKey (Key scale tris) = "key:" ++ prettyShow scale ++ ", triads:" ++ concat (intersperse "," $ map prettyShow tris)
+
+-- | Returns triads that contain the played note.
+-- The returned list contains at least one element if the played note is in the scale of the key.
+matchingTriads :: Key -> MidiPitch -> [NotesPattern AnyOffset]
+matchingTriads (Key _ triads) playedNote =
+  filter (flip inPattern playedNote) triads
 
 -- Invariant : values are homogenous to a MidiPitch modulo 12, hence are in [0, 12) (we could use a bit set instead)
 -- hence 0 corresponds to Do

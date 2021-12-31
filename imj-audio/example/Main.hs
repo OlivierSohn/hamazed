@@ -162,16 +162,15 @@ playKey = do
   rng <- create
   melody <- pickRandomInstructionsWeighted rng countInstructions melodyWeightedInsns
   putStrLn $ show melody
-  harmony <- harmonize rng key melodyPace melody 4 0 0 0 -- TODO try different extend / rest values
+  harmony <- harmonize rng key melodyPace melody 4 0 0 0
   mapM_ (putStrLn . show) $ zip (map show melody) $ group melodyPace harmony []
   mapM_ (putStrLn . show) $ slowDown melodyPace melody
-  -- TODO specify pedal st it groups bars
   pedal <- pickRandomWeighted rng countSteps [(True, 0), (False, 1)]
   playLoop tempo countSteps harmony (slowDown melodyPace melody) pedal
  where
   key@(Key kScale _) = mkKey Do majorScale
   rangeNotesMelody = map MidiPitch [(75-8)..75]
-  melodyWeightedInsns = weightedNotesUsingPattern kScale rangeNotesMelody 5 0 0 1 -- TODO test with non zero Rest + Extend
+  melodyWeightedInsns = weightedNotesUsingPattern kScale rangeNotesMelody 5 0 0 3 -- Rest values in [0..3] are interesting
   countInstructions = 4 * 16
   countLoops = 4
   -- the melody is 4x slower than the arpegiated chords
@@ -192,27 +191,31 @@ harmonize :: GenIO
           -> Float
           -> Float
           -> IO [Instruction]
-harmonize rng key notesPerMelodyStep melody sumWeightsPattern sumWeightsNotPattern weightExtend weightRest = go melody []
+harmonize rng key notesPerMelodyStep melody sumWeightsPattern sumWeightsNotPattern weightExtend weightRest = go melody Nothing []
  where
-  go [] res = return $ reverse res
-  go (r:remaining) res = case r of
-    Rest -> go remaining $ (take notesPerMelodyStep $ repeat Rest) ++ res
-    Extend -> go remaining $ (take notesPerMelodyStep $ repeat Rest) ++ res -- TODO improve
-    (Note name octave) ->
-      let pitch = noteToMidiPitch name octave
-          -- Using a chord range of one octave
-          -- TODO make the melody and the chord range move in opposite directions
-          rangeNotesChord = [pitch - 12..pitch - 1]
-          chordWeightedInsns = case matchingTriads key pitch of
-            -- TODO randomize the triad we pick
-            -- TODO keep a history of recently used triads and prefer using new ones
-            (firstTriad:_) ->
-              -- pick 'notesPerMelodyStep' notes in the triad and make sure these notes are strictly below the melody
-              weightedNotesUsingPattern firstTriad rangeNotesChord sumWeightsPattern sumWeightsNotPattern weightExtend weightRest
-            [] -> error "no triad found"
-      in do
-        chordInsns <- pickRandomInstructionsWeighted rng notesPerMelodyStep chordWeightedInsns
-        go remaining $ (reverse chordInsns) ++ res
+  go [] _ res = return $ reverse res
+  go (r:remaining) mayPrevNote res = case r of
+    Rest -> proceed Nothing -- TODO or mayPrevNote, randomly
+    Extend -> proceed mayPrevNote
+    note@Note{} -> proceed $ Just note
+   where
+    proceed = maybe
+      (go remaining Nothing $ (take notesPerMelodyStep $ repeat Rest) ++ res)
+      (\note@(Note name octave) ->
+        let pitch = noteToMidiPitch name octave
+            -- Using a chord range of one octave
+            -- TODO make the melody and the chord range move in opposite directions
+            rangeNotesChord = [pitch - 12..pitch - 1]
+            chordWeightedInsns = case matchingTriads key pitch of
+              -- TODO randomize the triad we pick
+              -- TODO keep a history of recently used triads and prefer using new ones
+              (firstTriad:_) ->
+                -- pick 'notesPerMelodyStep' notes in the triad and make sure these notes are strictly below the melody
+                weightedNotesUsingPattern firstTriad rangeNotesChord sumWeightsPattern sumWeightsNotPattern weightExtend weightRest
+              [] -> error "no triad found"
+        in do
+          chordInsns <- pickRandomInstructionsWeighted rng notesPerMelodyStep chordWeightedInsns
+          go remaining (Just note) $ (reverse chordInsns) ++ res)
 
 stressTest :: IO PlayResult
 stressTest = playVoicesAtTempo 10000 simpleInstrument $ allCentered $ map (take 1000 . cycle) [voices|

@@ -195,7 +195,7 @@ harmonize rng key notesPerMelodyStep melody sumWeightsPattern sumWeightsNotPatte
  where
   go [] _ res = return $ reverse res
   go (r:remaining) mayPrevNote res = case r of
-    Rest -> proceed Nothing -- TODO or mayPrevNote, randomly
+    Rest -> proceed Nothing -- TODO Add a probability parameter to _randomly_ use mayPrevNote here.
     Extend -> proceed mayPrevNote
     note@Note{} -> proceed $ Just note
    where
@@ -204,15 +204,15 @@ harmonize rng key notesPerMelodyStep melody sumWeightsPattern sumWeightsNotPatte
       (\note@(Note name octave) ->
         let pitch = noteToMidiPitch name octave
             -- Using a chord range of one octave
-            -- TODO make the melody and the chord range move in opposite directions
+            -- TODO Add a boolean parameter to make the melody and the chord range move in opposite directions ()
             rangeNotesChord = [pitch - 12..pitch - 1]
             chordWeightedInsns = case matchingTriads key pitch of
-              -- TODO randomize the triad we pick
-              -- TODO keep a history of recently used triads and prefer using new ones
+              -- TODO Add a boolean parameter to randomize the triad we pick
+              -- TODO Add a boolean parameter to prioritize triads that have not been used yet
               (firstTriad:_) ->
                 -- pick 'notesPerMelodyStep' notes in the triad and make sure these notes are strictly below the melody
                 weightedNotesUsingPattern firstTriad rangeNotesChord sumWeightsPattern sumWeightsNotPattern weightExtend weightRest
-              [] -> error "no triad found"
+              [] -> error "no triad found" -- not supposed to happen, if the note is in the scale of the key
         in do
           chordInsns <- pickRandomInstructionsWeighted rng notesPerMelodyStep chordWeightedInsns
           go remaining (Just note) $ (reverse chordInsns) ++ res)

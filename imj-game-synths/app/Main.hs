@@ -892,8 +892,8 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
       -- NOTE GLFW uses the US keyboard layout to name keys: https://en.wikipedia.org/wiki/British_and_American_keyboards
       -- lower keys
       GLFW.Key'Z -> Just $ InstrumentNote Do $ noOctave - 1
-      GLFW.Key'S -> Just $ InstrumentNote Réb $ noOctave - 1
-      GLFW.Key'X -> Just $ InstrumentNote Ré $ noOctave - 1
+      GLFW.Key'S -> Just $ InstrumentNote Reb $ noOctave - 1
+      GLFW.Key'X -> Just $ InstrumentNote Re $ noOctave - 1
       GLFW.Key'D -> Just $ InstrumentNote Mib $ noOctave - 1
       GLFW.Key'C -> Just $ InstrumentNote Mi $ noOctave - 1
       GLFW.Key'V -> Just $ InstrumentNote Fa $ noOctave - 1
@@ -904,14 +904,14 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
       GLFW.Key'J -> Just $ InstrumentNote Sib $ noOctave - 1
       GLFW.Key'M -> Just $ InstrumentNote Si $ noOctave - 1
       GLFW.Key'Comma -> Just $ InstrumentNote Do $ noOctave + 0
-      GLFW.Key'L -> Just $ InstrumentNote Réb $ noOctave + 0
-      GLFW.Key'Period -> Just $ InstrumentNote Ré $ noOctave + 0
+      GLFW.Key'L -> Just $ InstrumentNote Reb $ noOctave + 0
+      GLFW.Key'Period -> Just $ InstrumentNote Re $ noOctave + 0
       GLFW.Key'Semicolon -> Just $ InstrumentNote Mib $ noOctave + 0
       GLFW.Key'Slash -> Just $ InstrumentNote Mi $ noOctave + 0
       -- upper keys
       GLFW.Key'Q -> Just $ InstrumentNote Do $ noOctave + 0
-      GLFW.Key'2 -> Just $ InstrumentNote Réb $ noOctave + 0
-      GLFW.Key'W -> Just $ InstrumentNote Ré $ noOctave + 0
+      GLFW.Key'2 -> Just $ InstrumentNote Reb $ noOctave + 0
+      GLFW.Key'W -> Just $ InstrumentNote Re $ noOctave + 0
       GLFW.Key'3 -> Just $ InstrumentNote Mib $ noOctave + 0
       GLFW.Key'E -> Just $ InstrumentNote Mi $ noOctave + 0
       GLFW.Key'R -> Just $ InstrumentNote Fa $ noOctave + 0
@@ -922,8 +922,8 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
       GLFW.Key'7 -> Just $ InstrumentNote Sib $ noOctave + 0
       GLFW.Key'U -> Just $ InstrumentNote Si $ noOctave + 0
       GLFW.Key'I -> Just $ InstrumentNote Do $ noOctave + 1
-      GLFW.Key'9 -> Just $ InstrumentNote Réb $ noOctave + 1
-      GLFW.Key'O -> Just $ InstrumentNote Ré $ noOctave + 1
+      GLFW.Key'9 -> Just $ InstrumentNote Reb $ noOctave + 1
+      GLFW.Key'O -> Just $ InstrumentNote Re $ noOctave + 1
       GLFW.Key'0 -> Just $ InstrumentNote Mib $ noOctave + 1
       GLFW.Key'P -> Just $ InstrumentNote Mi $ noOctave + 1
       GLFW.Key'LeftBracket -> Just $ InstrumentNote Fa $ noOctave + 1

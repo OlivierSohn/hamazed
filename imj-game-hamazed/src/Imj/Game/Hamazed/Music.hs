@@ -51,10 +51,10 @@ primaryScore = mkScore organicInstrument
     begin = [voice|
       do . .
       . . sol
-      ré - -
+      re - -
       - mib fa
       sol mib do
-      ré . v sol
+      re . v sol
       do . .
       |]
 
@@ -62,11 +62,11 @@ primaryScore = mkScore organicInstrument
       [ [voice|vsol . .|]
       , [voice|vsol vla vsi|]
       , [voice|vsol . .|]
-      , [voice|ré ré ré|]
+      , [voice|re re re|]
       , [voice|vsol . .|]
-      , [voice|vsol vsi ré|]
+      , [voice|vsol vsi re|]
       , [voice|vsol . .|]
-      , [voice|ré sol vsol|]
+      , [voice|re sol vsol|]
       ]
 
   secondVoice =
@@ -78,7 +78,7 @@ primaryScore = mkScore organicInstrument
     mib . .
     fa . .
     mib . .
-    ré . .
+    re . .
     |]
 
   thirdVoice =
@@ -105,36 +105,36 @@ secondaryScore =
     do . . .
     vsi . . .
     do . . .
-    ré . . .
+    re . . .
     vsi . . .
     do . . .
-    ré . . .
+    re . . .
     mib . . .
     do . . .
-    ré . . .
+    re . . .
     mib . . .
     fa . . .
-    ré . . .
+    re . . .
     mib . . .
     fa . . .
     sol . . .
 
     lab . . .
     fa . . .
-    ré . . .
+    re . . .
     vsi . . .
     sol . . .
     mib . . .
     do . . .
-    ré . mib .
-    ré . . .
-    ré . . .
+    re . mib .
+    re . . .
+    re . . .
     sol . . .
     sol . . .
     sol . . .
     fa . . .
     mib . . .
-    ré . . .
+    re . . .
   |]
 
   secondVoice = [voice|
@@ -144,30 +144,30 @@ secondaryScore =
     fa - mib -
     fa - - -
     . . fa -
-    sol fa mib ré
-    do - ré -
+    sol fa mib re
+    do - re -
     mib - - -
     . . do -
     vsi - do -
-    ré - do -
+    re - do -
     vsi - - -
     do - - -
     vsi . do .
-    ré - mib -
+    re - mib -
 
-    ré - - .
+    re - - .
     . . fa -
     sol - lab -
-    fa - ré -
+    fa - re -
     mib - sol -
-    ^do - ^ré -
+    ^do - ^re -
     ^mib - sol -
     ^do - sol -
-    ^fa ^mib ^ré ^mib
-    ^ré ^do si ^do
-    si ^do ^ré ^do
-    si ^do ^ré ^mib
-    ^do . ^ré .
+    ^fa ^mib ^re ^mib
+    ^re ^do si ^do
+    si ^do ^re ^do
+    si ^do ^re ^mib
+    ^do . ^re .
     si . ^do .
     lab . sol .
     fa - - vsol
@@ -182,11 +182,11 @@ tertiaryScore =
    silence = [voice|.|]
 
    firstVoice = [voice|
-     do ré mib fa
-     sol . do ré
+     do re mib fa
+     sol . do re
      mib fa sol .
-     do ré mib fa
-     ré - - -
+     do re mib fa
+     re - - -
      - - - -
      lab . . .
      sol . . .
@@ -194,7 +194,7 @@ tertiaryScore =
      ^do sib lab sol
      . . ^do sib
      lab sol . .
-     do ré mib fa
+     do re mib fa
      sol - - -
      fa - - -
      mib - - -
@@ -203,11 +203,11 @@ tertiaryScore =
 
 
    firstVoice' = [voice|
-     do ré mib fa
+     do re mib fa
      sol . do .
      mib . sol .
-     do ré mib fa
-     ré - - -
+     do re mib fa
+     re - - -
      - - - -
      lab . . .
      sol . . sol
@@ -215,7 +215,7 @@ tertiaryScore =
      . sol sol .
      . . . .
      . . . .
-     do ré mib fa
+     do re mib fa
      sol - - -
      fa - - -
      mib - - -
@@ -230,15 +230,15 @@ tertiaryScore =
      . . sol .
      vsol . sol .
      . . sol .
-     mib . ré .
+     mib . re .
 
-     do mib ré fa
+     do mib re fa
      mib . do mib
-     ré sol mib lab
+     re sol mib lab
      sol . . ^do
-     si ^do ^ré .
+     si ^do ^re .
      sol lab sol ^mib
-     ^ré ^do si .
+     ^re ^do si .
      si . sol .
    |]
 
@@ -256,30 +256,30 @@ quatScore =
 
   firstVoice = [voice|
   ^do . ^sol
-  ^ré . .
-  ^mib ^ré ^do
-  ^ré . .
+  ^re . .
+  ^mib ^re ^do
+  ^re . .
   |]
 
   firstVoice2 = [voice|
-  ^fa ^mib ^ré
-  ^mib ^ré ^do
-  ^fa ^mib ^ré
-  ^mib ^ré ^do
+  ^fa ^mib ^re
+  ^mib ^re ^do
+  ^fa ^mib ^re
+  ^mib ^re ^do
   ^mib ^fa ^sol
-  ^do ^ré ^mib
-  ^do ^ré ^mib
-  ^ré . .
+  ^do ^re ^mib
+  ^do ^re ^mib
+  ^re . .
   |]
 
   bass1 = [voice|
   mib . .
   fa . .
-  do ré mib
+  do re mib
   fa . .
   mib . .
   fa . .
-  do ré mib
+  do re mib
   sol . .
   sib . .
   la . .
@@ -350,13 +350,13 @@ quintScore =
 
   v2 = [voice|
     ^do . . . . . . . .
-    . ^ré ^mib ^fa . . ^mib . .
-    ^ré . . . . . . . .
+    . ^re ^mib ^fa . . ^mib . .
+    ^re . . . . . . . .
     . ^mib ^fa ^sol . . ^fa . .
     ^mib . . . . . . ^sol .
-    ^mib sol lab sib ^do ^ré ^mib . .
-    ^mib . . . . . . . ^ré
-    ^mib sol lab sib ^do ^ré ^mib . .
+    ^mib sol lab sib ^do ^re ^mib . .
+    ^mib . . . . . . . ^re
+    ^mib sol lab sib ^do ^re ^mib . .
   |]
 
 sextScore :: Score Instrument
@@ -371,9 +371,9 @@ sextScore =
     ]
  where
   v1 = [voice|
-      . . vmi . vsol . vsi . ré - - do# . vla . vsi
-      . . vmi . vsol . vsi . mi . ré . do# - - -
-      . . mi . sol . mi . ré - - dod . vla . vsi
+      . . vmi . vsol . vsi . re - - do# . vla . vsi
+      . . vmi . vsol . vsi . mi . re . do# - - -
+      . . mi . sol . mi . re - - dod . vla . vsi
       . . vmi . vsol . vsi . vla . vsol . vmi - - -
    |]
   v2 = [voice|
@@ -408,18 +408,18 @@ sextScore =
 
   v3 =
     [voice|
-    . ré mi sol mi ré sol . . . . . . . . .
+    . re mi sol mi re sol . . . . . . . . .
     . . . . . . . . . . . . . . . .
-    . ré mi ré . . . . . mi ré sol . . . .
+    . re mi re . . . . . mi re sol . . . .
     . . . . . . . . . . . . . . . .
-    . ré mi ré . . . . . . . . . . . .
+    . re mi re . . . . . . . . . . . .
     . . . . . . . . . . . . . . . .
-    . ré . ré . mi ré sol . . . . . . . . .
+    . re . re . mi re sol . . . . . . . . .
     . . . . . . . . . . . . . . .
     |]
 
   n1 = [voice|si|]
-  n2 = [voice|^ré|]
+  n2 = [voice|^re|]
   n3 = [voice|^mi|]
 
   acc x =
@@ -446,8 +446,8 @@ sevthScore =
     ]
  where
    v1 = [voice|
-   vsol do mib . . ré mib . . . . .
-   vfa vsib ré . . mib ré . . . . .
+   vsol do mib . . re mib . . . . .
+   vfa vsib re . . mib re . . . . .
    |]
 
    v2 = [voice|
@@ -462,13 +462,13 @@ sevthScore =
    |]
 
    v4 = [voice|
-   . . . . . . sol . ré mib do .
-   . . . . . . ré . mib . fa .
+   . . . . . . sol . re mib do .
+   . . . . . . re . mib . fa .
    |]
 
    v5 = [voice|
    . . . . . . . . . . . .
-   . . . . . . vsi . do . ré .
+   . . . . . . vsi . do . re .
    |]
 
    silence = [voice|
@@ -490,17 +490,17 @@ heighthScore = mkScore organicInstrument
   melody = [voice|
     si . . sol . . mi .
     . . sol . la . si .
-    ^do . . fad . . ré .
+    ^do . . fad . . re .
     . . fad . sol . la .
     |]
 
   bass = [voice|
     mi . . . . . . .
     . . . . . . . .
-    ré . . . . . . .
+    re . . . . . . .
     . . . . . . . mi
     . . . . . . . .
-    . . . . . . . ré
+    . . . . . . . re
     . . . . . . . .
     mi . . . . . . .
     |]
@@ -549,10 +549,10 @@ ninthScore = mkScore shortInstrument
  where
 
   melody = [voice|
-    la . . . . . ^do ^ré ^mi . la .
+    la . . . . . ^do ^re ^mi . la .
     lab . . . . . ^mib ^mi ^mib ^mi ^mib ^mi
-    sol . . . . . ^do ^ré ^mi . sol .
-    fad . . . . . ^mi ^mib ^ré ^réb ^do si
+    sol . . . . . ^do ^re ^mi . sol .
+    fad . . . . . ^mi ^mib ^re ^reb ^do si
     |]
 
   bass1 = [voice|
@@ -565,8 +565,8 @@ ninthScore = mkScore shortInstrument
   bass2 = [voice|
     mi . . . . . . . . . . .
     mi . . . . . . . . . . .
-    ré . . . . . . . . . . .
-    ré . . . . . . . . . . .
+    re . . . . . . . . . . .
+    re . . . . . . . . . . .
   |]
   bass3 = [voice|
     . . mi . . . . . . . . .
@@ -582,8 +582,8 @@ tenthScore = mkScore
  where
 
   melody = [voice|
-    ^do si la . la si ^do ^ré ^mi . . .
-    ^ré ^do si . . . ^do si la . . .
+    ^do si la . la si ^do ^re ^mi . . .
+    ^re ^do si . . . ^do si la . . .
     |]
 
   bass = [voice|
@@ -608,21 +608,21 @@ eleventhScore = mkScore
  where
 
   melody = [voice|
-    ^do ^réb ^do ^réb ^do .
-    ^do ^réb ^do ^réb ^do .
-    ^do ^réb ^do ^réb ^do ^réb
-    ^do ^réb ^do ^réb ^do .
-    ^do ^réb ^do ^réb ^do .
-    ^do ^réb ^do ^réb ^do .
-    ^do ^réb ^do ^réb ^do ^réb
-    ^do sib ^do ^réb ^do .
-    ^do ^réb ^do ^réb ^do .
-    ^do ^réb ^do ^réb ^do .
-    ^do ^réb ^do ^réb ^do ^réb
-    ^do ^réb ^do ^réb ^do .
-    ^do ^réb ^do ^réb ^do .
-    ^do ^réb ^do ^réb ^do ^réb
-    ^do . . ^réb ^do ^réb
+    ^do ^reb ^do ^reb ^do .
+    ^do ^reb ^do ^reb ^do .
+    ^do ^reb ^do ^reb ^do ^reb
+    ^do ^reb ^do ^reb ^do .
+    ^do ^reb ^do ^reb ^do .
+    ^do ^reb ^do ^reb ^do .
+    ^do ^reb ^do ^reb ^do ^reb
+    ^do sib ^do ^reb ^do .
+    ^do ^reb ^do ^reb ^do .
+    ^do ^reb ^do ^reb ^do .
+    ^do ^reb ^do ^reb ^do ^reb
+    ^do ^reb ^do ^reb ^do .
+    ^do ^reb ^do ^reb ^do .
+    ^do ^reb ^do ^reb ^do ^reb
+    ^do . . ^reb ^do ^reb
     ^do . . . . .
   |]
 
@@ -676,8 +676,8 @@ twelvthScore = Score
  where
 
   melody = [voice|
-    do ré fa sol - - - -
-    do ré ré - - - - -
+    do re fa sol - - - -
+    do re re - - - - -
   |]
 
   bass1 = [voice|

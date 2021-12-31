@@ -8,6 +8,9 @@ module Imj.Music.Harmony
       -- | Chords
       , majorChord
       , minorChord
+      -- | Keys
+      , mkKey
+      , prettyShowKey
       -- | Utilities
       , Mode(..)
       , Pattern(..)
@@ -19,6 +22,7 @@ module Imj.Music.Harmony
       , neighbourChords
       , neighbourPatterns
       , countCommonNotes
+      , transpose
       -- | For tests only
       , shiftModDescPatternToAscList
       ) where
@@ -31,7 +35,31 @@ import           Data.HashSet(HashSet)
 import qualified Data.HashSet as HashSet
 import           Data.Hashable
 import           Data.Bool(bool)
-import           Data.List(sortOn)
+import           Data.List(sortOn, intersperse)
+
+data Key = Key {
+    keyScale :: !(NotesPattern AnyOffset)
+  , keyTriads :: [NotesPattern AnyOffset]
+}
+  deriving(Show)
+
+mkKey :: NoteName -> NotesPattern ZeroOffset -> Key
+mkKey n z = Key p tr
+ where
+  p = transpose (fromEnum n) z
+  tr = map (transpose (fromEnum n)) $ triads z
+
+triads :: NotesPattern ZeroOffset -> [NotesPattern AnyOffset]
+triads (NotesPattern p) =
+  map
+    (\i -> NotesPattern $ ISet.fromList $ map ((!!) listNotes) [i, mod (i+2) sz, mod (i+4) sz])
+    [0..(sz-1)]
+ where
+  listNotes = ISet.toAscList p
+  sz = length listNotes
+
+prettyShowKey :: Key -> String
+prettyShowKey (Key scale tris) = "key:" ++ prettyShow scale ++ ", triads:" ++ concat (intersperse "," $ map prettyShow tris)
 
 -- Invariant : values are homogenous to a MidiPitch modulo 12, hence are in [0, 12) (we could use a bit set instead)
 -- hence 0 corresponds to Do
@@ -90,10 +118,10 @@ allZeroPitchChords = [
   , (minorChord, "m")
   ]
 allZeroPitchScales = [
-    (minorMelodicScale, "minor melodic")
+    (majorScale, "Major")
+  , (minorMelodicScale, "minor melodic")
   , (minorHarmonicScale, "minor harmonic")
   , (minorNaturalScale, "minor natural")
-  , (majorScale, "Major")
   ]
 allZeroPitch = allZeroPitchChords ++ allZeroPitchScales
 

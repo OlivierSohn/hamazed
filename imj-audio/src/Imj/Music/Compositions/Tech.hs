@@ -91,12 +91,12 @@ tech2 = (bpm,part)
 
     do . do . do . do . do . do .
 
-    mib . ré .
+    mib . re .
     do  . do .
 
     do .
 
-    ré .
+    re .
     do .
 
     do .
@@ -146,13 +146,13 @@ tech2 = (bpm,part)
     do . do . do . do . do . do .
 
     sol . fa .
-    mib . ré .
+    mib . re .
     do  . do .
 
     do .
 
     fa .
-    ré .
+    re .
     do .
 
     do .

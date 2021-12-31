@@ -40,7 +40,7 @@ monophonicSymbol =
 
 
 -- TODO support multiline / inline comments :
--- do ré {this is an inline comment} mi fa sol {note that
+-- do re {this is an inline comment} mi fa sol {note that
 --  inline comments can span
 --  over multiple lines! }
 monoLineComment :: Parser ()
@@ -86,17 +86,17 @@ symbol =
      go x = do
       noteName <- many1 (alphaNum <|> char '#') >>= \case
         "do"   -> return Do
-        "ré"   -> return Ré
+        "re"   -> return Re
         "mi"   -> return Mi
         "fa"   -> return Fa
         "sol"  -> return Sol
         "la"   -> return La
         "si"   -> return Si
-        "do#"  -> return Réb
-        "dod"  -> return Réb
-        "réb"  -> return Réb
-        "réd"  -> return Mib
-        "ré#"  -> return Mib
+        "do#"  -> return Reb
+        "dod"  -> return Reb
+        "reb"  -> return Reb
+        "red"  -> return Mib
+        "re#"  -> return Mib
         "mib"  -> return Mib
         "fad" -> return Solb
         "fa#" -> return Solb
@@ -120,45 +120,45 @@ location' = aux <$> location
 and supporting the following syntaxes:
 
 @
-[voice|do ré mi|]   -- is a shortcut notation for [Note Do noOctave,
-                                                   Note Ré noOctave,
+[voice|do re mi|]   -- is a shortcut notation for [Note Do noOctave,
+                                                   Note Re noOctave,
                                                    Note Mi noOctave]
 @
 
 one octave higher:
 
-@[voice|^do ^ré ^mi|]@
+@[voice|^do ^re ^mi|]@
 
 two octaves higher:
 
-@[voice|^^do ^^ré ^^mi|]@
+@[voice|^^do ^^re ^^mi|]@
 
 one octave lower:
 
-@[voice|vdo vré vmi|]@
+@[voice|vdo vre vmi|]@
 
 two octaves lower:
 
-@[voice|vvdo vvré vvmi|]@
+@[voice|vvdo vvre vvmi|]@
 
 with a different rythm (@.@ represents 'Rest', @-@ represents 'Extend'):
 
-@[voice|do . . ré mi - -|]@
+@[voice|do . . re mi - -|]@
 
 altered (@d@ and @#@ shift the pitch up one semitone,
 @b@ shifts the pitch down one semitone):
 
-@[voice|dob réd mi do#|]@
+@[voice|dob red mi do#|]@
 
 a voice can be split over several lines, and single-line comments are supported:
 
 @
 [voice|
 : This melody could be used during the game intro
-do ré mi . . sol
+do re mi . . sol
 la sol fa sol - -
-sol mi do ré - -    : comments start with ':' and continue until the end of the line
-mi . mi . ré mi     : maybe we could add a second voice to that, using 'voices')
+sol mi do re - -    : comments start with ':' and continue until the end of the line
+mi . mi . re mi     : maybe we could add a second voice to that, using 'voices')
 |]@
 
 -}
@@ -214,24 +214,24 @@ Blocks of simultaneous voices are separated by a /blank/ line:
 [voices|
   do sol la sol mi do
 
-  do ré mi
+  do re mi
   mi fa sol
   : do do do    <- commented lines do ** not ** act as a block separator, only blank lines separate blocks.
   sol la si
-  ^do ^ré ^mi
+  ^do ^re ^mi
 
   fa        : voices that are shorter than the longest voice in the block are padded with 'Rest'.
-  ré -   -
+  re -   -
   |]
 @
 
 which is equivalent to:
 
 @
-[ [voice| do sol la sol mi do do  ré  mi  fa .   .  |]
-, [voice| .  .   .  .   .  .  mi  fa  sol ré -   -  |]
+[ [voice| do sol la sol mi do do  re  mi  fa .   .  |]
+, [voice| .  .   .  .   .  .  mi  fa  sol re -   -  |]
 , [voice| .  .   .  .   .  .  sol la  si  .  .   .  |]
-, [voice| .  .   .  .   .  .  ^do ^ré ^mi .  .   .  |]
+, [voice| .  .   .  .   .  .  ^do ^re ^mi .  .   .  |]
 ]
 @
 
@@ -240,13 +240,13 @@ And, implementing the suggestion made in 'voice', here is the modified song:
 @
 [voices|
 : This melody could be used during the game intro
-do ré mi . . sol
+do re mi . . sol
 
 la sol fa sol - -
 
-sol mi do ré - -
+sol mi do re - -
 
-mi  . mi . ré mi
+mi  . mi . re mi
 sol . la . fa sol
 |]
 @

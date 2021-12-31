@@ -25,16 +25,16 @@ tchaikovskiSwanLake = (bpm, part)
     concatSystems $
       [[voices|vsol . . . vdo . . .|]
       ,map (concat . replicate 2) [voices|
-    mib  . . . mib . . . mib  . . . mib - - - - - ré mib fa . . . mib . . . ré . . .
+    mib  . . . mib . . . mib  . . . mib - - - - - re mib fa . . . mib . . . re . . .
     vsol . . . vdo . . . vsol . . . vdo . . . vsol . . . vdo . . . vsol . . . vdo . . .
 
     fa  . . . fa . . . fa  . . . fa - - - - - mib fa sol . . . fa . . . mib . . .
     vsol . . . vdo . . . vsol . . . vdo . . . vsol . . . vdo . . . vsol . . . vdo . . .
 
-    sol  . . . ^do . . . si  . . . sol - - - - - - . sol . fa . mib . ré . do . . .
+    sol  . . . ^do . . . si  . . . sol - - - - - - . sol . fa . mib . re . do . . .
     vsol . . . vdo . . . vsol . . . vdo . . . vsol . . . vdo . . . vsol . . . vdo . . .
 
-    sol  . . . ^do . . . si  . . . sol - - - - - - . sol . fa . mib . ré . do . . .
+    sol  . . . ^do . . . si  . . . sol - - - - - - . sol . fa . mib . re . do . . .
     vsol . . . vdo . . . vsol . . . vdo . . . vsol . . . vdo . . . vsol . . . vdo . . .
     |]
     ]

@@ -24,27 +24,27 @@ vivaldiFourSeasonsSpring = (bpm,part)
     do -
     vsol -
 
-    mi . mi . mi  .  ré  do  sol - -   - -  . sol fa
-    do . do . vsi do vsi vla vsi . .   . ré . mi  ré
+    mi . mi . mi  .  re  do  sol - -   - -  . sol fa
+    do . do . vsi do vsi vla vsi . .   . re . mi  re
 
-    mi . mi . mi  .  ré  do  sol ré   sol -  -  mi sol fa
-    do . do . vsi do vsi vla vsi vsol vsi do ré .  mi  ré
+    mi . mi . mi  .  re  do  sol re   sol -  -  mi sol fa
+    do . do . vsi do vsi vla vsi vsol vsi do re .  mi  re
 
-    mi . fa sol fa .   mi .   ré   .    vsi  .    vsol .
-    do . ré mi  ré vsi do vla vsol vfa# vsol vfa# vsol .
+    mi . fa sol fa .   mi .   re   .    vsi  .    vsol .
+    do . re mi  re vsi do vla vsol vfa# vsol vfa# vsol .
 
     do   -
     vsol -
 
-    mi . mi . mi  .  ré  do  sol -   -  -   -  .   sol fa
-    do . do . vsi do vsi vla vsi -   do do  ré .   mi  ré
+    mi . mi . mi  .  re  do  sol -   -  -   -  .   sol fa
+    do . do . vsi do vsi vla vsi -   do do  re .   mi  re
     .  . .  . .   .  .   .   .   sol .  sol .  ^do .
 
-    mi sol mi . mi  .  ré  do  sol la   sol -  -  la sol fa
-    do .   do . vsi do vsi vla vsi vsol vsi do ré .  mi  ré
+    mi sol mi . mi  .  re  do  sol la   sol -  -  la sol fa
+    do .   do . vsi do vsi vla vsi vsol vsi do re .  mi  re
 
-    mi . fa sol fa .   mi .   ré   .    vsi  .    vsol .
-    do . ré mi  ré vsi do vla vsol vfa# vsol vfa# vsol .
+    mi . fa sol fa .   mi .   re   .    vsi  .    vsol .
+    do . re mi  re vsi do vla vsol vfa# vsol vfa# vsol .
   |]
 
 -- | The beginning of <https://www.youtube.com/watch?v=124NoPUBDvA Presto>,
@@ -71,80 +71,80 @@ vivaldiFourSeasonsSummerPresto = (bpm,part)
 
     mib - - . vsol  - - . vsol  - - . vsol  - - . vsol  - - . vsol  - - . vsol  - - . vsol  - - . vsol  - - . vsol  - - . vsol  - - . vsol  - - .
 
-    ré - - . vsol  - - . vsol  - - . vsol  - - . vsol  - - . vsol  - - . vsol  - - . vsol  - - . vsol  - - . . . . . . . . . . . . .
+    re - - . vsol  - - . vsol  - - . vsol  - - . vsol  - - . vsol  - - . vsol  - - . vsol  - - . vsol  - - . . . . . . . . . . . . .
 
-    . . . . sol - - . fa - - . mib - - . ré - - . do - - . vsi - - . vla - - . vsol - - . vfa - - . vmib - - . vré - - .
+    . . . . sol - - . fa - - . mib - - . re - - . do - - . vsi - - . vla - - . vsol - - . vfa - - . vmib - - . vre - - .
 
-    . . . . sol - - . fa - - . mib - - . ré - - . do - - . vsi - - . vla - - . vsol - - . vfa - - . vmib - - . vré - - .
+    . . . . sol - - . fa - - . mib - - . re - - . do - - . vsi - - . vla - - . vsol - - . vfa - - . vmib - - . vre - - .
     vdo - - . . . . . vdo - - . . . . . vdo - - . . . . . vdo - - . . . . . vdo - - . . . . . vdo - - . . . . .
     . . . . vdo - - . . . . . vdo - - . . . . . vdo - - . . . . . vdo - - . . . . . vdo - - . . . . . vdo - - .
 
-    . . . . ^do - - . sib - - . lab - - . sol - - . fa - - . mib - - . ré - - . do - - . vsib - - . vlab - - . vsol - - .
+    . . . . ^do - - . sib - - . lab - - . sol - - . fa - - . mib - - . re - - . do - - . vsib - - . vlab - - . vsol - - .
     vdo - - . . . . . vdo - - . . . . . vdo - - . . . . . vdo - - . . . . . vdo - - . . . . . vdo - - . . . . .
     . . . . vdo - - . . . . . vdo - - . . . . . vdo - - . . . . . vdo - - . . . . . vdo - - . . . . . vdo - - .
 
-    . . . . ^do - - . sib - - . lab - - . sol - - . fa - - . mib - - . ré - - . do - - . vsib - - . vlab - - . vsol - - .
+    . . . . ^do - - . sib - - . lab - - . sol - - . fa - - . mib - - . re - - . do - - . vsib - - . vlab - - . vsol - - .
     vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . .
     . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - .
 
-    . . . . ^mib - - . ^ré - - . ^do - - . sib - - . lab - - . sol - - . fa - - . mib - - . ré - - . do - - . vsib - - .
+    . . . . ^mib - - . ^re - - . ^do - - . sib - - . lab - - . sol - - . fa - - . mib - - . re - - . do - - . vsib - - .
     vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . .
     . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - .
 
-    . . . . ^mib - - . ^ré - - . ^do - - . sib - - . lab - - . sol - - . fa - - . mib - - . ré - - . do - - . vsib - - .
+    . . . . ^mib - - . ^re - - . ^do - - . sib - - . lab - - . sol - - . fa - - . mib - - . re - - . do - - . vsib - - .
     vlab - - . . . . . vlab - - . . . . . vlab - - . . . . . vlab - - . . . . . vlab - - . . . . . vlab - - . . . . .
     . . . . vlab - - . . . . . vlab - - . . . . . vlab - - . . . . . vlab - - . . . . . vlab - - . . . . . vlab - - .
 
-    . . . . ^sol - - . ^fa - - . ^mib - - . ^ré - - . ^do - - . si - - . la - - . sol - - . fa - - . mib - - . ré - - .
+    . . . . ^sol - - . ^fa - - . ^mib - - . ^re - - . ^do - - . si - - . la - - . sol - - . fa - - . mib - - . re - - .
     vlab - - . . . . . vlab - - . . . . . vlab - - . . . . . vlab - - . . . . . vlab - - . . . . . vlab - - . . . . .
     . . . . vlab - - . . . . . vlab - - . . . . . vlab - - . . . . . vlab - - . . . . . vlab - - . . . . . vlab - - .
 
-    . . . . ^sol - - . ^fa - - . ^mib - - . ^ré - - . ^do - - . si - - . la - - . sol - - . fa - - . mib - - . ré - - .
+    . . . . ^sol - - . ^fa - - . ^mib - - . ^re - - . ^do - - . si - - . la - - . sol - - . fa - - . mib - - . re - - .
     do - - . . . . . do - - . . . . . do - - . . . . . do - - . . . . . do - - . . . . . do - - . . . . .
     . . . . do - - . . . . . do - - . . . . . do - - . . . . . do - - . . . . . do - - . . . . . do - - .
 
-    . . . . ^sol - - . ^fa - - . ^mib - - . ^ré - - . ^do - - . si - - . la - - . sol - - . fa - - . mib - - . ré - - .
+    . . . . ^sol - - . ^fa - - . ^mib - - . ^re - - . ^do - - . si - - . la - - . sol - - . fa - - . mib - - . re - - .
     do - - . . . . . do - - . . . . . do - - . . . . . do - - . . . . . do - - . . . . . do - - . . . . .
     . . . . do - - . . . . . do - - . . . . . do - - . . . . . do - - . . . . . do - - . . . . . do - - .
 
-    . . . . ^sol - - . ^fa - - . ^mib - - . ^ré - - . ^do - - . si - - . la - - . sol - - . fa - - . mib - - . ré - - .
+    . . . . ^sol - - . ^fa - - . ^mib - - . ^re - - . ^do - - . si - - . la - - . sol - - . fa - - . mib - - . re - - .
     do - - . . . . . do - - . . . . . do - - . . . . . do - - . . . . . do - - . . . . . do - - . . . . .
     . . . . do - - . . . . . do - - . . . . . do - - . . . . . do - - . . . . . do - - . . . . . do - - .
 
     do - - . . . . . do - - . . . . . sol - - . . . . . do - - . . . . . sol - - . . . . . do - - . . . . .
     . . . . do - - . . . . . do - - . . . . . do - - . . . . . do - - . . . . . do - - . . . . . do - - .
 
-    vsi - - . ré - - . mib - - . fa - - . sol - - . la - - . si - - . ^do - - . ^ré - - . sol - - . ré - - . vsi - - .
+    vsi - - . re - - . mib - - . fa - - . sol - - . la - - . si - - . ^do - - . ^re - - . sol - - . re - - . vsi - - .
     . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - .
     vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . .
 
-    vsol - - . ré - - . mib - - . fa - - . sol - - . la - - . si - - . ^do - - . ^ré - - . sol - - . ré - - . vsi - - .
+    vsol - - . re - - . mib - - . fa - - . sol - - . la - - . si - - . ^do - - . ^re - - . sol - - . re - - . vsi - - .
     . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - .
     vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . .
 
-    do - - . mib - - . fa - - . sol - - . la - - . si - - . ^do - - . ^ré - - . ^mib - - . la - - . mib - - . do - - .
+    do - - . mib - - . fa - - . sol - - . la - - . si - - . ^do - - . ^re - - . ^mib - - . la - - . mib - - . do - - .
     . . . . vmib - - . . . . . vmib - - . . . . . vmib - - . . . . . vmib - - . . . . . vmib - - . . . . . vmib - - .
     vmib - - . . . . . vmib - - . . . . . vmib - - . . . . . vmib - - . . . . . vmib - - . . . . . vmib - - . . . . .
 
-    vsib - - . sol - - . la - - . si - - . ^do - - . ^ré - - . ^mib - - . ^fa - - . ^sol - - . sol - - . ré - - . vsi - - .
-    . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - .
-    vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . .
+    vsib - - . sol - - . la - - . si - - . ^do - - . ^re - - . ^mib - - . ^fa - - . ^sol - - . sol - - . re - - . vsi - - .
+    . . . . vre - - . . . . . vre - - . . . . . vre - - . . . . . vre - - . . . . . vre - - . . . . . vre - - .
+    vre - - . . . . . vre - - . . . . . vre - - . . . . . vre - - . . . . . vre - - . . . . . vre - - . . . . .
 
-    vsol - - . sol - - . la - - . si - - . ^do - - . ^ré - - . ^mib - - . ^fa - - . ^sol - - . sol - - . ré - - . vsi - - .
+    vsol - - . sol - - . la - - . si - - . ^do - - . ^re - - . ^mib - - . ^fa - - . ^sol - - . sol - - . re - - . vsi - - .
     . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - .
     vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . .
 
-    vsol - - . ré - - . mib - - . fa - - . sol - - . la - - . si - - . ^do - - . ^ré - - . sol - - . ré - - . vsi - - .
+    vsol - - . re - - . mib - - . fa - - . sol - - . la - - . si - - . ^do - - . ^re - - . sol - - . re - - . vsi - - .
     . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - .
     vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . .
 
-    do - - . mib - - . fa - - . sol - - . la - - . si - - . ^do - - . ^ré - - . ^mib - - . la - - . mib - - . do - - .
+    do - - . mib - - . fa - - . sol - - . la - - . si - - . ^do - - . ^re - - . ^mib - - . la - - . mib - - . do - - .
     . . . . vmib - - . . . . . vmib - - . . . . . vmib - - . . . . . vmib - - . . . . . vmib - - . . . . . vmib - - .
     vmib - - . . . . . vmib - - . . . . . vmib - - . . . . . vmib - - . . . . . vmib - - . . . . . vmib - - . . . . .
 
-    vsib - - . sol - - . la - - . si - - . ^do - - . ^ré - - . ^mib - - . ^fa - - . ^sol - - . sol - - . ré - - . vsi - - .
-    . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - .
-    vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . .
+    vsib - - . sol - - . la - - . si - - . ^do - - . ^re - - . ^mib - - . ^fa - - . ^sol - - . sol - - . re - - . vsi - - .
+    . . . . vre - - . . . . . vre - - . . . . . vre - - . . . . . vre - - . . . . . vre - - . . . . . vre - - .
+    vre - - . . . . . vre - - . . . . . vre - - . . . . . vre - - . . . . . vre - - . . . . . vre - - . . . . .
 
     ^mib - - . ^do - - . sol - - . mib - - . ^mib - - . ^do - - . sol - - . mib - - . ^mib - - . ^do - - . sol - - . mib - - .
     vdo - - . . . . . vdo - - . . . . . vdo - - . . . . . vdo - - . . . . . vdo - - . . . . . vdo - - . . . . .
@@ -162,56 +162,56 @@ vivaldiFourSeasonsSummerPresto = (bpm,part)
     vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . . vfa - - . . . . .
 
     do - - . fa# - - . do - - . fa# - - . do - - . fa# - - . do - - . fa# - - . do - - . fa# - - . do - - . fa# - - .
-    vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . .
+    vre - - . . . . . vre - - . . . . . vre - - . . . . . vre - - . . . . . vre - - . . . . . vre - - . . . . .
 
-    ré - - . sol - - . ré - - . sol - - . ré - - . sol - - . ré - - . sol - - . ré - - . sol - - . ré - - . sol - - .
+    re - - . sol - - . re - - . sol - - . re - - . sol - - . re - - . sol - - . re - - . sol - - . re - - . sol - - .
     vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . .
 
-    ré - - . sol - - . ré - - . sol - - . ré - - . sol - - . ré - - . sol - - . ré - - . sol - - . ré - - . sol - - .
-    vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . .
+    re - - . sol - - . re - - . sol - - . re - - . sol - - . re - - . sol - - . re - - . sol - - . re - - . sol - - .
+    vre - - . . . . . vre - - . . . . . vre - - . . . . . vre - - . . . . . vre - - . . . . . vre - - . . . . .
 
-    ré - - . fa# - - . ré - - . fa# - - . ré - - . fa# - - . ré - - . fa# - - . ré - - . fa# - - . ré - - . fa# - - .
-    vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . . vré - - . . . . .
+    re - - . fa# - - . re - - . fa# - - . re - - . fa# - - . re - - . fa# - - . re - - . fa# - - . re - - . fa# - - .
+    vre - - . . . . . vre - - . . . . . vre - - . . . . . vre - - . . . . . vre - - . . . . . vre - - . . . . .
 
-    sol - - . vsol - . . vla - . . vsib - . . do - . . ré - . . mib - . . fa# - . . sol - . . ré - . . mib - . . fa# - . .
+    sol - - . vsol - . . vla - . . vsib - . . do - . . re - . . mib - . . fa# - . . sol - . . re - . . mib - . . fa# - . .
     vsol - - .
 
-    sol - . . la - . . sib - . . ^do - . . ^ré - . . sol - . . la - . . sib - . . ^do - . . ^ré - . . ^mi - . . ^fa# - . .
+    sol - . . la - . . sib - . . ^do - . . ^re - . . sol - . . la - . . sib - . . ^do - . . ^re - . . ^mi - . . ^fa# - . .
 
-    ^sol - - -  - - - .  . . . .  . . . .  . . . . ^ré - - . ^ré - - . ^fa# - - . ^fa# - - . ^la - - . ^la - - . ^^ré - - .
+    ^sol - - -  - - - .  . . . .  . . . .  . . . . ^re - - . ^re - - . ^fa# - - . ^fa# - - . ^la - - . ^la - - . ^^re - - .
     vsol - - .
 
-   ^^ré - - . ^ré - - . vsol - - . ^ré - - . ^^do - - . ^ré - - . vsol - - . ^ré - - . ^sib - - . ^ré - - . vsol - - . ^ré - - .
+   ^^re - - . ^re - - . vsol - - . ^re - - . ^^do - - . ^re - - . vsol - - . ^re - - . ^sib - - . ^re - - . vsol - - . ^re - - .
     vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . .
 
-   ^la - - . ^ré - - . vsol - - . ^ré - - . ^sib - - . ^ré - - . vsol - - . ^ré - - . ^^do - - . ^ré - - . vsol - - . ^ré - - .
+   ^la - - . ^re - - . vsol - - . ^re - - . ^sib - - . ^re - - . vsol - - . ^re - - . ^^do - - . ^re - - . vsol - - . ^re - - .
     vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . .
 
-   ^^ré - - . ^ré - - . vsol - - . ^ré - - . ^^do - - . ^ré - - . vsol - - . ^ré - - . ^sib - - . ^ré - - . vsol - - . ^ré - - .
+   ^^re - - . ^re - - . vsol - - . ^re - - . ^^do - - . ^re - - . vsol - - . ^re - - . ^sib - - . ^re - - . vsol - - . ^re - - .
     vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . .
 
-   ^la - - -  - - - .  . . . .  . . . .  . . . . sol - - . sol - - . sib - - . sib - - . ^ré - - . ^ré - - . ^sol - - .
+   ^la - - -  - - - .  . . . .  . . . .  . . . . sol - - . sol - - . sib - - . sib - - . ^re - - . ^re - - . ^sol - - .
 
    ^sol - - . sol - - . vsol - - . sol - - . ^fa - - . sol - - . vsol - - . sol - - . ^mib - - . sol - - . vsol - - . sol - - .
     vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . .
 
-   ^ré - - . sol - - . vsol - - . sol - - . ^mib - - . sol - - . vsol - - . sol - - . ^fa# - - . sol - - . vsol - - . sol - - .
+   ^re - - . sol - - . vsol - - . sol - - . ^mib - - . sol - - . vsol - - . sol - - . ^fa# - - . sol - - . vsol - - . sol - - .
     vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . .
 
    ^sol - - . sol - - . vsol - - . sol - - . ^fa - - . sol - - . vsol - - . sol - - . ^mib - - . sol - - . vsol - - . sol - - .
     vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . . vsol - - . . . . .
 
-   ^ré - - -  - - - .    . . . .    . . . .   . . . .   ^^ré - - . ^^ré - - . ^^do - - . ^^do - - . ^sib - - . ^sib - - . ^la - - .
+   ^re - - -  - - - .    . . . .    . . . .   . . . .   ^^re - - . ^^re - - . ^^do - - . ^^do - - . ^sib - - . ^sib - - . ^la - - .
 
-   ^la - - . ^sol - - . ^sol - - . ^fa - - . ^fa - - . ^mib - - . ^mib - - . ^ré - - . ^ré - - . ^do - - . ^do - - . sib - - .
+   ^la - - . ^sol - - . ^sol - - . ^fa - - . ^fa - - . ^mib - - . ^mib - - . ^re - - . ^re - - . ^do - - . ^do - - . sib - - .
 
-   sib - - .  la - - .   la - - . sol - - . sol - - . fa - - . fa - - . mib - - . mib - - . ré - - . ré - - . do# - - .
+   sib - - .  la - - .   la - - . sol - - . sol - - . fa - - . fa - - . mib - - . mib - - . re - - . re - - . do# - - .
 
-   ré - - -  - - - . do# - - -  - - - . ré - - -  - - - . do# - - -  - - - . ré - - -  - - - . vsib - - -  - - - .
+   re - - -  - - - . do# - - -  - - - . re - - -  - - - . do# - - -  - - - . re - - -  - - - . vsib - - -  - - - .
 
    : to be continued...
 
-   ré - . .  . . . . do#  - -  - - - . ré - - -  - - - . do# - - -  - - - . ré - - -  - - - . vsib - - -  - - - .
+   re - . .  . . . . do#  - -  - - - . re - - -  - - - . do# - - -  - - - . re - - -  - - - . vsib - - -  - - - .
 
-   ré - . .  . . . . do# - . .  . . . . ré - - -  - - - . do# - - -  - - - . ré - . .  . . . .  . . . .  . . . .
+   re - . .  . . . . do# - . .  . . . . re - - -  - - - . do# - - -  - - - . re - . .  . . . .  . . . .  . . . .
   |]

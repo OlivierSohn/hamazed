@@ -103,7 +103,7 @@ me may_sec_per_loop = (bpm,part)
 
   part = allCentered [voices|
     la . la . la . la . la . la . la . la .
-    . ^mi . ^ré
+    . ^mi . ^re
     vvla . . . . vvla vvla vvsi . . . vdo . vvsi vvsol
 
     fa . fa . fa . fa . fa . fa . fa . fa .

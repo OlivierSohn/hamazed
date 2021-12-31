@@ -23,8 +23,8 @@ testParseMonoVoice = do
   We could use this notation to allow multine melodies within a block:
 
   [voice|
-  | do ré mi
-  | sol do ré
+  | do re mi
+  | sol do re
   mi fa sol : upper line voice, continued
   | la sol mi
 
@@ -33,63 +33,63 @@ testParseMonoVoice = do
     [Note Do noOctave]
 -}
 
-  [voice|do ré|] `shouldBe`
+  [voice|do re|] `shouldBe`
     [Note Do noOctave
-    ,Note Ré noOctave
+    ,Note Re noOctave
     ]
 
-  [voice|do ré
+  [voice|do re
 |] `shouldBe`
     [Note Do noOctave
-    ,Note Ré noOctave
+    ,Note Re noOctave
     ]
 
-  [voice|do ré
+  [voice|do re
  |] `shouldBe`
     [Note Do noOctave
-    ,Note Ré noOctave
+    ,Note Re noOctave
     ]
 
   [voice|
-  do ré
+  do re
   |] `shouldBe`
     [Note Do noOctave
-    ,Note Ré noOctave
+    ,Note Re noOctave
     ]
 
-  [voice|do v ré|] `shouldBe`
+  [voice|do v re|] `shouldBe`
     [Note Do noOctave
-    ,Note Ré (noOctave-1)
+    ,Note Re (noOctave-1)
     ]
 
-  [voice|do vré|] `shouldBe`
+  [voice|do vre|] `shouldBe`
     [Note Do noOctave
-    ,Note Ré (noOctave-1)
+    ,Note Re (noOctave-1)
     ]
 
-  [voice|do ^ré|] `shouldBe`
+  [voice|do ^re|] `shouldBe`
     [Note Do noOctave
-    ,Note Ré (noOctave+1)
+    ,Note Re (noOctave+1)
     ]
 
-  [voice|do ^^ré|] `shouldBe`
+  [voice|do ^^re|] `shouldBe`
     [Note Do noOctave
-    ,Note Ré (noOctave+2)
+    ,Note Re (noOctave+2)
     ]
 
-  [voice|do ^vré|] `shouldBe`
+  [voice|do ^vre|] `shouldBe`
     [Note Do noOctave
-    ,Note Ré noOctave
+    ,Note Re noOctave
     ]
 
-  [voice|do vvré|] `shouldBe`
+  [voice|do vvre|] `shouldBe`
     [Note Do noOctave
-    ,Note Ré (noOctave-2)
+    ,Note Re (noOctave-2)
     ]
 
-  [voice|do v v ré|] `shouldBe`
+  [voice|do v v re|] `shouldBe`
     [Note Do noOctave
-    ,Note Ré (noOctave-2)
+    ,Note Re (noOctave-2)
     ]
 
   [voice|do . do|] `shouldBe`
@@ -128,10 +128,10 @@ testParseMonoVoice = do
 
   let i = bellInstrument
 
-  (allMusic i panCentered [voice|do ré mi|]) `shouldBe`
+  (allMusic i panCentered [voice|do re mi|]) `shouldBe`
     [ [StartNote Nothing (InstrumentNote Do (Octave 6) i) (NoteVelocity 1.0) panCentered]
-    , [StopNote Nothing (InstrumentNote Do (Octave 6) i), StartNote Nothing (InstrumentNote Ré (Octave 6) i) (NoteVelocity 1.0) panCentered]
-    , [StopNote Nothing (InstrumentNote Ré (Octave 6) i), StartNote Nothing (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0) panCentered]
+    , [StopNote Nothing (InstrumentNote Do (Octave 6) i), StartNote Nothing (InstrumentNote Re (Octave 6) i) (NoteVelocity 1.0) panCentered]
+    , [StopNote Nothing (InstrumentNote Re (Octave 6) i), StartNote Nothing (InstrumentNote Mi (Octave 6) i) (NoteVelocity 1.0) panCentered]
     , [StopNote Nothing (InstrumentNote Mi (Octave 6) i)]
     ]
 
@@ -201,28 +201,28 @@ testParseMonoVoiceWithComments :: IO ()
 testParseMonoVoiceWithComments = do
   let expected =
         [ Note Do noOctave
-        , Note Ré noOctave
+        , Note Re noOctave
         ]
   [voice|do:
-    ré|]
+    re|]
     `shouldBe` expected
 
   [voice|do:
-    ré:|]
+    re:|]
     `shouldBe` expected
 
   [voice|do:comment1
-    ré:comment2|]
+    re:comment2|]
     `shouldBe` expected
 
   [voice|do   :  comment1  : with inner colons :: :: !
-    ré  :  comment2  : with inner colons :: :: !|]
+    re  :  comment2  : with inner colons :: :: !|]
     `shouldBe` expected
 
   [voice|do   :  comment1  : with inner colons :: :: !
               :  a comment on an empty line1
               :  a comment on an empty line2
-         ré   :  comment2  : with inner colons :: :: !
+         re   :  comment2  : with inner colons :: :: !
               :  a comment on an empty line3
               :  a comment on an empty line4
     |]
@@ -233,7 +233,7 @@ testParseMonoVoiceWithComments = do
          do   :  comment1  : with inner colons :: :: !
               :  a comment on an empty line1
               :  a comment on an empty line2
-         ré   :  comment2  : with inner colons :: :: !
+         re   :  comment2  : with inner colons :: :: !
               :  a comment on an empty line3
               :  a comment on an empty line4
     |]
@@ -265,37 +265,37 @@ testParsePolyVoice = do
     [[Note Do noOctave]]
 
   [voices|
-  do ré|] `shouldBe`
-    [[Note Do noOctave, Note Ré noOctave]]
+  do re|] `shouldBe`
+    [[Note Do noOctave, Note Re noOctave]]
 
   [voices|
   do
-  ré|] `shouldBe`
+  re|] `shouldBe`
     [[Note Do noOctave]
-    ,[Note Ré noOctave]]
+    ,[Note Re noOctave]]
 
 
   [voices|
   do
   : a commented line will not act as a separator
-  ré|] `shouldBe`
+  re|] `shouldBe`
     [[Note Do noOctave]
-    ,[Note Ré noOctave]]
+    ,[Note Re noOctave]]
 
   -- using a blank line as separator
   [voices|
   do
 
-  ré|] `shouldBe`
-    [[Note Do noOctave, Note Ré noOctave]]
+  re|] `shouldBe`
+    [[Note Do noOctave, Note Re noOctave]]
 
   [voices|
   do
 
 
 
-  ré|] `shouldBe`
-    [[Note Do noOctave, Note Ré noOctave]]
+  re|] `shouldBe`
+    [[Note Do noOctave, Note Re noOctave]]
 
   [voices|
 
@@ -305,40 +305,40 @@ testParsePolyVoice = do
 
 
 
-  ré
+  re
 
 
   |] `shouldBe`
-    [[Note Do noOctave, Note Ré noOctave]]
+    [[Note Do noOctave, Note Re noOctave]]
 
   -- pad lines that are shorter
   [voices|
   do mi
-  ré|] `shouldBe`
+  re|] `shouldBe`
     [[Note Do noOctave, Note Mi noOctave]
-    ,[Note Ré noOctave, Rest]]
+    ,[Note Re noOctave, Rest]]
 
   [voices|
   do mi sol
-  ré|] `shouldBe`
+  re|] `shouldBe`
     [[Note Do noOctave, Note Mi noOctave, Note Sol noOctave]
-    ,[Note Ré noOctave, Rest, Rest]]
+    ,[Note Re noOctave, Rest, Rest]]
 
   [voices|
   do mi
-  ré
+  re
 
   fa sol la|] `shouldBe`
     [[Note Do noOctave, Note Mi noOctave, Note Fa noOctave, Note Sol noOctave, Note La noOctave]
-    ,[Note Ré noOctave, Rest, Rest, Rest, Rest]]
+    ,[Note Re noOctave, Rest, Rest, Rest, Rest]]
 
   [voices|
   fa sol la
 
   do mi
-  ré|] `shouldBe`
+  re|] `shouldBe`
     [[Note Fa noOctave, Note Sol noOctave, Note La noOctave, Note Do noOctave, Note Mi noOctave]
-    ,[Rest, Rest, Rest, Note Ré noOctave, Rest]]
+    ,[Rest, Rest, Rest, Note Re noOctave, Rest]]
 
   [voices|
 
@@ -347,26 +347,26 @@ testParsePolyVoice = do
   fa sol la
 
   do mi
-  ré|] `shouldBe`
+  re|] `shouldBe`
     [[Note Fa noOctave, Note Sol noOctave, Note La noOctave, Note Do noOctave, Note Mi noOctave]
-    ,[Rest, Rest, Rest, Note Ré noOctave, Rest]]
+    ,[Rest, Rest, Rest, Note Re noOctave, Rest]]
 
   [voices|
   fa sol la : comment1
 
   do mi
-  ré|] `shouldBe`
+  re|] `shouldBe`
     [[Note Fa noOctave, Note Sol noOctave, Note La noOctave, Note Do noOctave, Note Mi noOctave]
-    ,[Rest, Rest, Rest, Note Ré noOctave, Rest]]
+    ,[Rest, Rest, Rest, Note Re noOctave, Rest]]
 
   [voices|
   fa sol la
   : comment1
 
   do mi
-  ré|] `shouldBe`
+  re|] `shouldBe`
     [[Note Fa noOctave, Note Sol noOctave, Note La noOctave, Note Do noOctave, Note Mi noOctave]
-    ,[Rest, Rest, Rest, Note Ré noOctave, Rest]]
+    ,[Rest, Rest, Rest, Note Re noOctave, Rest]]
 
 shouldBe :: (Show a, Eq a) => a -> a -> IO ()
 shouldBe actual expected =

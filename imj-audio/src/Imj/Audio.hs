@@ -8,7 +8,7 @@
       The functions exported by this module can be used to play 'Instrument's in real time:
 
 @
-main = usingAudioOutput $ playAtTempo 70 simpleInstrument $ [voice|do ré mi|]
+main = usingAudioOutput $ playAtTempo 70 simpleInstrument $ [voice|do re mi|]
 @
       -}
         module Imj.Audio.Output
@@ -31,9 +31,9 @@ main = usingAudioOutput $ playAtTempo 70 simpleInstrument $ [voice|do ré mi|]
 @
 [voice|
   do .
-  mi . mi . mi . ré do sol - - - - . sol fa
-  mi . mi . mi . ré do sol - - - - . sol fa
-  mi . fa sol fa . mi . ré . vsi . vsol .
+  mi . mi . mi . re do sol - - - - . sol fa
+  mi . mi . mi . re do sol - - - - . sol fa
+  mi . fa sol fa . mi . re . vsi . vsol .
 |]
 
 To match the original tonality, which is E Major (Mi Majeur)
@@ -49,27 +49,27 @@ where 4 is the number of semitones between C (Sol) and E (Mi).
   do -
   vsol -
 
-  mi . mi . mi  .  ré  do  sol - -   - -  . sol fa
-  do . do . vsi do vsi vla vsi . .   . ré . mi  ré
+  mi . mi . mi  .  re  do  sol - -   - -  . sol fa
+  do . do . vsi do vsi vla vsi . .   . re . mi  re
 
-  mi . mi . mi  .  ré  do  sol ré   sol -  -  mi sol fa
-  do . do . vsi do vsi vla vsi vsol vsi do ré .  mi  ré
+  mi . mi . mi  .  re  do  sol re   sol -  -  mi sol fa
+  do . do . vsi do vsi vla vsi vsol vsi do re .  mi  re
 
-  mi . fa sol fa .   mi .   ré   .    vsi  .    vsol .
-  do . ré mi  ré vsi do vla vsol vfa\# vsol vfa\# vsol .
+  mi . fa sol fa .   mi .   re   .    vsi  .    vsol .
+  do . re mi  re vsi do vla vsol vfa\# vsol vfa\# vsol .
 
   do   -
   vsol -
 
-  mi . mi . mi  .  ré  do  sol -   -  -   -  .   sol fa
-  do . do . vsi do vsi vla vsi -   do do  ré .   mi  ré
+  mi . mi . mi  .  re  do  sol -   -  -   -  .   sol fa
+  do . do . vsi do vsi vla vsi -   do do  re .   mi  re
   .  . .  . .   .  .   .   .   sol .  sol .  ^do .
 
-  mi sol mi . mi  .  ré  do  sol la   sol -  -  la sol fa
-  do .   do . vsi do vsi vla vsi vsol vsi do ré .  mi  ré
+  mi sol mi . mi  .  re  do  sol la   sol -  -  la sol fa
+  do .   do . vsi do vsi vla vsi vsol vsi do re .  mi  re
 
-  mi . fa sol fa .   mi .   ré   .    vsi  .    vsol .
-  do . ré mi  ré vsi do vla vsol vfa\# vsol vfa\# vsol .
+  mi . fa sol fa .   mi .   re   .    vsi  .    vsol .
+  do . re mi  re vsi do vla vsol vfa\# vsol vfa\# vsol .
 |]
 @
       -}

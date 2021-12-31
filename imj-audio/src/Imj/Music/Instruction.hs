@@ -31,8 +31,8 @@ import           Foreign.C
 -- | Using the <https://en.wikipedia.org/wiki/Solf%C3%A8ge solfège> notation.
 data NoteName =
     Do
-  | Réb
-  | Ré
+  | Reb
+  | Re
   | Mib
   | Mi
   | Fa
@@ -48,8 +48,8 @@ instance NFData NoteName
 instance Enum NoteName where
   fromEnum = \case
     Do -> 0
-    Réb -> 1
-    Ré -> 2
+    Reb -> 1
+    Re -> 2
     Mib -> 3
     Mi -> 4
     Fa -> 5
@@ -62,8 +62,8 @@ instance Enum NoteName where
 
   toEnum = \case
     0 -> Do
-    1 -> Réb
-    2 -> Ré
+    1 -> Reb
+    2 -> Re
     3 -> Mib
     4 -> Mi
     5 -> Fa
@@ -82,8 +82,8 @@ noteNameToMidiModuloPitch = fromEnum
 whiteKeyNote :: NoteName -> Bool
 whiteKeyNote = \case
   Do -> True
-  Réb -> False
-  Ré -> True
+  Reb -> False
+  Re -> True
   Mib -> False
   Mi -> True
   Fa -> True

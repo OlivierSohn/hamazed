@@ -12,7 +12,7 @@ import           System.Random.MWC(create, GenIO)
 import           Data.Bool(bool)
 import           Data.List(intersperse)
 
-import           Imj.Audio hiding (intersperse)
+import           Imj.Audio hiding (intersperse, transpose)
 import           Imj.Music.Random(pickRandomWeighted, pickRandomInstructionsWeighted)
 import           Imj.Music.Harmony
 import           Imj.Music.Compositions.Me
@@ -43,6 +43,9 @@ main = void $ usingAudioOutput -- WithMinLatency 0
   -- play a short snare note to initialize pink noise
   putStrLn "play short & low snare note to initialize pink Noise"
   _ <- playShortLowNote meSnare $ VoiceId 0
+  threadDelay 10000
+  putStrLn "playing in a key"
+  playKey >>= print
   threadDelay 10000
   putStrLn "playing neighbour patterns"
   playNeighbourPatterns >>= print
@@ -150,6 +153,13 @@ playMode (countBars, leftPattern, rightPattern) rng = do
   rangeNotes = map MidiPitch [55..71]
 
   insns = buildVoices leftPattern rightPattern rangeNotes
+
+
+playKey :: IO PlayResult
+playKey = do
+  rng <- create
+  putStrLn $ prettyShowKey $ mkKey Re majorScale
+  return $ Right ()
 
 stressTest :: IO PlayResult
 stressTest = playVoicesAtTempo 10000 simpleInstrument $ allCentered $ map (take 1000 . cycle) [voices|

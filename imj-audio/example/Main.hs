@@ -9,6 +9,7 @@ import           Control.Concurrent(threadDelay)
 import           Control.Monad(void)
 
 import           System.Random.MWC(create, GenIO)
+import           Data.Bool(bool)
 import           Data.List(intersperse, splitAt)
 import qualified Data.HashSet as HashSet
 
@@ -137,17 +138,14 @@ playMode (countBars, leftPattern, rightPattern) rng = do
 playKey :: IO PlayResult
 playKey = do
   rng <- create
-  go rng 2 melody
+  go rng 25 (mkKey Do majorScale) melody
  where
-  key = mkKey Do majorScale
-  nextKey = mkKey Sol majorScale
-
   rangeNotesMelody = map MidiPitch [(75-11)..75]
   tempo = 600
-  countLoopsRegul = 2
+  countLoopsRegul = 1
   countLoopsPivot = 1
   countInstructionsRegul = 24
-  countInstructionsPivot = 16
+  countInstructionsPivot = 8
   melodyPace = 2
   restWeightRegular = 2
   restWeightPivot = 2
@@ -160,17 +158,15 @@ playKey = do
     , (Imperative Extend, 2)]
   --melody = Random
 
-  go _ 0 _ = return $ Right ()
-  go rng n melo = do
+  go _ 0 _ _ = return $ Right ()
+  go rng n key melo = do
     playOneKey rng tempo countLoopsRegul countInstructionsRegul melodyPace restWeightRegular rangeNotesMelody key melo
       >>= either (return . Left)
       (playPivotAndAccidental rng tempo countLoopsPivot countInstructionsPivot melodyPace restWeightPivot rangeNotesMelody key nextKey)
       >>= either (return . Left)
-      (playOneKey rng tempo countLoopsRegul countInstructionsRegul melodyPace restWeightRegular rangeNotesMelody nextKey)
-      >>= either (return . Left)
-      (playPivotAndAccidental rng tempo countLoopsPivot countInstructionsPivot melodyPace restWeightPivot rangeNotesMelody nextKey key)
-      >>= either (return . Left)
-      (go rng $ pred n)
+      (go rng (pred n) nextKey)
+   where
+     nextKey = bool (mkFifthsShiftedKey 1 key) (mkRelativeKey key) $ even n
 
 playPivotAndAccidental :: GenIO
                        -> Double

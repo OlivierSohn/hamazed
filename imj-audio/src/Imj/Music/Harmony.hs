@@ -11,6 +11,8 @@ module Imj.Music.Harmony
       -- | Keys
       , Key(..)
       , mkKey
+      , mkFifthsShiftedKey
+      , mkRelativeKey
       , prettyShowKey
       , findTriadsUsingNote
       , findPivotTriads
@@ -121,6 +123,7 @@ semiTonesPerOctave = 12
 majorScale :: NotesPattern ZeroOffset
 majorScale = NotesPattern $ ISet.fromDistinctAscList [0, 2, 4, 5, 7, 9, 11]
 
+-- This is a majorScale, offset and starting at a different location
 minorNaturalScale :: NotesPattern ZeroOffset
 minorNaturalScale = NotesPattern $ ISet.fromDistinctAscList [0, 2, 3, 5, 7, 8, 10]
 
@@ -132,6 +135,38 @@ majorChord = NotesPattern $ ISet.fromDistinctAscList [0, 4, 7]
 
 minorChord :: NotesPattern ZeroOffset
 minorChord = NotesPattern $ ISet.fromDistinctAscList [0, 3, 7]
+
+relativeMajor :: NoteName -> NoteName
+relativeMajor n = offsetNoteName n 3
+relativeMinor :: NoteName -> NoteName
+relativeMinor n = offsetNoteName n $ -3
+
+offsetNoteName :: NoteName -> Int -> NoteName
+offsetNoteName root shift =
+  let q = mod (shift + fromEnum root) semiTonesPerOctave
+  in toEnum $ if q >= 0 then q else q + semiTonesPerOctave
+
+-- for the circle of fifths we will use minorHarmonicScale instead of minorNaturalScale
+-- because it has accidentals wrt the relative major scale.
+mkRelativeKey :: Key -> Key
+mkRelativeKey (Key scale _ _) =
+  maybe
+    (maybe
+      (error "invalid Key")
+      (\minorRoot -> mkKey (relativeMajor minorRoot) majorScale)
+      $ matchPatternByOffset minorHarmonicScale scale)
+    (\majorRoot -> mkKey (relativeMinor majorRoot) minorHarmonicScale)
+    $ matchPatternByOffset majorScale scale
+
+mkFifthsShiftedKey :: Int -> Key -> Key
+mkFifthsShiftedKey shift (Key scale _ _) =
+  maybe
+    (maybe
+      (error "invalid Key")
+      (\minorRoot -> mkKey (offsetNoteName minorRoot (shift * 5)) minorHarmonicScale)
+      $ matchPatternByOffset minorHarmonicScale scale)
+    (\majorRoot -> mkKey (offsetNoteName majorRoot (shift * 5)) majorScale)
+    $ matchPatternByOffset majorScale scale
 
 -- This is the ascending part of the minor melodic scale.
 -- The descending part is the minor natural scale.

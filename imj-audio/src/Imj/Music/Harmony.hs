@@ -12,11 +12,14 @@ module Imj.Music.Harmony
       , Key(..)
       , mkKey
       , prettyShowKey
-      , matchingTriads
+      , findTriadsUsingNote
+      , findPivotTriads
+      , findAccidentals
       -- | Utilities
       , Mode(..)
       , Pattern(..)
       , AnyOffset
+      , patternUnion
       , prettyShow
       , inPattern
       , NotesPattern(..)
@@ -41,15 +44,17 @@ import           Data.List(sortOn, intersperse)
 
 data Key = Key {
     keyScale :: !(NotesPattern AnyOffset)
-  , keyTriads :: ![NotesPattern AnyOffset]
+  , keyTriadsFromRootAscending :: ![NotesPattern AnyOffset]
+  , keyTriadsLookup :: !(HashSet (NotesPattern AnyOffset))
 }
   deriving(Show)
 
 mkKey :: NoteName -> NotesPattern ZeroOffset -> Key
-mkKey n z = Key p tr
+mkKey n z = Key p tr trl
  where
   p = transpose (fromEnum n) z
   tr = map (transpose (fromEnum n)) $ mkTriads z
+  trl = HashSet.fromList tr
 
 mkTriads :: NotesPattern ZeroOffset -> [NotesPattern AnyOffset]
 mkTriads (NotesPattern p) =
@@ -61,13 +66,22 @@ mkTriads (NotesPattern p) =
   sz = length listNotes
 
 prettyShowKey :: Key -> String
-prettyShowKey (Key scale tris) = "key:" ++ prettyShow scale ++ ", triads:" ++ concat (intersperse "," $ map prettyShow tris)
+prettyShowKey (Key scale tris _) = "key:" ++ prettyShow scale ++ ", triads:" ++ concat (intersperse "," $ map prettyShow tris)
 
 -- | Returns triads that contain the played note.
 -- The returned list contains at least one element if the played note is in the scale of the key.
-matchingTriads :: Key -> MidiPitch -> [NotesPattern AnyOffset]
-matchingTriads (Key _ triads) playedNote =
+findTriadsUsingNote :: [NotesPattern AnyOffset] -> MidiPitch -> [NotesPattern AnyOffset]
+findTriadsUsingNote triads playedNote =
   filter (flip inPattern playedNote) triads
+
+-- | Returns triads that are common to both keys
+findPivotTriads :: Key -> Key -> HashSet (NotesPattern AnyOffset)
+findPivotTriads (Key _ _ t1) (Key _ _ t2) = HashSet.intersection t1 t2
+
+-- | Returns notes that are in destintaion key but not in origin key
+findAccidentals :: Key -> Key -> NotesPattern AnyOffset
+findAccidentals (Key (NotesPattern scaleOrigin) _ _) (Key (NotesPattern scaleDestination) _ _) =
+  NotesPattern $ ISet.difference scaleDestination scaleOrigin
 
 -- Invariant : values are homogenous to a MidiPitch modulo 12, hence are in [0, 12) (we could use a bit set instead)
 -- hence 0 corresponds to Do
@@ -79,6 +93,12 @@ data AnyOffset
 
 instance Hashable (NotesPattern a) where
   hashWithSalt = hashUsing (ISet.toAscList . (\(NotesPattern is) -> is))
+
+patternUnion :: NotesPattern AnyOffset
+             -> NotesPattern AnyOffset
+             -> NotesPattern AnyOffset
+patternUnion (NotesPattern p1) (NotesPattern p2) =
+  NotesPattern $ ISet.union p1 p2
 
 data Mode = Major | Minor
   deriving(Show, Eq)

@@ -22,13 +22,9 @@ import           Imj.Music.Compositions.Vivaldi
 
 playShortLowNote :: Instrument -> VoiceId -> IO (Either () ())
 playShortLowNote instrument v = do
-  _ <- play
-    (StartNote Nothing (InstrumentNote Do (Octave 6) instrument) (NoteVelocity 0.01) panCentered)
-    v
-  play
-    (StopNote Nothing (InstrumentNote Do (Octave 6) instrument))
-    v
-
+  play (StartNote Nothing (InstrumentNote Do (Octave 6) instrument) (NoteVelocity 0.01) panCentered) v
+    >>= either (return . Left)
+    (\_ -> play (StopNote Nothing (InstrumentNote Do (Octave 6) instrument)) v)
 
 main :: IO ()
 main = void $ usingAudioOutput -- WithMinLatency 0
@@ -42,7 +38,7 @@ main = void $ usingAudioOutput -- WithMinLatency 0
   --}
   -- play a short snare note to initialize pink noise
   putStrLn "play short & low snare note to initialize pink Noise"
-  _ <- playShortLowNote meSnare $ VoiceId 0
+  playShortLowNote meSnare (VoiceId 0) >>= print
   threadDelay 10000
   putStrLn "playing in a key"
   playKey >>= print
@@ -98,9 +94,8 @@ playLoop tempo countSteps leftInsns rightInsns pedal =
     pedal
 
 playRandomScore :: IO PlayResult
-playRandomScore = do
-  rng <- create
-  playModes (concat $ take 2 $ repeat patterns) rng
+playRandomScore =
+  create >>= playModes (concat $ take 2 $ repeat patterns)
  where
   patterns = map (\(n, note, mode) -> (n, mkDefaultPattern Chord note mode, mkDefaultPattern Chord note mode)) modes
   modes =
@@ -111,9 +106,8 @@ playRandomScore = do
 
 playNeighbourPatterns :: IO PlayResult
 playNeighbourPatterns = do
-  rng <- create
-  _ <- mapM (\(n, p) -> putStrLn $ (show n) ++ " " ++ (prettyShow p)) pats
-  playModes (map (\p -> (1, p, p)) sequencePatterns) rng
+  mapM_(\(n, p) -> putStrLn $ (show n) ++ " " ++ (prettyShow p)) pats
+  create >>= playModes (map (\p -> (1, p, p)) sequencePatterns)
  where
   sourcePattern = mkDefaultPattern Chord Do Major
   pats = neighbourChords sourcePattern
@@ -157,6 +151,7 @@ playKey = do
   melodyPace = 2
   restWeightRegular = 2
   restWeightPivot = 2
+
   melody = mkBrownian [
       (Repetition, 0)
     , (MonotonicMove, 4)
@@ -164,6 +159,7 @@ playKey = do
     , (Imperative Rest, 0)
     , (Imperative Extend, 2)]
   --melody = Random
+
   go _ 0 _ = return $ Right ()
   go rng n melo = do
     playOneKey rng tempo countLoopsRegul countInstructionsRegul melodyPace restWeightRegular rangeNotesMelody key melo
@@ -270,11 +266,11 @@ harmonize rng triadForMelodyPitch notesPerMelodyStep melody sumWeightsPattern su
  where
   go [] _ _ res = return $ reverse res
   go (r:remaining) mayPrevTriad mayPrevNote res = case r of
-    Rest -> proceed mayPrevTriad Nothing -- TODO Add a probability parameter to _randomly_ use mayPrevNote here.
-    Extend -> proceed mayPrevTriad mayPrevNote
-    note@Note{} -> proceed mayPrevTriad (Just note)
+    Rest -> proceed Nothing -- TODO Add a probability parameter to _randomly_ use mayPrevNote here.
+    Extend -> proceed mayPrevNote
+    note@Note{} -> proceed (Just note)
    where
-    proceed mayPrevTriad = maybe
+    proceed = maybe
       (go remaining mayPrevTriad Nothing $ (take notesPerMelodyStep $ repeat Rest) ++ res)
       (\note@(Note name octave) ->
         let pitch = noteToMidiPitch name octave

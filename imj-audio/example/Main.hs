@@ -160,7 +160,8 @@ playKey = do
 
   go _ 0 _ _ = return $ Right ()
   go rng n key melo = do
-    playOneKey rng tempo countLoopsRegul countInstructionsRegul melodyPace restWeightRegular rangeNotesMelody key melo
+    return melo >>=
+      playOneKey rng tempo countLoopsRegul countInstructionsRegul melodyPace restWeightRegular rangeNotesMelody key
       >>= either (return . Left)
       (playPivotAndAccidental rng tempo countLoopsPivot countInstructionsPivot melodyPace restWeightPivot rangeNotesMelody key nextKey)
       >>= either (return . Left)

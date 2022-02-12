@@ -9,7 +9,6 @@ module Imj.Game.Hamazed.World.Draw
         ) where
 
 import           Imj.Prelude
-import           Control.Monad.Reader.Class(MonadReader)
 
 import           Data.Char(intToDigit)
 import qualified Data.Map.Strict as Map(assocs)

@@ -62,10 +62,9 @@ module Imj.Timing
     , Int64
     ) where
 
-import           Language.Haskell.TH.Syntax(lift)
+import           Language.Haskell.TH.Syntax(Lift(..))
 
 import           Imj.Prelude
-import           Prelude(fromInteger)
 import qualified Data.Binary as Bin(Binary(get,put))
 import           Data.Int(Int64)
 import qualified Data.List as List
@@ -83,7 +82,7 @@ The phantom type 'a' represents the time space. It could be 'System'
 newtype Time a b = Time TimeSpec
   deriving(Generic, Eq, Ord)
 instance Lift (Time a b) where
-  lift (Time (TimeSpec s ns)) = [| Time (TimeSpec $(lift s) $(lift ns)) |]
+  liftTyped (Time (TimeSpec s ns)) = [|| Time (TimeSpec $$(liftTyped s) $$(liftTyped ns)) ||]
 instance NFData (Time a b) where
   rnf (Time (TimeSpec s ns)) = rnf s `seq` rnf ns
 instance Binary (Time Duration a) where

@@ -18,7 +18,6 @@ import           Imj.Prelude
 
 import           Control.Concurrent.STM(TQueue)
 
-import           Data.Int(Int64)
 import qualified Graphics.UI.GLFW as GLFW
 
 import           Imj.Geo.Discrete.Types(Direction(..))

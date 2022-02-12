@@ -14,7 +14,7 @@ module Imj.Graphics.Class.Draw
 
 import           Imj.Prelude
 
-import           Data.Text(Text, unpack)
+import           Data.Text(unpack)
 
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.UI.RectArea

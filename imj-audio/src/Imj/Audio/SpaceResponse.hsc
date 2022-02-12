@@ -10,7 +10,6 @@ module Imj.Audio.SpaceResponse
 
 import           Foreign
 import           Data.Data(Data(..))
-import           Data.Int(Int32)
 import           GHC.Generics(Generic(..))
 
 #include "c.h"

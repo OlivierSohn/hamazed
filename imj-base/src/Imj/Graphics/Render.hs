@@ -57,9 +57,6 @@ follows this pattern. -}
 
 import           Imj.Prelude
 
-import           Control.Monad.Reader.Class(MonadReader)
-import           Data.Text(Text)
-
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Render.FromMonadReader

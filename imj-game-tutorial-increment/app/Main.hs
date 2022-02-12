@@ -7,7 +7,6 @@
 module Main where
 
 import           Data.Bool(bool)
-import           Data.Monoid((<>))
 import           Control.DeepSeq(NFData)
 import           Data.Attoparsec.Text(skipSpace, atEnd, takeText)
 import qualified Data.Map.Strict as Map

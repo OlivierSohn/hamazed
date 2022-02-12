@@ -73,7 +73,7 @@ module Imj.Space.Types
     , module Imj.Geo.Discrete.Types
     ) where
 
-import           Language.Haskell.TH.Syntax(lift)
+import           Language.Haskell.TH.Syntax(liftTyped)
 
 import           Imj.Prelude
 import           Prelude(length)
@@ -221,8 +221,8 @@ data MatrixVariantsSpec =
     VariantsSpec !(NonEmpty VariationSpec) !(Maybe MatrixVariantsSpec) -- 'MatrixVariantsSpec' applies to every variation produced by NonEmpty VariationSpec
   deriving(Generic, Eq, Ord)
 instance Lift MatrixVariantsSpec where
-  lift (VariantsSpec l next) =
-    [| VariantsSpec (NE.fromList $(lift (NE.toList l))) $(lift next) |]
+  liftTyped (VariantsSpec l next) =
+    [|| VariantsSpec (NE.fromList $$(liftTyped (NE.toList l))) $$(liftTyped next) ||]
 instance Binary MatrixVariantsSpec
 instance NFData MatrixVariantsSpec
 instance Show MatrixVariantsSpec where

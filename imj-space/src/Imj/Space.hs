@@ -52,7 +52,6 @@ import qualified Data.Vector.Storable as S
 import qualified Data.Vector.Storable.Mutable as MS
 import qualified Data.Vector.Unboxed.Mutable as MV
 import qualified Data.Vector.Unboxed as V
-import           Data.Word(Word8)
 import           GHC.Word(Word64, Word16)
 import           System.Random.MWC(GenIO, uniformR, foldMUniforms)
 

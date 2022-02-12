@@ -32,11 +32,9 @@ module Imj.Music.Types
 
 import           Imj.Prelude
 
-import           Control.DeepSeq (NFData(..))
 import           Control.Concurrent.MVar.Strict(MVar, newMVar)
 import           Data.Map.Internal(Map(..))
 import qualified Data.Vector as V
-import           GHC.Generics (Generic)
 
 import           Imj.Music.Instruction
 import           Imj.Music.Instrument

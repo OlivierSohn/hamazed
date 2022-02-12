@@ -23,7 +23,7 @@ import qualified Data.List as List
 import           Data.Proxy
 import           Options.Applicative
                    (Parser, short, long, option, str, help, optional
-                  , ReadM, readerError, (<*>), flag)
+                  , ReadM, readerError, flag)
 import           Options.Applicative.Types(Parser(..))
 import           Text.Read(readMaybe)
 

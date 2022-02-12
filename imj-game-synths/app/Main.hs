@@ -26,10 +26,9 @@ import           Prelude(length, putStrLn, print, foldr)
 import           Codec.Midi hiding(key, Key)
 import           Control.Concurrent(forkIO, threadDelay)
 import           Control.Concurrent.MVar.Strict(MVar, modifyMVar, modifyMVar_, newMVar, putMVar, takeMVar)
-import           Control.DeepSeq(NFData)
 import           Control.Monad.State.Strict(gets, execStateT, state)
 import           Control.Monad.Reader(asks)
-import           Data.Binary(Binary(..), encode, decodeOrFail)
+import           Data.Binary(encode, decodeOrFail)
 import           Data.Bits (shiftR, shiftL, (.&.))
 import qualified Data.ByteString.Lazy as BL
 import           Data.Char (toLower)
@@ -38,7 +37,7 @@ import           Data.Map.Internal(Map(..))
 import qualified Data.Map.Strict as Map
 import           Data.Set(Set)
 import qualified Data.Set as Set
-import           Data.Text(pack, Text)
+import           Data.Text(pack)
 import           Data.Vector.Unboxed(Vector)
 import qualified Data.Vector.Unboxed as V
 import qualified Data.Vector.Storable as S
@@ -46,7 +45,6 @@ import qualified Data.Vector.Storable.Mutable as SM
 import           Data.Proxy(Proxy(..))
 import           Foreign.ForeignPtr(withForeignPtr)
 import           Foreign.Marshal.Array(peekArray)
-import           GHC.Generics(Generic)
 import qualified Graphics.UI.GLFW as GLFW
 import           Numeric(showFFloat)
 import           Options.Applicative(ReadM, str, option, long, help, readerError)

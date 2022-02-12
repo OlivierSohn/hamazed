@@ -11,7 +11,6 @@ module Imj.Graphics.ParticleSystem.Design.UpdateParticles
 import           Imj.Prelude
 
 import           Data.List( length )
-import           Data.Maybe( fromMaybe )
 
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete

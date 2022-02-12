@@ -7,11 +7,8 @@ module Imj.Example.DeltaRender.FromMonadIO
   ) where
 
 import Imj.Prelude
-import Control.Monad(void)
 
 import Imj.Graphics.Color
-import Imj.Graphics.Class.Draw(drawStr')
-import Imj.Graphics.Class.Render(renderToScreen')
 import Imj.Graphics.Render.Delta
 
 helloWorld :: (MonadIO m) => DeltaEnv -> m ()

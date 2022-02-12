@@ -18,11 +18,11 @@ module Imj.Graphics.Render.Delta.Backend.OpenGL
 import           Imj.Prelude
 
 import           Control.Concurrent.MVar.Strict(MVar, newMVar, swapMVar, readMVar)
-import           Control.Concurrent.STM(TQueue, atomically, newTQueueIO, writeTQueue, tryPeekTQueue)
+import           Control.Concurrent.STM(atomically, newTQueueIO, writeTQueue, tryPeekTQueue)
 import           Data.ByteString(ByteString)
 import           Data.Char(isHexDigit, digitToInt)
 import           Data.Text(pack)
-import           Data.IORef(IORef, newIORef, readIORef, writeIORef)
+import           Data.IORef(newIORef, readIORef, writeIORef)
 import qualified Graphics.Rendering.FTGL as FTGL
 import qualified Graphics.Rendering.OpenGL as GL
 import qualified Graphics.UI.GLFW          as GLFW

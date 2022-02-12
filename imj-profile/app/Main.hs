@@ -6,14 +6,13 @@ module Main where
 
 import           Imj.Prelude
 
-import           Prelude(print, putStrLn, length)
+import           Prelude(print, putStrLn)
 import           Control.Concurrent(getNumCapabilities)
 import           Control.Concurrent.MVar.Strict (MVar, newMVar, readMVar)
 import           Data.Either(isRight)
 import           Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 import           Data.List
-import           Data.Set(Set)
 import qualified Data.Set as Set
 import           Data.UUID(UUID)
 import           Data.Vector(fromList)

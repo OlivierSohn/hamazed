@@ -22,7 +22,7 @@ import           Imj.Prelude
 
 import           Data.IntSet(IntSet)
 import qualified Data.IntSet as ISet
-import           Data.List(reverse, length, break, null, replicate, concat)
+import           Data.List(length, break, replicate, concat)
 import qualified Data.List as List(filter)
 import           Data.Set(Set)
 import qualified Data.Set as Set

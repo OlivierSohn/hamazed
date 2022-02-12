@@ -36,8 +36,6 @@ module Imj.Game.Hamazed.Network.Internal.Types
 
 import           Imj.Prelude
 import           Data.List(unwords)
-import           Data.Map.Strict(Map)
-import           Data.Set(Set)
 import qualified Data.Set as Set
 
 import           Imj.Categorized

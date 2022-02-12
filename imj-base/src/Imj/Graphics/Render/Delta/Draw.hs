@@ -18,7 +18,7 @@ module Imj.Graphics.Render.Delta.Draw
 
 import           Imj.Prelude
 
-import           Data.IORef( IORef , readIORef )
+import           Data.IORef( readIORef )
 import           Data.Vector.Unboxed.Mutable( unsafeWrite, set, length, unsafeSlice, unsafeCopy )
 
 import           Imj.Geo.Discrete.Types

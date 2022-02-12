@@ -50,7 +50,6 @@ module Imj.Server.Class
 
 import           Imj.Prelude
 import qualified Data.Binary as Bin
-import           Data.Binary(Binary)
 import           Data.Proxy(Proxy)
 import           Data.List(unwords)
 import           Data.Map(Map)

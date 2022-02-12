@@ -11,7 +11,7 @@ import           Imj.Prelude
 import           GHC.IO.Encoding(setLocaleEncoding)
 
 import           Control.Concurrent(forkIO, threadDelay)
-import           Control.Concurrent.STM(TQueue, newTQueueIO, atomically, writeTQueue)
+import           Control.Concurrent.STM(newTQueueIO, atomically, writeTQueue)
 import           Data.List(concat)
 import           Data.Vector.Unboxed.Mutable(unsafeRead)
 import qualified System.Console.Terminal.Size as Terminal(Window(..), size)

@@ -19,8 +19,7 @@ module Imj.Graphics.UI.RectContainer
 
 import           Imj.Prelude
 
-import           Data.List( mapAccumL, zip )
-import           Control.Monad.Reader.Class(MonadReader)
+import           Data.List( mapAccumL )
 
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.DiscreteColorableMorphing

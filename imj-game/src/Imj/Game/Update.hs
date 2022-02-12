@@ -20,7 +20,7 @@ import qualified Prelude as Unsafe(last)
 
 import           Control.Concurrent(forkIO, threadDelay)
 import           Control.Exception.Base(throwIO)
-import           Control.Monad.Reader.Class(MonadReader, asks)
+import           Control.Monad.Reader.Class(asks)
 import           Control.Monad.Reader(runReaderT)
 import           Control.Monad.State.Strict(gets, modify')
 import           Data.Attoparsec.Text(parseOnly)

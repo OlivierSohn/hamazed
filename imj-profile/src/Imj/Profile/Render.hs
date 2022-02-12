@@ -11,7 +11,6 @@ module Imj.Profile.Render
     ) where
 
 import           Imj.Prelude hiding(div)
-import           Prelude(FilePath)
 
 import           Data.Text(pack)
 import           Data.UUID(UUID)

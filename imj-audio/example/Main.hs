@@ -10,7 +10,7 @@ import           Control.Monad(void)
 
 import           System.Random.MWC(create, GenIO)
 import           Data.Bool(bool)
-import           Data.List(intersperse, splitAt)
+import           Data.List(intersperse)
 import qualified Data.HashSet as HashSet
 
 import           Imj.Audio hiding (intersperse, transpose)
@@ -138,7 +138,7 @@ playMode (countBars, leftPattern, rightPattern) rng = do
 playKey :: IO PlayResult
 playKey = do
   rng <- create
-  go rng 25 (mkKey Do majorScale) melody
+  go rng (25 :: Int) (mkKey Do majorScale) melody
  where
   rangeNotesMelody = map MidiPitch [(75-11)..75]
   tempo = 600

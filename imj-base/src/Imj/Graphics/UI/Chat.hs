@@ -19,7 +19,7 @@ module Imj.Graphics.UI.Chat
 
 import           Imj.Prelude hiding (drop, null)
 import qualified Prelude as P(length)
-import           Data.Text(Text, snoc, length, splitAt, dropEnd, drop, null)
+import           Data.Text(snoc, length, splitAt, dropEnd, drop, null)
 
 import           Imj.Graphics.Class.Positionable
 import qualified Imj.Graphics.Class.Words as Words

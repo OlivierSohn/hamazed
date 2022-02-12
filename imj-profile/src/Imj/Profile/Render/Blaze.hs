@@ -13,14 +13,12 @@ module Imj.Profile.Render.Blaze
     ) where
 
 import           Imj.Prelude
-import           Prelude(FilePath)
 import qualified Data.ByteString as B
 import           Data.FileEmbed(embedStringFile)
 import qualified System.IO as IO
 
 import qualified Text.Blaze.Html.Renderer.Utf8 as Utf8
 import           Text.Blaze.Html5
-import           Text.Blaze.Html4.FrameSet ((!))
 import qualified Text.Blaze.Html5.Attributes as A
 
 import           Imj.File

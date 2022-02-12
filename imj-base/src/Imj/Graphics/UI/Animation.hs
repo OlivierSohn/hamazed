@@ -14,7 +14,6 @@ module Imj.Graphics.UI.Animation
 import           Imj.Prelude hiding(lefts)
 import qualified Prelude as Unsafe(head,last)
 
-import           Control.Monad.Reader.Class(MonadReader)
 import           Data.List(length)
 
 import           Imj.Geo.Discrete.Types

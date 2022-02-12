@@ -59,9 +59,6 @@ module Imj.Game.Class
 import           Imj.Prelude hiding(range)
 import           Prelude(length)
 
-import           Control.Concurrent.STM(TQueue)
-import           Control.Monad.Reader.Class(MonadReader)
-import           Control.Monad.State.Class(MonadState)
 import           Data.Map.Strict(Map)
 import           Data.Proxy(Proxy(..))
 import           Data.Set(Set)

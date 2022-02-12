@@ -17,7 +17,6 @@ import           Imj.Prelude
 import           Prelude(length)
 import qualified Prelude as Unsafe(last)
 
-import           Control.Monad.IO.Class(liftIO)
 import           Data.List(sortOn, concat)
 import           Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Map.Strict as Map

@@ -38,9 +38,7 @@ module Imj.Game.Modify
 import           Imj.Prelude
 import           Prelude(length)
 
-import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State.Strict(gets, modify', state)
-import           Control.Monad.Reader.Class(MonadReader)
 import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
 import           Data.Map.Strict((!?),Map)

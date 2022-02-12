@@ -53,7 +53,6 @@ import           Prelude(length, and, unlines, concat, take)
 import           Control.Loop (numLoop, numLoopFold)
 import           Data.Binary(Binary(..))
 import qualified Data.Semigroup as S
-import           GHC.Generics (Generic)
 -- Data
 import           Control.Monad.Primitive (PrimMonad, PrimState)
 import           Data.Vector.Unboxed(Unbox)

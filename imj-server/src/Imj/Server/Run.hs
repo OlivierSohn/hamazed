@@ -32,7 +32,7 @@ import           Imj.Prelude
 
 import           Control.Concurrent(threadDelay, forkIO)
 import           Control.Concurrent.MVar.Strict (MVar)
-import           Control.Monad.IO.Unlift(MonadIO, MonadUnliftIO)
+import           Control.Monad.IO.Unlift(MonadUnliftIO)
 import           Control.Monad.Reader(runReaderT, asks)
 import           Control.Monad.State.Strict(StateT, runStateT, execStateT, modify', state, gets)
 import qualified Data.List as List(intercalate)

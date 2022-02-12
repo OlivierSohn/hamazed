@@ -16,7 +16,6 @@ import           Imj.Prelude
 
 import           Control.Concurrent.Async (Async, cancel, wait)
 import qualified Control.Concurrent.MVar as Lazy(MVar, modifyMVar_) -- not using strict version, because Async misses NFData.
-import           Control.Monad.IO.Class(liftIO)
 
 import qualified Data.Set as Set
 import           Data.Set(Set)

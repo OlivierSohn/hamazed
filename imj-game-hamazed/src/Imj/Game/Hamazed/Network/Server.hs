@@ -49,11 +49,9 @@ module Imj.Game.Hamazed.Network.Server
 import           Imj.Prelude
 import           Control.Concurrent(threadDelay, forkIO)
 import           Control.Concurrent.MVar.Strict(MVar)
-import           Control.Monad.IO.Class(MonadIO, liftIO)
 import           Control.Monad.Reader(asks)
-import           Control.Monad.State.Strict(MonadState, modify', gets, get, state, runStateT)
+import           Control.Monad.State.Strict(modify', gets, get, state, runStateT)
 import           Data.List(foldl', concat)
-import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 import           Data.Maybe(isJust)
 import qualified Data.Set as Set

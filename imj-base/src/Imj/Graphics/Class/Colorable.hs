@@ -9,10 +9,9 @@ module Imj.Graphics.Class.Colorable
             ) where
 
 import           Imj.Prelude
+import           Imj.Graphics.Class.Draw
 
 import           Control.Monad.Reader.Class(MonadReader)
-
-import           Imj.Graphics.Class.Draw
 
 -- | A 'Colorable' is a colourless graphical element.
 class Colorable a where

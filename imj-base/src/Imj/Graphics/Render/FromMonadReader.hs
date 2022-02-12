@@ -22,9 +22,7 @@ module Imj.Graphics.Render.FromMonadReader
 import           Imj.Prelude
 import qualified Prelude(length)
 
-import           Control.Monad(join)
 import           Control.Monad.Reader.Class(MonadReader, asks)
-import           Data.Text(Text)
 
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.Canvas
@@ -32,7 +30,6 @@ import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Class.Words
 import           Imj.Graphics.Class.Positionable
-import           Imj.Graphics.Color(LayeredColor(..))
 import           Imj.Graphics.Font
 import           Imj.Timing
 

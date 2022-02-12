@@ -33,7 +33,7 @@ import           Data.Word(Word32)
 import           Data.List( minimumBy )
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map(partition, elems, empty)
-import           Data.Maybe( isJust, isNothing )
+import           Data.Maybe( isJust )
 
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Class.Positionable

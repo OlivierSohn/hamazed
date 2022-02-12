@@ -28,7 +28,6 @@ import           Data.IntMap.Strict(IntMap)
 import qualified Data.IntMap.Strict as IMap
 import           Data.IntSet(IntSet)
 import qualified Data.IntSet as ISet
-import           Data.Maybe(listToMaybe)
 import           Numeric(showFFloat)
 
 import           Imj.Graphics.Color.Types

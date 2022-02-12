@@ -36,8 +36,6 @@ Anchors interpolation can occur :
 
 import           Imj.Prelude
 
-import           Control.Monad.Reader.Class(MonadReader)
-
 import           Data.List(foldl', splitAt, unzip3)
 
 import           Imj.Geo.Discrete.Types

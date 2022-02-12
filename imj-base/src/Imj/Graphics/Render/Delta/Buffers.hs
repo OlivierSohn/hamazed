@@ -14,9 +14,7 @@ module Imj.Graphics.Render.Delta.Buffers
 
 import           Imj.Prelude
 
-import           Control.Exception(assert)
-import           Data.IORef( IORef , newIORef )
-import           Data.Maybe( fromMaybe )
+import           Data.IORef( newIORef )
 import qualified Data.Vector.Unboxed.Mutable as VUM( replicate, unzip, length )
 
 import qualified Imj.Data.Vector.Unboxed.Mutable.Dynamic as Dyn (new)

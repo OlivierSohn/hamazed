@@ -24,7 +24,6 @@ import           Imj.Prelude
 import           Data.Bits(finiteBitSize, countLeadingZeros)
 import           Data.Char(isSpace)
 import           Data.Int(Int64)
-import           Data.List(reverse)
 import           Data.Text(pack, unpack)
 
 -- | Removes spaces on extremities and converts every inner consecutive spaces to a single space.

@@ -19,7 +19,6 @@ module Imj.Game.State
 import           Imj.Prelude
 import           Prelude(putStr, putStrLn, length)
 
-import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State.Strict(get, gets, modify', state)
 import           Control.Monad.Reader.Class(asks)
 import           Data.Text(pack)

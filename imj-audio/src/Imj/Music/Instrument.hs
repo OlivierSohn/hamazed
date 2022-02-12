@@ -51,14 +51,12 @@ module Imj.Music.Instrument
 
 import           Imj.Prelude
 
-import           Control.DeepSeq as Exported(NFData(..))
 import           Data.Data(Data(..))
 import           Data.Vector.Binary()
 
 import           Data.List(dropWhile, foldl')
 import           Data.Vector.Unboxed(Vector)
 import qualified Data.Vector.Storable as S
-import           GHC.Generics(Generic(..))
 
 import           Imj.Audio.Envelope
 import           Imj.Audio.Harmonics

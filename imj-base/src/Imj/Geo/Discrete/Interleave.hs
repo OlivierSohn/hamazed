@@ -13,7 +13,7 @@ module Imj.Geo.Discrete.Interleave
 
 import           Imj.Prelude
 import           Control.Loop (numLoop)
-import           Data.List(length, (!!))
+import           Data.List(length)
 import           Data.Vector.Binary()
 import qualified Data.Vector.Storable         as S hiding(Storable)
 import qualified Data.Vector.Storable.Mutable as MS

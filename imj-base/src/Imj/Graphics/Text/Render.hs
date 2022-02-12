@@ -22,9 +22,8 @@ import           Imj.Prelude
 import           Data.IntMap.Strict(IntMap)
 import qualified Data.IntMap.Strict as IMap
 import qualified Data.List as List
-import           Data.Maybe(listToMaybe)
 import           Data.String(IsString(..))
-import           Data.Text(Text, pack)
+import           Data.Text(pack)
 
 import           Imj.Graphics.Class.Words
 

@@ -7,7 +7,6 @@ module Imj.Profile.Render.Clay
     ) where
 
 import           Imj.Prelude
-import           Prelude(FilePath)
 import           Data.Text.Lazy.IO(writeFile)
 
 import           Clay

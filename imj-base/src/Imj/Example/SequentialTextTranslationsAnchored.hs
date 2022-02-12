@@ -21,10 +21,8 @@ module Imj.Example.SequentialTextTranslationsAnchored
     ) where
 
 import           Data.Text(pack)
-import           Data.Semigroup((<>))
 import           Control.Concurrent(threadDelay)
 import           Control.Monad.IO.Class(MonadIO, liftIO)
-import           Control.Monad.Reader.Class(MonadReader)
 
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.Render

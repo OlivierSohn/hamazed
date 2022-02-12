@@ -13,7 +13,6 @@ module Imj.Log
 import           Imj.Prelude
 
 import           Control.Concurrent(myThreadId)
-import           Control.Monad.IO.Class(MonadIO, liftIO)
 import           Data.List(length, lines, take)
 import           Data.Text(pack, justifyRight, dropEnd)
 import           UnliftIO.Exception (SomeException(..))

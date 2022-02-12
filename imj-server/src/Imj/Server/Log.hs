@@ -17,7 +17,7 @@ module Imj.Server.Log
 import           Imj.Prelude
 
 import           Control.Monad.Reader(asks)
-import           Control.Monad.State.Strict(MonadState, gets)
+import           Control.Monad.State.Strict(gets)
 import qualified Data.Map.Strict as Map
 import           Data.Text(pack)
 

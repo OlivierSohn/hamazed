@@ -12,8 +12,6 @@ module Imj.Data.AlmostFloat
          ) where
 
 import           Imj.Prelude
-import           Control.DeepSeq(NFData)
-import           Data.Binary(Binary)
 import           Data.Data(Data(..))
 import           Data.List
 import           Numeric(showFFloat)

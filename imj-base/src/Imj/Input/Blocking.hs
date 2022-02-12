@@ -16,7 +16,6 @@ import           System.IO( getChar, hReady, stdin )
 import           System.Timeout( timeout )
 
 import           Data.Char( ord, isControl )
-import           Data.List( reverse )
 
 import           Imj.Geo.Discrete.Types( Direction(..) )
 import           Imj.Input.Types

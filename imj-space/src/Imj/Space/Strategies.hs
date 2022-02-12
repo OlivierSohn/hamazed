@@ -21,7 +21,7 @@ module Imj.Space.Strategies
 
 import qualified Language.Haskell.TH as TH
 import qualified Language.Haskell.TH.Syntax as THS
-import           Language.Haskell.TH.Syntax(lift)
+import           Language.Haskell.TH.Syntax(liftTyped)
 
 import           Imj.Prelude
 import qualified Prelude as Unsafe(last)
@@ -50,8 +50,8 @@ import           Imj.Util
 newtype OptimalStrategies = OptimalStrategies (Map (SmallWorldCharacteristics Program) OptimalStrategy)
   deriving(Generic)
 instance Lift OptimalStrategies where
-  lift (OptimalStrategies m) =
-     [| OptimalStrategies (Map.fromList $(lift (Map.toList m))) |]
+  liftTyped (OptimalStrategies m) =
+     [|| OptimalStrategies (Map.fromList $$(liftTyped (Map.toList m))) ||]
 instance Binary OptimalStrategies
 instance Show OptimalStrategies where
   show = unlines . prettyShowOptimalStrategies

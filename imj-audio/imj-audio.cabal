@@ -130,13 +130,16 @@ library
   else
     extra-libraries:   portaudio
 
-  if(flag(SlowFFT))
-    cxx-options:        -DIMJ_USE_SLOW_FFT
-  else
-    if os(darwin)
-      extra-libraries:   vDSP
-      -- This path is valid on OSX 10.13.3, it may require to be adjusted on other versions:
-      extra-lib-dirs:    /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A
+  -- mqke this the default because in OSX monterey, vDSP.dylib is not found in the folder
+  cxx-options:        -DIMJ_USE_SLOW_FFT
+  --if(flag(SlowFFT))
+  --  cxx-options:        -DIMJ_USE_SLOW_FFT
+  --else
+  --  if os(darwin)
+  --    extra-libraries:   vDSP
+      -- This path is valid on OSX 10.13.3, it may require to be adjusted on other versions.
+      -- in OSX Monterey, the library is not in this folder.
+  --    extra-lib-dirs:    /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A
 
   cxx-options:          -std=c++17 -D_USE_MATH_DEFINES -DFOLLY_NO_CONFIG -O2 -ffast-math -fconstexpr-depth=15000 -fconstexpr-steps=1271241000 -fconstexpr-backtrace-limit=0
   if os(linux)
@@ -206,7 +209,6 @@ library
                      , unordered-containers >=0.2
                      , vector >= 0.12.0.1 && < 0.13
                      , vector-binary-instances ==0.2.*
-  default-language:    Haskell2010
 
 executable imj-audio-exe
   -- https://gitlab.haskell.org/ghc/ghc/-/issues/11829

@@ -13,7 +13,6 @@ module Imj.Graphics.Class.UIInstructions
 
 import           Imj.Prelude
 import           Prelude(length)
-import           Control.Monad.Reader.Class(MonadReader)
 
 import qualified Data.Text as Text
 import           Imj.Data.AlmostFloat

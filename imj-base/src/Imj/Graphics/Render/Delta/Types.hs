@@ -31,7 +31,6 @@ module Imj.Graphics.Render.Delta.Types
 
 import           Imj.Prelude
 
-import           Data.IORef(IORef)
 import           Data.Word(Word16)
 
 import           Imj.Geo.Discrete.Types

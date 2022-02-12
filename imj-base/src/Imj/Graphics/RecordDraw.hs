@@ -14,7 +14,7 @@ module Imj.Graphics.RecordDraw
 import           Imj.Prelude
 import           Prelude(length)
 
-import           Control.Monad.Reader.Class(MonadReader, asks)
+import           Control.Monad.Reader.Class(asks)
 import           Data.IORef(IORef, newIORef, readIORef, modifyIORef')
 
 import           Imj.Geo.Discrete.Types

@@ -19,10 +19,8 @@ module Imj.Graphics.Render.Delta.Env
 
 import           Imj.Prelude
 
-import           Control.Monad.IO.Class(liftIO)
 import           Control.Monad.IO.Unlift(MonadUnliftIO)
-import           Data.IORef(IORef, readIORef, writeIORef, modifyIORef')
-import           Data.Maybe(fromMaybe)
+import           Data.IORef(readIORef, writeIORef, modifyIORef')
 import           UnliftIO.Exception(finally)
 
 import           Imj.Graphics.Class.Canvas

@@ -9,8 +9,7 @@ module Imj.Graphics.Render.Delta.Flush
 
 import           Imj.Prelude
 
-import           Control.Monad(when)
-import           Data.IORef( IORef , readIORef, writeIORef)
+import           Data.IORef( readIORef, writeIORef)
 import           Data.Vector.Unboxed.Mutable(unsafeRead, unsafeWrite, length )
 
 import qualified Imj.Data.Vector.Unboxed.Mutable.Dynamic as Dyn

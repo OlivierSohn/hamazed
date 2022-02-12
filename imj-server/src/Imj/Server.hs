@@ -20,7 +20,7 @@ module Imj.Server
 
 import           Imj.Prelude
 import           Control.Monad.Reader(asks)
-import           Control.Monad.State.Strict(MonadState, modify', state)
+import           Control.Monad.State.Strict(modify', state)
 import qualified Data.List as List(intercalate)
 import qualified Data.Map.Strict as Map
 import           Data.Set(Set)

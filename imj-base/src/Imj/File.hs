@@ -11,7 +11,6 @@ module Imj.File
     ) where
 
 import           Imj.Prelude
-import           Prelude(FilePath)
 import           Data.Binary(decodeFileOrFail, encodeFile)
 import           Data.UUID(UUID)
 import           Data.Time.Format(iso8601DateFormat, formatTime, defaultTimeLocale)

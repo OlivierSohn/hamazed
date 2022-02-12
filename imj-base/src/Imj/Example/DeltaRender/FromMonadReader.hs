@@ -11,7 +11,6 @@ import Control.Monad.Reader(runReaderT, void)
 import Control.Monad.IO.Class(MonadIO)
 
 import Imj.Graphics.Color
-import Imj.Graphics.Render.FromMonadReader(drawStr, renderToScreen)
 import Imj.Graphics.Render.Delta
 
 helloWorld :: (Render e, MonadReader e m, MonadIO m) => m ()

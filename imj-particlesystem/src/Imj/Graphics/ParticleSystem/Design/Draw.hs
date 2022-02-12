@@ -8,8 +8,6 @@ module Imj.Graphics.ParticleSystem.Design.Draw
 
 
 import           Imj.Prelude
-
-import           Control.Monad.Reader.Class(MonadReader)
 import           Data.Either(partitionEithers)
 
 import           Imj.Geo.Continuous

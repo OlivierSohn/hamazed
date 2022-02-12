@@ -10,8 +10,6 @@ module Imj.Geo.Discrete.Bresenham3
 
 import           Imj.Prelude
 
-import           Data.List( zip3 )
-
 
 {- | Source: https://www.reddit.com/r/haskell/comments/14h4az/3d_functional_bresenham_algorithm/
 

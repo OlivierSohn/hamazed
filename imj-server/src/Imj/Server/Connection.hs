@@ -26,7 +26,7 @@ module Imj.Server.Connection
 import           Imj.Prelude
 
 import           Control.Monad.Reader(asks)
-import           Control.Monad.State.Strict(MonadState, modify', gets, state)
+import           Control.Monad.State.Strict(modify', gets, state)
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set

@@ -44,7 +44,6 @@ module Imj.Music.Play
 
 import           Imj.Prelude
 import           Control.Concurrent(threadDelay)
-import           Data.Maybe(catMaybes, maybeToList)
 import qualified Data.Vector as V
 import           Data.List(take, partition)
 

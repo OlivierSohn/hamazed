@@ -21,7 +21,6 @@ module Imj.Music.Score
 import           Imj.Prelude
 
 import qualified Data.Vector as V
-import           GHC.Generics (Generic)
 
 import           Imj.Music.Instruction
 import           Imj.Music.Instrument(NotePan(..))

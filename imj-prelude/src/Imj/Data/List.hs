@@ -23,10 +23,8 @@ import           Prelude hiding(maximum)
 import qualified Prelude as Unsafe(maximum)
 
 import           Control.Exception(assert)
-import           Data.Int(Int)
-import           Data.List(reverse, length, splitAt, foldl', replicate)
+import           Data.List(foldl')
 import qualified Data.Map.Strict as Map
-import           Data.Maybe(Maybe(..))
 import qualified Data.Set as Set
 
 

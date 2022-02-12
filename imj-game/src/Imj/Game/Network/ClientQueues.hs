@@ -10,8 +10,7 @@ module Imj.Game.Network.ClientQueues
       ) where
 
 import           Imj.Prelude
-import           Control.Concurrent.STM(TQueue, writeTQueue, atomically)
-import           Control.Monad.IO.Class(liftIO)
+import           Control.Concurrent.STM(writeTQueue, atomically)
 
 import           Imj.Game.Class
 import           Imj.Server.Types

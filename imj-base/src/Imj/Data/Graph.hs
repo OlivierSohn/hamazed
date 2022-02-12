@@ -138,7 +138,6 @@ import qualified Data.Array as UA
 import Data.List
 #if MIN_VERSION_base(4,9,0)
 import Data.Functor.Classes
-import Data.Semigroup (Semigroup (..))
 #endif
 #ifdef __GLASGOW_HASKELL__
 import GHC.Generics (Generic, Generic1)

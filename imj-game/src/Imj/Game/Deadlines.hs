@@ -14,7 +14,6 @@ import           Control.Monad.State.Strict(gets)
 import qualified Data.Map.Strict as Map
 
 import           Data.List( minimumBy, sortBy)
-import           Data.Maybe( mapMaybe )
 
 import           Imj.Game.Class
 import           Imj.Game.Priorities

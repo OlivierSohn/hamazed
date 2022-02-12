@@ -14,7 +14,7 @@ module Imj.Graphics.Render.Delta.Cell
 import           Imj.Prelude
 
 import           Data.Bits(shiftL, shiftR, (.&.), (.|.))
-import           Data.Word( Word64, Word32, Word16, Word8 )
+import           Data.Word( Word64, Word32 )
 
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Font

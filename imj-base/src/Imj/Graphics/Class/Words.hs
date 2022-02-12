@@ -15,7 +15,6 @@ import qualified Prelude(splitAt, length)
 import           Imj.Prelude hiding(empty)
 
 import           Control.Monad.Reader.Class(MonadReader, asks)
-import           Control.Monad( zipWithM_ )
 import           Data.String(IsString(..))
 import qualified Data.List as List
 import qualified Data.String as String(words, unwords)

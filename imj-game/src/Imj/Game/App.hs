@@ -27,7 +27,7 @@ import           Data.Text(pack)
 import           Network.Socket(withSocketsDo)
 import           Options.Applicative
                   (ParserHelp(..), Parser, progDesc, fullDesc, info, header, execParserPure, prefs, helper
-                  , showHelpOnError, (<*>))
+                  , showHelpOnError)
 import           Options.Applicative.Extra(handleParseResult, overFailure)
 import qualified Options.Applicative.Help as Appli (red)
 import           System.Environment(getArgs, getProgName)

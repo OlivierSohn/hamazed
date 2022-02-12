@@ -46,8 +46,6 @@ import           Prelude(length, and)
 
 import           Foreign.Storable(Storable(..))
 import           Control.Loop (numLoop)
-import           Data.Binary(Binary(..))
-import           GHC.Generics (Generic)
 import           Data.List(foldl', take, concat)
 import           Data.Vector.Binary()
 import qualified Data.Vector.Storable         as V hiding(Storable)

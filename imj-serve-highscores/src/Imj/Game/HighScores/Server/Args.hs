@@ -20,7 +20,7 @@ import           Prelude.Compat
 
 import           Options.Applicative
                   (ParserHelp(..), Parser, fullDesc, info, header, execParserPure, prefs, helper
-                  , showHelpOnError, (<*>), help, short, long, option, optional)
+                  , showHelpOnError, help, short, long, option, optional)
 import           Options.Applicative.Extra(handleParseResult, overFailure)
 import qualified Options.Applicative.Help as Appli (red)
 import           System.Environment(getArgs, getProgName)

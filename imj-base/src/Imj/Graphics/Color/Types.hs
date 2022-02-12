@@ -50,7 +50,7 @@ import           Imj.Prelude
 import           Data.Bits(shiftL, (.|.))
 import           Data.List(intercalate, concat)
 import           Data.Text(pack)
-import           Data.Word (Word8, Word16)
+import           Data.Word (Word16)
 
 import           Imj.Geo.Discrete.Bresenham3
 import           Imj.Util

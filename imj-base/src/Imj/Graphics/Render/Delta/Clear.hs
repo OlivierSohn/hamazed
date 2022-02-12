@@ -7,8 +7,6 @@ module Imj.Graphics.Render.Delta.Clear
 
 import           Imj.Prelude
 
-import           Control.Monad(when)
-
 import           Imj.Graphics.Render.Delta.Internal.Types
 import           Imj.Graphics.Render.Delta.Types
 import           Imj.Graphics.Render.Delta.Cells

@@ -15,7 +15,6 @@ import           Imj.Prelude
 
 import           Data.Proxy(Proxy(..))
 import           Control.Monad.State.Strict(gets)
-import           Control.Monad.Reader.Class(MonadReader)
 import qualified Graphics.UI.GLFW as GLFW
 
 import           Imj.Event

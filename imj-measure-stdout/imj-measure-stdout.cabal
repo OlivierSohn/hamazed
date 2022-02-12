@@ -35,10 +35,10 @@ executable imj-measure-stdout-exe
   hs-source-dirs:      app, src
   main-is:             Main.hs
   other-modules:       Imj.Measure.Stdout
-  build-depends:       base >= 4.9 && < 4.14
+  build-depends:       base >= 4.9 && < 4.16
                      , imj-prelude ==0.1.*
                      , imj-time ==0.1.*
-                     , optparse-applicative >=0.14 && < 0.16
+                     , optparse-applicative >=0.14 && < 0.17
   default-language:    Haskell2010
 
 source-repository head

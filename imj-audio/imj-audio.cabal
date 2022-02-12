@@ -1,3 +1,4 @@
+cabal-version:       2.2
 name:                imj-audio
 version:             0.1.0.3
 Category:            Audio
@@ -5,14 +6,13 @@ Synopsis:            Bindings to a C++ lockfree audio engine.
 Description:         Bindings to a C++ lockfree audio engine allowing to play music in real time.
 homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-audio//README.md
 bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
-license:             BSD3
+license:             BSD-3-Clause
 license-file:        LICENSE
 author:              Olivier Sohn
 maintainer:          olivier.sohn@gmail.com
 copyright:           2017 - 2018 Olivier Sohn
 build-type:          Simple
 extra-source-files:  README.md CHANGELOG.md
-cabal-version:       >=1.10
 
 Tested-With: GHC == 8.2.2, GHC == 8.4.3
 
@@ -110,25 +110,20 @@ Flag SlowFFT
 
 --------------------------------------------------------------------------------
 
--- This convenience library builds cxx sources.
--- When cxx-sources and cxx-options will be available in cabal,
--- we can merge this convenience library with the main library.
--- Today if we merge the two, we have compilation flags conflicts because
--- the main library builds c while converting an .hsc file to the corresponding
--- .hs file.
-library imj-audio-cxx
-  hs-source-dirs:      srcDummy
-  exposed-modules:     Imj.Audio.Dummy
-  c-sources:           c/library.cpp
-                     , c/memory.cpp
-                     , c/extras.cpp
-                     , c/wrapper.cpp
+library
+
+-- Building c++ sources.
+
+  cxx-sources:           c/library.cpp
+                       , c/memory.cpp
+                       , c/extras.cpp
+                       , c/wrapper.cpp
   include-dirs:        c/cpp.algorithms/3rdparty/folly
                      , c/cpp.algorithms/3rdparty/Sprout
                      , c/cpp.algorithms/3rdparty/json/include
   default-language:    Haskell2010
 
-  extra-libraries:     stdc++
+  extra-libraries:     c++
 
   if os(linux) || os(freebsd) || os(darwin)
     pkgconfig-depends: portaudio-2.0
@@ -136,36 +131,37 @@ library imj-audio-cxx
     extra-libraries:   portaudio
 
   if(flag(SlowFFT))
-    cc-options:        -DIMJ_USE_SLOW_FFT
+    cxx-options:        -DIMJ_USE_SLOW_FFT
   else
     if os(darwin)
       extra-libraries:   vDSP
       -- This path is valid on OSX 10.13.3, it may require to be adjusted on other versions:
       extra-lib-dirs:    /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A
 
-  cc-options:          -std=c++17 -D_USE_MATH_DEFINES -DFOLLY_NO_CONFIG -O2 -ffast-math -fconstexpr-depth=15000 -fconstexpr-steps=1271241000 -fconstexpr-backtrace-limit=0
+  cxx-options:          -std=c++17 -D_USE_MATH_DEFINES -DFOLLY_NO_CONFIG -O2 -ffast-math -fconstexpr-depth=15000 -fconstexpr-steps=1271241000 -fconstexpr-backtrace-limit=0
   if os(linux)
-    cc-options:        -fpermissive
+    cxx-options:        -fpermissive
   if os(windows)
-    cc-options:        -D_UNICODE -DUNICODE
+    cxx-options:        -D_UNICODE -DUNICODE
     -- TODO we may need -municode at link-time on windows.
   if(!flag(Assertions))
     -- we need rtti only in debug mode
-    cc-options:        -DNDEBUG -fno-rtti
+    cxx-options:        -DNDEBUG -fno-rtti
   if(flag(Lock))
-    cc-options:        -DIMJ_AUDIO_MASTERGLOBALLOCK
+    cxx-options:        -DIMJ_AUDIO_MASTERGLOBALLOCK
   if(flag(LogTime))
-    cc-options:        -DIMJ_LOG_AUDIO_TIME
+    cxx-options:        -DIMJ_LOG_AUDIO_TIME
   if(flag(LogOverflows))
-    cc-options:        -DIMJ_LOG_AUDIO_OVERFLOW
+    cxx-options:        -DIMJ_LOG_AUDIO_OVERFLOW
   if(flag(LogMidi))
-    cc-options:        -DIMJ_LOG_MIDI
+    cxx-options:        -DIMJ_LOG_MIDI
   if(flag(LogMem))
-    cc-options:        -DIMJ_LOG_MEMORY
+    cxx-options:        -DIMJ_LOG_MEMORY
   if(flag(DbgOutput))
-    cc-options:        -DIMJ_DEBUG_AUDIO_OUT
+    cxx-options:        -DIMJ_DEBUG_AUDIO_OUT
 
-library
+-- Building Haskell sources.
+
   hs-source-dirs:      src
   include-dirs:        c/cpp.audio/include
                      , c/cpp.algorithms/include
@@ -191,23 +187,22 @@ library
                      , Imj.Music.Score
 -- To build the haddock doc, first remove 'imj-audio-cxx' from build-depends
 -- to circumvent https://github.com/haskell/cabal/issues/4215
-  build-depends:       base >= 4.9 && < 4.14
+  build-depends:       base >= 4.9 && < 4.16
                      , binary == 0.8.*
                      , containers >= 0.5 && < 0.7
                      , deepseq ==1.4.*
                      , event-list == 0.1.*
                      , hashable >= 1.2
-                     , imj-audio-cxx
                      , imj-prelude ==0.1.*
                      , imj-time ==0.1.*
                      , midi ==0.2.*
                      , mwc-random ==0.13.*
                      , non-negative == 0.1.*
                      , parsec ==3.1.*
-                     , template-haskell >=2.12 && < 2.16
+                     , template-haskell >=2.12 && < 2.18
                      , text >=1.2.3 && < 1.3
                      , unliftio ==0.2.*
-                     , unliftio-core ==0.1.*
+                     , unliftio-core >=0.1 && < 0.3
                      , unordered-containers >=0.2
                      , vector >= 0.12.0.1 && < 0.13
                      , vector-binary-instances ==0.2.*
@@ -219,7 +214,7 @@ executable imj-audio-exe
     ld-options: -Wl,-keep_dwarf_unwind
   hs-source-dirs:      example
   main-is:             Main.hs
-  build-depends:       base >= 4.9 && < 4.14
+  build-depends:       base >= 4.9 && < 4.16
                      , containers >= 0.5 && < 0.7
                      , unordered-containers >=0.2
                      , imj-audio
@@ -233,7 +228,7 @@ test-suite imj-audio-test
                      , Test.Imj.ReadMidi
                      , Test.Imj.Harmony
   main-is:             Spec.hs
-  build-depends:       base >= 4.9 && < 4.14
+  build-depends:       base >= 4.9 && < 4.16
                      , imj-audio
                      , text >=1.2.3 && < 1.3
   default-language:    Haskell2010

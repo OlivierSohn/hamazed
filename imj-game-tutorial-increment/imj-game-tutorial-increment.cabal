@@ -23,7 +23,7 @@ executable imj-game-tutorial-increment-exe
     ld-options: -Wl,-keep_dwarf_unwind
   hs-source-dirs:      app
   main-is:             Main.hs
-  build-depends:       base >= 4.9 && < 4.14
+  build-depends:       base >= 4.9 && < 4.16
                      , attoparsec ==0.13.*
                      , binary ==0.8.*
                      , containers >= 0.5 && < 0.7

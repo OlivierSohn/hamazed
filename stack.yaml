@@ -1,15 +1,18 @@
 # http://docs.haskellstack.org/en/stable/yaml_configuration/
 
 # resolver by ghc version:
-#
+#   9.0.2: nightly-2022-02-12
+#   8.10.7: lts-18.24
 #   8.8.3: lts-16.10
 #   8.6.5: lts-14.27
 #   8.4.4: lts-12.26
 #   8.4.3: lts-12.14 #TODO remove
 #   8.2.2: lts-11.22
 #resolver: lts-12.14
-resolver: lts-14.27
+#resolver: lts-14.27
 #resolver: lts-16.10  # need to rewrite freetype code for this?
+resolver: lts-18.24
+#resolver: nightly-2022-02-12
 
 # TODO 'stack image' this is not supported anymore in stack 2,
 # use instead : https://www.fpcomplete.com/blog/2017/12/building-haskell-apps-with-docker/

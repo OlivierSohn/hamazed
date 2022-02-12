@@ -33,7 +33,7 @@ library
                      , Imj.Graphics.ParticleSystem.Design.Types
                      , Imj.Graphics.ParticleSystem.Design.Update
                      , Imj.Graphics.ParticleSystem.Design.UpdateParticles
-  build-depends:       base >= 4.9 && < 4.14
+  build-depends:       base >= 4.9 && < 4.16
                      , mtl >= 2.2.1 && < 2.3
                      , imj-base ==0.1.*
                      , imj-prelude ==0.1.*
@@ -45,7 +45,7 @@ test-suite imj-particlesystem-test
   hs-source-dirs:      test
   other-modules:
   main-is:             Spec.hs
-  build-depends:       base >= 4.9 && < 4.14
+  build-depends:       base >= 4.9 && < 4.16
   default-language:    Haskell2010
 
 source-repository head

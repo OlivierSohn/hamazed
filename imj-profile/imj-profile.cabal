@@ -37,7 +37,7 @@ library
                      , Imj.Profile.Scheduler
                      , Imj.Profile.Types
   other-modules:
-  build-depends:       base >= 4.9 && < 4.14
+  build-depends:       base >= 4.9 && < 4.16
                      , binary == 0.8.*
                      , blaze-html ==0.9.*
                      , bytestring == 0.10.*
@@ -52,7 +52,7 @@ library
                      , imj-time ==0.1.*
                      , JuicyPixels >=3.2 && < 3.4
                      , mwc-random ==0.13.*
-                     , random ==1.1.*
+                     , random >=1.1 && < 1.3
                      , strict-concurrency ==0.2.*
                      , text >=1.2.3 && < 1.3
                      , unix ==2.7.*
@@ -67,7 +67,7 @@ executable imj-profile-exe
     ld-options: -Wl,-keep_dwarf_unwind
   hs-source-dirs:      app
   main-is:             Main.hs
-  build-depends:       base >= 4.9 && < 4.14
+  build-depends:       base >= 4.9 && < 4.16
                      , containers >= 0.5 && < 0.7
                      , imj-game-hamazed ==0.1.*
                      , imj-base ==0.1.*
@@ -87,7 +87,7 @@ test-suite imj-profile-test
   hs-source-dirs:      test
   other-modules:       Test.Imj.ShouldTest
   main-is:             Spec.hs
-  build-depends:       base >= 4.9 && < 4.14
+  build-depends:       base >= 4.9 && < 4.16
                      , containers >= 0.5 && < 0.7
                      , imj-prelude ==0.1.*
                      , imj-profile

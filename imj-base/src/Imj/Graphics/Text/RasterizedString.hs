@@ -19,14 +19,8 @@ import           Imj.Prelude
 import           Control.Exception(bracket)
 
 import           Foreign.Storable(peek, peekElemOff)
-import           Foreign.Marshal(alloca)
 
-import           Graphics.Rendering.FreeType.Internal(ft_Load_Char, ft_Get_Char_Index, ft_Done_FreeType, ft_Init_FreeType)
-import           Graphics.Rendering.FreeType.Internal.Bitmap(width, rows, buffer)
-import           Graphics.Rendering.FreeType.Internal.Face(glyph, FT_Face)
-import           Graphics.Rendering.FreeType.Internal.Library(FT_Library)
-import           Graphics.Rendering.FreeType.Internal.GlyphSlot(bitmap)
-import           Graphics.Rendering.FreeType.Internal.PrimitiveTypes(FT_UInt, ft_LOAD_RENDER)
+import           FreeType
 
 import           Data.Char(ord)
 
@@ -114,10 +108,10 @@ getRasterizedStringSize face str interLetterSpaces =
           loadChar face charForSizeOfSpace
         else
           loadChar face c
-      slot <- peek $ glyph face
-      bm <- peek $ bitmap slot
-      return (wi + fromIntegral (width bm) + interLetterSpaces
-            , max he $ fromIntegral $ rows bm))
+      slot <- frGlyph <$> peek face
+      bm <- gsrBitmap <$> peek slot
+      return (wi + fromIntegral (bWidth bm) + interLetterSpaces
+            , max he $ fromIntegral $ bRows bm))
     (-interLetterSpaces, 0)
     str
     >>= \(accW, accH) -> return $ Size accH (max 0 accW)
@@ -138,11 +132,11 @@ rasterizeString face str interLetterSpaces f =
                 loadChar face charForSizeOfSpace
               else
                 loadChar face c
-      slot <- liftIO $ peek $ glyph face
-      bm <- liftIO $ peek $ bitmap slot
-      let w = fromIntegral $ width bm
-          h = fromIntegral $ rows bm
-          buf = buffer bm
+      slot <- liftIO $ (frGlyph <$> peek face)
+      bm <- liftIO $ (gsrBitmap <$> peek slot)
+      let w = fromIntegral $ bWidth bm
+          h = fromIntegral $ bRows bm
+          buf = bBuffer bm
       when (c /= ' ') $
        forM_
         [0..pred h :: Int]
@@ -164,16 +158,12 @@ rasterizeString face str interLetterSpaces f =
 ------------------------ -- TODO split
 
 loadChar :: FT_Face -> Char -> IO ()
-loadChar face c =
-  ft "Load_Char" $ ft_Load_Char face (fromIntegral $ ord c) ft_LOAD_RENDER
+loadChar face c = ft_Load_Char face (fromIntegral $ ord c) FT_LOAD_RENDER
 
 ------------------------ -- TODO split
 
 withFreeType :: (FT_Library -> IO a) -> IO a
-withFreeType = bracket bra ket
-  where
-    bra = alloca $ \p -> ft "Init_FreeType" (ft_Init_FreeType p) >> peek p
-    ket = ft "Done_FreeType" . ft_Done_FreeType
+withFreeType = bracket ft_Init_FreeType ft_Done_FreeType
 
 getCharIndex :: FT_Face -> Char -> IO (Maybe FT_UInt)
 getCharIndex f c =

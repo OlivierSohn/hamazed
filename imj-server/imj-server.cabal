@@ -34,7 +34,7 @@ library
                      , Imj.Server.Types
                      , Imj.ServerView
                      , Imj.ServerView.Types
-  build-depends:       base >= 4.9 && < 4.14
+  build-depends:       base >= 4.9 && < 4.16
                      , attoparsec ==0.13.*
                      , binary ==0.8.*
                      , containers >= 0.5 && < 0.7
@@ -45,11 +45,11 @@ library
                      , imj-prelude ==0.1.*
                      , imj-time ==0.1.*
                      , mtl >= 2.2.1 && < 2.3
-                     , optparse-applicative >=0.14 && < 0.16
+                     , optparse-applicative >=0.14 && < 0.17
                      , strict-concurrency ==0.2.*
                      , text >=1.2.3 && < 1.3
                      , unliftio ==0.2.*
-                     , unliftio-core ==0.1.*
+                     , unliftio-core >=0.1 && < 0.3
                      , websockets ==0.12.*
   default-language:    Haskell2010
 
@@ -58,7 +58,7 @@ test-suite imj-server-test
   hs-source-dirs:      test
   other-modules:       Test.Imj.ParseCommand
   main-is:             Spec.hs
-  build-depends:       base >= 4.9 && < 4.14
+  build-depends:       base >= 4.9 && < 4.16
                      , attoparsec ==0.13.*
                      , deepseq ==1.4.*
                      , imj-base ==0.1.*

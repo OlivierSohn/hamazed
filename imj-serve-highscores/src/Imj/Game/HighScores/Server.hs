@@ -59,7 +59,7 @@ serveHighScoresApp conns = do
               [oid] ->
                 Just <$> readObject conn oid
               oids@(_:_) ->
-                fail $ "multiple oids:" ++ show oids)
+                error $ "multiple oids:" ++ show oids)
 
 
   -- in a transaction, removes entries for that key and adds one.
@@ -76,7 +76,7 @@ serveHighScoresApp conns = do
             [oid] ->
               decode . fromStrict <$> readObject conn oid
             oids@(_:_) ->
-              fail $ "multiple oids:" ++ show oids
+              error $ "multiple oids:" ++ show oids
 
           destOid <- case prevOids of
             [] -> do
@@ -88,7 +88,7 @@ serveHighScoresApp conns = do
             [oid] ->
               return $ fromOnly oid
             oids@(_:_) ->
-              fail $ "multiple oids:" ++ show oids
+              error $ "multiple oids:" ++ show oids
 
           let newHighScores = insertScore highScore currentHighScores
           loOpen conn destOid WriteMode >>= \f ->
@@ -110,7 +110,7 @@ serveHighScores :: IO ()
 serveHighScores = withArgs parserSrvPort $ \portArg -> do
   p <- maybe (return defaultPort) (fmap unServerPort . getServerPort) portArg
   fmap pack <$> lookupEnv "DB_CONN_STR" >>= maybe
-    (fail "The environment variable \"DB_CONN_STR\" doesn't exist.")
+    (error "The environment variable \"DB_CONN_STR\" doesn't exist.")
     (\connStr -> do
       initDB connStr
       initConnectionPool connStr >>=

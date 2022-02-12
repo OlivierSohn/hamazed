@@ -53,10 +53,10 @@ command = do
             g <- decimal
             skipSpace
             b <- decimal
-            either (fail . unpack) (return . Do . Put . ColorSchemeCenter) $ userRgb r g b
+            either (error . unpack) (return . Do . Put . ColorSchemeCenter) $ userRgb r g b
         _ ->
           maybe
-            (fail $ "'" <> unpack cmdName <> "' is an unknown command.")
+            (error $ "'" <> unpack cmdName <> "' is an unknown command.")
             (\parser -> parser)
             $ cmdParsers !? cmdName
     _ -> RequestApproval . Says . maxOneSpace <$> (takeText <* endOfInput)

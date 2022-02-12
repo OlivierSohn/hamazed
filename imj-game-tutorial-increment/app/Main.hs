@@ -192,5 +192,5 @@ instance ServerCmdParser IncServer where
     parseReset = do
       skipSpace
       atEnd >>= bool
-        (takeText >>= \t -> fail $ unpack $ "Unexpected \"" <> t <> "\" (reset takes no parameter)" )
+        (takeText >>= \t -> error $ unpack $ "Unexpected \"" <> t <> "\" (reset takes no parameter)" )
         (return $ RequestApproval $ CustomCmd ResetCounter)

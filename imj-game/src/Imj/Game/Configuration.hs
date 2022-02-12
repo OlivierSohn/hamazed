@@ -46,7 +46,7 @@ instance Audio WithAudio where
   withAudio (WithAudio yes) maxMidiJitter x
     | yes = do
         liftIO $ setMaxMIDIJitter maxMidiJitter
-        usingAudioOutput x >>= either (fail . show) return
+        usingAudioOutput x >>= either (error . show) return
     | otherwise = x
 
   triggerLaserSound (WithAudio useAudio)

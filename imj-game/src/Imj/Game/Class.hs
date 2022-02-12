@@ -318,7 +318,7 @@ class (Show g
                       , MonadIO m)
                     => CustomCmdT (ServerT g)
                     -> m ()
-  onClientCustomCmd = fail "you should implement this if you have custom commands."
+  onClientCustomCmd = error "you should implement this if you have custom commands."
 
   -- | Maps a 'Key' to a list of 'GenEvent', given a 'GameStateValue'.
   --

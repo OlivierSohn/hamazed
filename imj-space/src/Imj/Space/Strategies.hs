@@ -125,13 +125,13 @@ readOptimalStrategies path = do
   bl <- TH.runIO $ BL.readFile path
   let len = BL.length bl
   either
-    (\(_,offset,str) -> fail $ "The file '" ++ path ++ "' is corrupt:" ++ show (offset,str))
+    (\(_,offset,str) -> error $ "The file '" ++ path ++ "' is corrupt:" ++ show (offset,str))
     (\(_,offset,res :: OptimalStrategies) ->
       if fromIntegral len == offset
         then
           THS.lift res
         else
-          fail $ "Not all content has been used :" ++ show (len,offset) ) $
+          error $ "Not all content has been used :" ++ show (len,offset) ) $
     (decodeOrFail bl)
 
 

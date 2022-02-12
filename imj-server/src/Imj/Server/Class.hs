@@ -144,7 +144,7 @@ class (Show (ValuesT s), Generic (ValuesT s), Binary (ValuesT s), NFData (Values
   acceptCommand :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
                 => CustomCmdT s
                 -> m (Either Text ())
-  acceptCommand = fail "Please implement 'acceptCommand' if you define 'CustomCmdT'."
+  acceptCommand = error "Please implement 'acceptCommand' if you define 'CustomCmdT'."
 
 
   type ValueKeyT s
@@ -165,13 +165,13 @@ class (Show (ValuesT s), Generic (ValuesT s), Binary (ValuesT s), NFData (Values
 
   onPut :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
         => ValueT s -> m ()
-  onPut _ = fail "Please implement 'onPut' when you define 'ValueT'"
+  onPut _ = error "Please implement 'onPut' when you define 'ValueT'"
 
   onDelta :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
           => Int
           -> EnumValueKeyT s
           -> m ()
-  onDelta _ _ = fail "Please implement 'onDelta' when you define 'EnumValueKeyT'"
+  onDelta _ _ = error "Please implement 'onDelta' when you define 'EnumValueKeyT'"
 
 -- | Methods related to the lifecycle of a client. Note that client-specific infos
 -- ('ClientId' and connection) are available through 'MonadReader' 'ConstClientView',

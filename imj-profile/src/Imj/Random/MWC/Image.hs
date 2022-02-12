@@ -43,7 +43,7 @@ mkMWC256Image seed sz@(Size (Length h) (Length w)) proba =
           MaterialAndKey 0xFFFF -> minBound :: Word8
           MaterialAndKey _ -> maxBound :: Word8)
       w h
-  genImg _ = fail "logic"
+  genImg _ = error "logic"
 
 
 mkMWC256ImageGray :: SeedNumber -> Size -> IO (Image Word8)
@@ -66,7 +66,7 @@ mkMWC256ImageGray seed sz@(Size (Length h) (Length w)) =
     return $ generateImage
       (\i j -> v S.! (i + j*w))
       w h
-  genImg _ = fail "logic"
+  genImg _ = error "logic"
 
 
 mkMWC256ImageGray' :: SeedNumber -> Size -> IO (Image Word8)
@@ -85,7 +85,7 @@ mkMWC256ImageGray' seed sz@(Size (Length h) (Length w)) =
     return $ generateImage
       (\i j -> v S.! (i + j*w))
       w h
-  genImg _ = fail "logic"
+  genImg _ = error "logic"
 
 mkMWC256ImageRGB :: SeedNumber -> Size -> IO (Image PixelRGB8)
 mkMWC256ImageRGB seed sz@(Size (Length h) (Length w)) =
@@ -109,4 +109,4 @@ mkMWC256ImageRGB seed sz@(Size (Length h) (Length w)) =
 --            w4 = fromIntegral (w32 `shiftR` 24) :: Word8
         in PixelRGB8 w1 w2 w3)
       w h
-  genImg _ = fail "logic"
+  genImg _ = error "logic"

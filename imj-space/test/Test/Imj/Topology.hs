@@ -112,7 +112,7 @@ testComponentsSizesWellDistributed = do
   forM_' matricesWithNWellDistributedComponentsSpaceWellUsed
     (\(expected, m@(_,mat)) -> do
       mapM_ putStrLn $ showInBox' $ writeWorld mat
-      either (fail "expected Right") (const $ return ()) $ uncurry (matchTopology (NCompsRequiredWithMargin 100) expected) m)
+      either (error "expected Right") (const $ return ()) $ uncurry (matchTopology (NCompsRequiredWithMargin 100) expected) m)
 
 testComponentsNearby :: IO ()
 testComponentsNearby = do
@@ -222,7 +222,7 @@ verifyAirKeys onError name v nAir = do
         | otherwise = [0.. fromIntegral $ nAir-1]
   when (sortedUniqueAirKeys /= expectedAirKeys) $ do
     onError
-    fail $ name ++ ":air keys are wrong:" ++ show(expectedAirKeys,sortedUniqueAirKeys)
+    error $ name ++ ":air keys are wrong:" ++ show(expectedAirKeys,sortedUniqueAirKeys)
   return ()
 
 generateAtLeastN :: Int -> IO [a] -> IO [a]
@@ -241,7 +241,7 @@ countAirElements m@(SmallMatInfo nAir l) = do
   verifyMat "countAirElements" m
   if nAir == nAir'
     then return nAir
-    else fail $ "mismatch nAir" ++ show(nAir, nAir')
+    else error $ "mismatch nAir" ++ show(nAir, nAir')
 
 -- Test deactivated, it actually fails, and shows that we need to make sure
 -- the sum of lower bounds is smaller than the total number of blocks, else
@@ -634,13 +634,13 @@ matricesWithNNotWellDistributedComponents = map (fmap readWorld) [
 
 shouldNotBe :: (Show a, Eq a) => a -> a -> IO ()
 shouldNotBe actual unexpected =
-  when (actual == unexpected) $ fail $ "didn't expect\n" ++ show unexpected
+  when (actual == unexpected) $ error $ "didn't expect\n" ++ show unexpected
 
 
 shouldBeBiggerOrEqualTo :: (Show a, Ord a) => a -> a -> IO ()
 shouldBeBiggerOrEqualTo actual minValue =
-  unless (actual >= minValue) $ fail $ "expected >= \n" ++ show minValue ++ " but got\n" ++ show actual
+  unless (actual >= minValue) $ error $ "expected >= \n" ++ show minValue ++ " but got\n" ++ show actual
 
 shouldBe :: (Show a, Eq a) => a -> a -> IO ()
 shouldBe actual expected =
-  unless (actual == expected) $ fail $ "expected\n" ++ show expected ++ " but got\n" ++ show actual
+  unless (actual == expected) $ error $ "expected\n" ++ show expected ++ " but got\n" ++ show actual

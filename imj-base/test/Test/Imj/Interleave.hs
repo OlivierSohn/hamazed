@@ -63,7 +63,7 @@ testInterleaveHalves = do
             Right
             res)
           (Left $ equivalents [0..pred len])
-          [1.. 100] >>= either (fail $ "not enough iterations " ++ show len) final
+          [1.. 100] >>= either (error $ "not enough iterations " ++ show len) final
   -- verify formula for countUsefulInterleavedVariations:
   mapM_
     (\len -> f len (`shouldBe` countUsefulInterleavedVariations len))

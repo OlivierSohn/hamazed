@@ -962,13 +962,13 @@ loadInstrument = doesFileExist instrumentFile >>= bool
     bl <- BL.readFile instrumentFile
     let len = BL.length bl
     either
-      (\(_,offset,msg) -> fail $ "The file '" ++ instrumentFile ++ "' is corrupt:" ++ show (offset,msg))
+      (\(_,offset,msg) -> error $ "The file '" ++ instrumentFile ++ "' is corrupt:" ++ show (offset,msg))
       (\(_,offset,res :: Instrument) ->
         if fromIntegral len == offset
           then
             return res
           else
-            fail $ "Not all content has been used :" ++ show (len,offset) ) $
+            error $ "Not all content has been used :" ++ show (len,offset) ) $
       (decodeOrFail bl))
 
 saveInstrument :: Instrument -> IO ()

@@ -159,7 +159,7 @@ mkRandomlyFilledSpace :: Int
                       -- and the required number of components.
                       -> IO (MkSpaceResult BigWorld, Maybe (Properties, Statistics))
 mkRandomlyFilledSpace blockSize wallAirRatio s nComponents continue gens optStrats
-  | blockSize <= 0 = fail $ "block size should be strictly positive : " ++ show blockSize
+  | blockSize <= 0 = error $ "block size should be strictly positive : " ++ show blockSize
   | otherwise = do
       --putStrLn $ "wallAirRatio" ++ show wallAirRatio
       (closeWorld@(SWCharacteristics smallSz _ _), OptimalStrategy strategy _) <- go blockSize

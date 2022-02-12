@@ -44,4 +44,4 @@ mkSystemRandomImage (SeedNumber seed) (Size (Length h) (Length w)) proba = do
                   minBound :: Word8
                 else
                   maxBound :: Word8
-            _ -> fail "logic")
+            _ -> error "logic")

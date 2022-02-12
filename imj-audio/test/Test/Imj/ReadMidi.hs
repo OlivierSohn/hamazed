@@ -28,7 +28,7 @@ testReadMidi = do
           >>= \case
         (Right (Right (Right (Right an)))) ->
           hasFinishedConsistently an `shouldBe` Right ()
-        _ -> fail ""
+        _ -> error ""
 
       -- verify successive initialization / deinitialization is ok
       usingAudioOutput(
@@ -36,7 +36,7 @@ testReadMidi = do
           >>= \case
         (Right (Right an)) ->
           hasFinishedConsistently an `shouldBe` Right ()
-        _ -> fail ""
+        _ -> error ""
       )
 
 

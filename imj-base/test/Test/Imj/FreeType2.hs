@@ -105,7 +105,7 @@ drawItem face = do
   FT_Vector x _ <- peek $ advance slot
   case quotRem x 64 of
     (s, 0) -> putStrLn $ show c ++ '\t': show s
-    _      -> fail "rem font size"
+    _      -> error "rem font size"
   -}
   bm <- peek $ bitmap slot
   left <- peek $ bitmap_left slot

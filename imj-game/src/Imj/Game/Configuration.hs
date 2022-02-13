@@ -46,11 +46,15 @@ instance Audio WithAudio where
   withAudio (WithAudio yes) maxMidiJitter x
     | yes = do
         liftIO $ setMaxMIDIJitter maxMidiJitter
-        usingAudioOutput x >>= either (error . show) return
+        usingAudioOutput action >>= either (error . show) return
     | otherwise = x
+   where
+     action = do
+       liftIO $ void $ laserSound (NoteVelocity 0)  -- just to initialize the noise
+       x
 
   triggerLaserSound (WithAudio useAudio)
-    | useAudio = liftIO $ void $ laserSound
+    | useAudio = liftIO $ void $ laserSound (NoteVelocity 1)
     | otherwise = return ()
 
   playMusic (WithAudio useAudio) instrumentMap mus

@@ -9,20 +9,23 @@ import           Control.Concurrent(threadDelay, forkIO)
 
 import           Imj.Audio
 
-laserProgram :: Int
-laserProgram = 11
-
 laserNote :: MidiPitch
 laserNote = 60
 
-laserSound :: IO ()
-laserSound = do
+laserSound :: NoteVelocity -> IO ()
+laserSound velocity = do
   let (noteName,octave) = midiPitchToNoteAndOctave laserNote
-      n = InstrumentNote noteName octave (Wind laserProgram)
+      envelope = AHDSR'Envelope
+          100 1200 200 15600
+          (Eased EaseIn Exp)
+          (Eased EaseInOut Exp)
+          (Eased EaseOut Exp)
+          0.665
+      n = InstrumentNote noteName octave (Synth Noise AutoRelease envelope)
       voiceId = VoiceId 0
-  play (StartNote Nothing n (NoteVelocity 1) panCentered) voiceId >>= either
+  play (StartNote Nothing n velocity panCentered) voiceId >>= either
     (return)
     (const $ void $ forkIO $ do
-      threadDelay (1000*60)  -- microseconds
+      threadDelay (1000*600)  -- microseconds
       void $ play (StopNote Nothing n) voiceId
       return ())

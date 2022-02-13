@@ -58,6 +58,18 @@ VoiceWindImpl & windVoice()
   return v;
 }
 
+std::mutex & windVoiceMutex()
+{
+  static std::mutex mut;
+  return mut;
+}
+
+NoteIdsGenerator & windVoiceNoteIdsGen()
+{
+  static NoteIdsGenerator gen(150);
+  return gen;
+}
+
 } // NS imajuscule::audio
 
 #endif

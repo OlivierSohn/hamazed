@@ -203,7 +203,7 @@ setMaxMIDIJitter = setMaxMIDIJitter_ . (*1000) . fromIntegral
 --
 -- This function should be called from an action
 -- run with 'usingAudioOutput' or 'usingAudioOutputWithMinLatency'.
--- If this is not the case, it hans no effect and returns 'False'.
+-- If this is not the case, it has no effect and returns 'Left ()'.
 play :: MusicalEvent Instrument
      -> VoiceId
      -- ^ Internally, each "instrument" has a separate domain for note ids.

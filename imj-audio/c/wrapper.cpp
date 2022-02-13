@@ -490,9 +490,11 @@ extern "C" {
     if(unlikely(!getAudioContext().Initialized())) {
       return false;
     }
-    auto voicing = Voicing(program,pitch,velocity,0.f,true,0);
+    const auto voicing = Voicing(program,pitch,velocity,0.f,true,0);
+    std::lock_guard _(windVoiceMutex());
+    const NoteId note_id = windVoiceNoteIdsGen().NoteOnId(pitch);
     // TODO use pan
-    return convert(playOneThing(getAudioContext().getSampleRate(),getMidi(),windVoice(),getStepper(),voicing));
+    return convert(playOneThing(getAudioContext().getSampleRate(),getMidi(),windVoice(),getStepper(),voicing, note_id));
   }
 
   bool effectOff(int voice, int16_t pitch) {
@@ -503,7 +505,9 @@ extern "C" {
     if(unlikely(!getAudioContext().Initialized())) {
       return false;
     }
-    return convert(stopPlaying(getAudioContext().getSampleRate(), windVoice(),getStepper(),pitch));
+    std::lock_guard _(windVoiceMutex());
+    const NoteId note_id = windVoiceNoteIdsGen().NoteOffId(pitch);
+    return convert(stopPlaying(getAudioContext().getSampleRate(), windVoice(),getStepper(),note_id));
   }
 
   bool getConvolutionReverbSignature_(const char * dirPath, const char * filePath, spaceResponse_t * r) {

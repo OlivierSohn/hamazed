@@ -23,6 +23,6 @@ laserSound = do
   play (StartNote Nothing n (NoteVelocity 1) panCentered) voiceId >>= either
     (return)
     (const $ void $ forkIO $ do
-      threadDelay (1000*60)
+      threadDelay (1000*60)  -- microseconds
       void $ play (StopNote Nothing n) voiceId
       return ())

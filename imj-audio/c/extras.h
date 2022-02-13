@@ -672,7 +672,10 @@ private:
 
     using VoiceWindImpl = Voice<audioEnginePolicy, nAudioOut, audioelement::SoundEngineMode::WIND, HandleNoteOff::Yes>;
 
+
+    std::mutex & windVoiceMutex();
     VoiceWindImpl & windVoice();
+    NoteIdsGenerator & windVoiceNoteIdsGen();
 
 } // NS imajuscule::audio
 
